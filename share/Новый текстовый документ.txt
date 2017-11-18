@@ -1,0 +1,17 @@
+    obj/crypto/aes_helper.o \
+    obj/crypto/blake.o \
+    obj/crypto/bmw.o \
+    obj/crypto/cubehash.o \
+    obj/crypto/fugue.o \
+    obj/crypto/hamsi.o \
+    obj/crypto/hamsi_helper.o \
+    obj/crypto/panama.o \
+    obj/crypto/sha2.o \
+    obj/crypto/echo.o \
+    obj/crypto/groestl.o \
+    obj/crypto/jh.o \
+    obj/crypto/keccak.o \
+    obj/crypto/luffa.o \
+    obj/crypto/shavite.o \
+    obj/crypto/simd.o \
+    obj/crypto/skein.o
