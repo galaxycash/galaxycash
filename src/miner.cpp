@@ -444,9 +444,9 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     uint256 hashBlock = pblock->GetHash();
     uint256 hashProof = pblock->GetPoWHash();
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
-    if (hashProof > hashTarget)
+    if (UintToArith256(hashProof) > hashTarget)
         return error("CheckWork() : proof-of-work not meeting target");
 
     //// debug print
@@ -520,7 +520,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
         LogPrintf("Running GalaxyCashMiner with %llu transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
         
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
 	int64_t nStart = GetTime();
 	uint256 hash;
 
@@ -580,7 +580,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
             if (TestNet())
             {
                 // Changing pblock->nTime can change work required on testnet:
-                hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+                hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
             }
         }
     } }

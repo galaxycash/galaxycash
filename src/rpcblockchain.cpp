@@ -26,6 +26,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
     if (blockindex == NULL)
         return 1.0;
 
+
     int nShift = (blockindex->nBits >> 24) & 0xff;
 
     double dDiff =
@@ -143,7 +144,7 @@ Value getdifficulty(const Array& params, bool fHelp)
         throw runtime_error(
             "getdifficulty\n"
             "Returns the difficulty as a multiple of the minimum difficulty.");
-    return GetDifficulty(NULL);
+    return GetDifficulty(pindexBest);
 }
 
 

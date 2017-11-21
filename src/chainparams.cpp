@@ -56,9 +56,14 @@ public:
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
 
+        // Ports
         nDefaultPort = 7604;
         nRPCPort = 4604;
-        bnProofOfWorkLimit = CBigNum(~uint256(0) >> 20);
+
+        // POW params
+        powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
+        nPowTargetSpacing = 3 * 60; // 3 minutes
+        nPowTargetTimespan = 6 * 60 * 60; // 6 hours
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot
         // be spent as it did not originally exist in the database.
@@ -73,19 +78,19 @@ public:
         vout.resize(1);
         vout[0].SetEmpty();
 
-        CTransaction txNew(1, 1508070915, vin, vout, 0);
+        CTransaction txNew(1, 1511100000, vin, vout, 0);
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
-        genesis.nVersion = 1;
-        genesis.nTime    = 1508070915;
-        genesis.nBits    = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce   = 611237;
+        genesis.nVersion = 9;
+        genesis.nTime    = 1511208000;
+        genesis.nBits    = UintToArith256(powLimit).GetCompact();
+        genesis.nNonce   = 1986208;
 
         hashGenesisBlock = genesis.GetHash();
 
-        assert(hashGenesisBlock == uint256("0x000000135201f8c8cd8f353511d9a73d463e5f9883cdd430277b962229549f92"));
-        assert(genesis.hashMerkleRoot == uint256("0x3081e1468bc0b3162670cfc8635880816fd3b330827b98d9ed99fbc52c89eff7"));
+        assert(hashGenesisBlock == uint256S("0x0000023a0c024e3de098954961530f0491c1b78f1c4fba9e9601673d7bd85b7c"));
+        assert(genesis.hashMerkleRoot == uint256S("0x43580fb123f142578ca6c1e6f4ce411b551279e1968a875e6b493ec3da51bdb9"));
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("galaxycash.host", "193.124.0.135"));
@@ -120,6 +125,8 @@ static CMainParams mainParams;
 class CTestNetParams : public CMainParams {
 public:
     CTestNetParams() {
+        strDataDir = "testnet";
+
         // The message start string is designed to be unlikely to occur in normal data.
         // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
         // a large 4-byte int at any alignment.
@@ -127,18 +134,23 @@ public:
         pchMessageStart[1] = 0x2a;
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
-        bnProofOfWorkLimit = CBigNum(~uint256(0) >> 8);
+
+        // POW params
+        powLimit = uint256S("000fffff00000000000000000000000000000000000000000000000000000000");
+
+        // Ports
         nDefaultPort = 17604;
         nRPCPort = 14604;
-        strDataDir = "testnet";
+
 
         // Modify the testnet genesis block so the timestamp is valid for a later start.
-        genesis.nBits  = bnProofOfWorkLimit.GetCompact();
-        genesis.nTime  = 1508070915;
-        genesis.nNonce = 261;
+        genesis.nBits  = UintToArith256(powLimit).GetCompact();
+        genesis.nTime  = 1511208000;
+        genesis.nNonce = 4500;
 
         hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0x0095d5d1dbedc643279dc5f51a034db3f0a000cce4693a6c4109140d50236465"));
+
+        assert(hashGenesisBlock == uint256S("0x000805c5066f3fadac43ddb33819a07e360529d6345a5e60bdc14564cebca5ee"));
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("galaxycash.host", "193.124.0.135"));
@@ -148,6 +160,7 @@ public:
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,89);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x21)(0x88)(0xB2)(0x23).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x21)(0x88)(0x1D)(0x56).convert_to_container<std::vector<unsigned char> >();
+
 
         vFixedSeeds.clear();
         convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));

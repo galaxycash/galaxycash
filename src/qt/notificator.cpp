@@ -10,6 +10,7 @@
 #include <QMessageBox>
 #include <QTemporaryFile>
 #include <QImageWriter>
+#include "util.h"
 
 #ifdef USE_DBUS
 #include <QtDBus>
@@ -215,6 +216,9 @@ void Notificator::notifyDBus(Class cls, const QString &title, const QString &tex
 
 void Notificator::notifySystray(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout)
 {
+    if (!GetBoolArg("nonotify", false))
+        return;
+
     Q_UNUSED(icon);
     QSystemTrayIcon::MessageIcon sicon = QSystemTrayIcon::NoIcon;
     switch(cls) // Set icon based on class

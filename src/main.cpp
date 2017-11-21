@@ -40,8 +40,6 @@ int nCoinbaseMaturity = 6;
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
-static const int64_t nTargetTimespan = 5 * 60;  // 5 mins
-
 uint256 nBestChainTrust = 0;
 uint256 nBestInvalidTrust = 0;
 
@@ -1001,31 +999,29 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 {
-    // DarkGravityWave v3.1, written by Evan Duffield - evan@dashpay.io
-    // Modified & revised by bitbandi for PoW support [implementation (fork) cleanup done by CryptoCoderz]
-    const CBigNum nProofOfWorkLimit = Params().ProofOfWorkLimit();
-    const CBlockIndex *BlockLastSolved = GetLastBlockIndex(pindexLast);
-    const CBlockIndex *BlockReading = BlockLastSolved;
+    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = 7;
+    int64_t PastBlocksMin = 24;
     int64_t PastBlocksMax = 24;
     int64_t CountBlocks = 0;
-    int64_t nTargetSpacing = GetTargetSpacing(pindexLast->nHeight);
-    CBigNum PastDifficultyAverage;
-    CBigNum PastDifficultyAveragePrev;
+    arith_uint256 PowLimit = UintToArith256(Params().ProofOfWorkLimit());
+    arith_uint256 PastDifficultyAverage;
+    arith_uint256 PastDifficultyAveragePrev;
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMax)
-        return nProofOfWorkLimit.GetCompact();
-
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+        return PowLimit.GetCompact();
+    }
 
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
         if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
-            CountBlocks++;
+        CountBlocks++;
 
         if(CountBlocks <= PastBlocksMin) {
             if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
-            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (CBigNum().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
+            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
             PastDifficultyAveragePrev = PastDifficultyAverage;
         }
 
@@ -1034,12 +1030,14 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
             nActualTimespan += Diff;
         }
         LastBlockTime = BlockReading->GetBlockTime();
-        BlockReading = GetLastBlockIndex(BlockReading->pprev);
+
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = BlockReading->pprev;
     }
 
-    CBigNum bnNew(PastDifficultyAverage);
+    arith_uint256 bnNew(PastDifficultyAverage);
 
-    int64_t _nTargetTimespan = CountBlocks * nTargetSpacing;
+    int64_t _nTargetTimespan = CountBlocks * Params().PowTargetSpacing();
 
     if (nActualTimespan < _nTargetTimespan/3)
         nActualTimespan = _nTargetTimespan/3;
@@ -1050,8 +1048,8 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
     bnNew *= nActualTimespan;
     bnNew /= _nTargetTimespan;
 
-    if (bnNew > nProofOfWorkLimit){
-        bnNew = nProofOfWorkLimit;
+    if (bnNew > PowLimit){
+        bnNew = PowLimit;
     }
 
     return bnNew.GetCompact();
@@ -1059,53 +1057,16 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast)
 {
-    // Old retarget
-    /*CBigNum bnTargetLimit = Params().ProofOfWorkLimit();
-
-    if (pindexLast == NULL)
-        return bnTargetLimit.GetCompact(); // genesis block
-
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast);
-    if (pindexPrev->pprev == NULL)
-        return bnTargetLimit.GetCompact(); // first block
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev);
-    if (pindexPrevPrev->pprev == NULL)
-        return bnTargetLimit.GetCompact(); // second block
-
-    int64_t nTargetSpacing = GetTargetSpacing(pindexLast->nHeight);
-    int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-    if (nActualSpacing < 0)
-            nActualSpacing = nTargetSpacing;
-
-    if (nActualSpacing > nTargetSpacing * 10)
-            nActualSpacing = nTargetSpacing * 10;
-
-
-    // ppcoin: target change every block
-    // ppcoin: retarget with exponential moving toward target spacing
-    CBigNum bnNew;
-    bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = nTargetTimespan / nTargetSpacing;
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-    bnNew /= ((nInterval + 1) * nTargetSpacing);
-
-    if (bnNew <= 0 || bnNew > bnTargetLimit)
-        bnNew = bnTargetLimit;
-
-    return bnNew.GetCompact();
-    */
-
-    // Retarget using Dark Gravity Wave v3
     return DarkGravityWave(pindexLast);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
-    CBigNum bnTarget;
+    arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
 
     // Check range
-    if (bnTarget <= 0 || bnTarget > Params().ProofOfWorkLimit())
+    if (bnTarget <= 0 || bnTarget > UintToArith256(Params().ProofOfWorkLimit()))
         return error("CheckProofOfWork() : nBits below minimum work");
 
     // Check proof of work matches claimed amount
@@ -1997,7 +1958,7 @@ bool CBlock::AcceptBlock()
 {
     AssertLockHeld(cs_main);
 
-    if (GetVersion() > CURRENT_VERSION)
+    if (GetVersion() < MINIMAL_VERSION || GetVersion() > CURRENT_VERSION)
         return DoS(100, error("AcceptBlock() : reject unknown block version %d", nVersion));
 
     // Check for duplicate

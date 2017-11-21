@@ -159,7 +159,6 @@ HEADERS += src/qt/galaxycashgui.h \
     src/qt/galaxycashaddressvalidator.h \
     src/addrman.h \
     src/base58.h \
-    src/bignum.h \
     src/chainparams.h \
     src/chainparamsseeds.h \
     src/checkpoints.h \
@@ -168,7 +167,9 @@ HEADERS += src/qt/galaxycashgui.h \
     src/sync.h \
     src/util.h \
     src/hash.h \
+    src/bignum.h \
     src/uint256.h \
+    src/arith_uint256.h \
     src/scrypt.h \
     src/pbkdf2.h \
     src/serialize.h \
@@ -268,6 +269,7 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/version.cpp \
     src/sync.cpp \
     src/txmempool.cpp \
+    src/arith_uint256.cpp \
     src/util.cpp \
     src/hash.cpp \
     src/netbase.cpp \

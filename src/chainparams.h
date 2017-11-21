@@ -6,8 +6,7 @@
 #ifndef GALAXYCASH_CHAIN_PARAMS_H
 #define GALAXYCASH_CHAIN_PARAMS_H
 
-#include "bignum.h"
-#include "uint256.h"
+#include "arith_uint256.h"
 #include "util.h"
 #include "script.h"
 
@@ -57,7 +56,7 @@ public:
     const uint256& HashGenesisBlock() const { return hashGenesisBlock; }
     const MessageStartChars& MessageStart() const { return pchMessageStart; }
     int GetDefaultPort() const { return nDefaultPort; }
-    const CBigNum& ProofOfWorkLimit() const { return bnProofOfWorkLimit; }
+    const uint256& ProofOfWorkLimit() const { return powLimit; }
     int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
     virtual const CBlock& GenesisBlock() const = 0;
     virtual bool RequireRPCPassword() const { return true; }
@@ -67,6 +66,9 @@ public:
     const std::vector<unsigned char> &Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     virtual const vector<CAddress>& FixedSeeds() const = 0;
     int RPCPort() const { return nRPCPort; }
+    int64_t PowTargetTimespan() const { return nPowTargetTimespan; }
+    int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
+    int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
 
 protected:
     CChainParams() {};
@@ -75,7 +77,9 @@ protected:
     MessageStartChars pchMessageStart;
     int nDefaultPort;
     int nRPCPort;
-    CBigNum bnProofOfWorkLimit;
+    int64_t nPowTargetTimespan;
+    int64_t nPowTargetSpacing;
+    uint256 powLimit;
     int nSubsidyHalvingInterval;
     string strDataDir;
     vector<CDNSSeedData> vSeeds;

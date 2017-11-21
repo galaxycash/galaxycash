@@ -59,8 +59,8 @@ static const char *MASTER_ADDRESS = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
 static const int64_t MASTER_REWARD_PERCENT = 16;
 
 
-inline int64_t FutureDrift(int64_t nTime, int nHeight) { return nTime + 60 * 60 + 15; }
-inline unsigned int GetTargetSpacing(int nHeight) {return 182; }
+inline int64_t FutureDrift(int64_t nTime, int nHeight) { return nTime + 2 * 60 * 60; }
+inline unsigned int GetTargetSpacing(int nHeight) {return 360; }
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
@@ -565,7 +565,8 @@ public:
 class CBlock
 {
 public:
-    static const int CURRENT_VERSION = 7;
+    static const int MINIMAL_VERSION = 9;
+    static const int CURRENT_VERSION = 9;
 
     int nVersion;
     uint256 hashPrevBlock;
