@@ -107,6 +107,7 @@ public:
 
     virtual const CBlock& GenesisBlock() const { return genesis; }
     virtual Network NetworkID() const { return CChainParams::MAIN; }
+    virtual string NetworkIDString() const { return "main"; }
 
     virtual const vector<CAddress>& FixedSeeds() const {
         return vFixedSeeds;
@@ -166,6 +167,7 @@ public:
         convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
     }
     virtual Network NetworkID() const { return CChainParams::TESTNET; }
+    virtual string NetworkIDString() const { return "main"; }
 };
 static CTestNetParams testNetParams;
 

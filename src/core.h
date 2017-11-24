@@ -25,7 +25,7 @@ public:
     COutPoint(uint256 hashIn, unsigned int nIn) { hash = hashIn; n = nIn; }
     IMPLEMENT_SERIALIZE( READWRITE(FLATDATA(*this)); )
     void SetNull() { hash = 0; n = (unsigned int) -1; }
-    bool IsNull() const { return (hash == 0 && n == (unsigned int) -1); }
+    bool IsNull() const { return (hash == 0); }
 
     friend bool operator<(const COutPoint& a, const COutPoint& b)
     {

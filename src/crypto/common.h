@@ -5,13 +5,9 @@
 #ifndef BITCOIN_CRYPTO_COMMON_H
 #define BITCOIN_CRYPTO_COMMON_H
 
-#if defined(HAVE_CONFIG_H)
-#include "dash-config.h"
-#endif
-
 #include <stdint.h>
 
-#include "crypto/endian.h"
+#include "endian.h"
 
 uint16_t static inline ReadLE16(const unsigned char* ptr)
 {

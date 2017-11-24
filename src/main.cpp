@@ -1057,6 +1057,9 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast)
 {
+    if (Params().NetworkID() == CChainParams::Network::TESTNET)
+        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
+        
     return DarkGravityWave(pindexLast);
 }
 

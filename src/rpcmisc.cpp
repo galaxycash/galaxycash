@@ -39,7 +39,7 @@ Value getinfo(const Array& params, bool fHelp)
 
     Object obj;
 
-    obj.push_back(Pair("version",       FormatFullVersion()));
+    obj.push_back(Pair("version",       CLIENT_VERSION));
     obj.push_back(Pair("protocolversion",(int)PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
     if (pwalletMain) {

@@ -5,13 +5,9 @@
 #ifndef BITCOIN_COMPAT_ENDIAN_H
 #define BITCOIN_COMPAT_ENDIAN_H
 
-#if defined(HAVE_CONFIG_H)
-#include "config/dash-config.h"
-#endif
-
 #include <stdint.h>
 
-#include "crypto/byteswap.h"
+#include "byteswap.h"
 
 #if defined(HAVE_ENDIAN_H)
 #include <endian.h>
