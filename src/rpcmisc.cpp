@@ -55,7 +55,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    obj.push_back(Pair("difficulty",    GetDifficulty()));
+    obj.push_back(Pair("difficulty",    GetDifficulty(pindexBest)));
 
     obj.push_back(Pair("testnet",       TestNet()));
 #ifdef ENABLE_WALLET

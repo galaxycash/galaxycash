@@ -1,32 +1,16 @@
 TEMPLATE = app
-TARGET = galaxycash-qt
+TARGET = galaxycashd
 VERSION = 1.1.1.0
-INCLUDEPATH += src src/json src/qt
-QT += network
-DEFINES += QT_STATIC_BUILD
+INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
+CONFIG += console c++11
 CONFIG += no_include_pwd
 CONFIG += thread static
+CONFIG -= app_bundle
+CONFIG -= qt
 
-greaterThan(QT_MAJOR_VERSION, 4) {
-    QT += widgets
-    DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0
-}
-
-# for boost 1.37, add -mt to the boost libraries
-# use: qmake BOOST_LIB_SUFFIX=-mt
-# for boost thread win32 with _win32 sufix
-# use: BOOST_THREAD_LIB_SUFFIX=_win32-...
-# or when linking against a specific BerkelyDB version: BDB_LIB_SUFFIX=-4.8
-
-# Dependency library locations can be customized with:
-#    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
-#    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
-
-OBJECTS_DIR = build
-MOC_DIR = build
-UI_DIR = build
+OBJECTS_DIR = build_daemon
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
@@ -53,13 +37,6 @@ QMAKE_LFLAGS *= -fstack-protector-all --param ssp-buffer-size=1
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat -static
 win32:QMAKE_LFLAGS += -static-libgcc -static-libstdc++
 
-# use: qmake "USE_QRCODE=1"
-# libqrencode (http://fukuchi.org/works/qrencode/index.en.html) must be installed for support
-contains(USE_QRCODE, 1) {
-    message(Building with QRCode support)
-    DEFINES += USE_QRCODE
-    LIBS += -lqrencode
-}
 
 # use: qmake "USE_UPNP=1" ( enabled by default; default)
 #  or: qmake "USE_UPNP=0" (disabled by default)
@@ -77,22 +54,6 @@ contains(USE_UPNP, -) {
     LIBS += $$join(MINIUPNPC_LIB_PATH,,-L,) -lminiupnpc
     win32:LIBS += -liphlpapi
 }
-
-# use: qmake "USE_DBUS=1" or qmake "USE_DBUS=0"
-linux:count(USE_DBUS, 0) {
-    USE_DBUS=1
-}
-contains(USE_DBUS, 1) {
-    message(Building with DBUS (Freedesktop notifications) support)
-    DEFINES += USE_DBUS
-    QT += dbus
-}
-
-contains(GCH_NEED_QT_PLUGINS, 1) {
-    DEFINES += GCH_NEED_QT_PLUGINS
-    QTPLUGIN += qcncodecs qjpcodecs qtwcodecs qkrcodecs qtaccessiblewidgets
-}
-
 
 INCLUDEPATH += src/leveldb/include src/leveldb/helpers
 LIBS += $$PWD/src/leveldb/libleveldb.a $$PWD/src/leveldb/libmemenv.a
@@ -119,9 +80,9 @@ QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) cl
 # regenerate src/build.h
 !windows|contains(USE_BUILD_INFO, 1) {
     genbuild.depends = FORCE
-    genbuild.commands = cd $$PWD; /bin/sh share/genbuild.sh $$OUT_PWD/build/build.h
-    genbuild.target = $$OUT_PWD/build/build.h
-    PRE_TARGETDEPS += $$OUT_PWD/build/build.h
+    genbuild.commands = cd $$PWD; /bin/sh share/genbuild.sh $$OUT_PWD/build_daemon/build.h
+    genbuild.target = $$OUT_PWD/build_daemon/build.h
+    PRE_TARGETDEPS += $$OUT_PWD/build_daemon/build.h
     QMAKE_EXTRA_TARGETS += genbuild
     DEFINES += HAVE_BUILD_INFO
 }
@@ -144,20 +105,8 @@ contains(USE_O3, 1) {
 QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector
 
 # Input
-DEPENDPATH += src src/json src/qt
-HEADERS += src/qt/galaxycashgui.h \
-    src/qt/transactiontablemodel.h \
-    src/qt/addresstablemodel.h \
-    src/qt/optionsdialog.h \
-    src/qt/coincontroldialog.h \
-    src/qt/coincontroltreewidget.h \
-    src/qt/sendcoinsdialog.h \
-    src/qt/addressbookpage.h \
-    src/qt/signverifymessagedialog.h \
-    src/qt/aboutdialog.h \
-    src/qt/editaddressdialog.h \
-    src/qt/galaxycashaddressvalidator.h \
-    src/addrman.h \
+DEPENDPATH += src src/json
+HEADERS += src/addrman.h \
     src/base58.h \
     src/chainparams.h \
     src/chainparamsseeds.h \
@@ -194,40 +143,16 @@ HEADERS += src/qt/galaxycashgui.h \
     src/json/json_spirit_reader.h \
     src/json/json_spirit_error_position.h \
     src/json/json_spirit.h \
-    src/qt/clientmodel.h \
-    src/qt/guiutil.h \
-    src/qt/transactionrecord.h \
-    src/qt/guiconstants.h \
-    src/qt/optionsmodel.h \
-    src/qt/monitoreddatamapper.h \
-    src/qt/trafficgraphwidget.h \
-    src/qt/transactiondesc.h \
-    src/qt/transactiondescdialog.h \
-    src/qt/galaxycashamountfield.h \
     src/wallet.h \
     src/keystore.h \
-    src/qt/transactionfilterproxy.h \
-    src/qt/transactionview.h \
-    src/qt/walletmodel.h \
     src/rpcclient.h \
     src/rpcprotocol.h \
     src/rpcserver.h \
     src/timedata.h \
-    src/qt/overviewpage.h \
-    src/qt/csvmodelwriter.h \
     src/crypter.h \
-    src/qt/sendcoinsentry.h \
-    src/qt/qvalidatedlineedit.h \
-    src/qt/galaxycashunits.h \
-    src/qt/qvaluecombobox.h \
-    src/qt/askpassphrasedialog.h \
     src/protocol.h \
-    src/qt/notificator.h \
-    src/qt/paymentserver.h \
     src/allocators.h \
     src/ui_interface.h \
-    src/qt/rpcconsole.h \
-    src/qt/blockbrowser.h \
     src/version.h \
     src/netbase.h \
     src/clientversion.h \
@@ -253,18 +178,7 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_skein.h \
     src/crypto/sph_types.h
 
-SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
-    src/qt/transactiontablemodel.cpp \
-    src/qt/addresstablemodel.cpp \
-    src/qt/optionsdialog.cpp \
-    src/qt/sendcoinsdialog.cpp \
-    src/qt/coincontroldialog.cpp \
-    src/qt/coincontroltreewidget.cpp \
-    src/qt/addressbookpage.cpp \
-    src/qt/signverifymessagedialog.cpp \
-    src/qt/aboutdialog.cpp \
-    src/qt/editaddressdialog.cpp \
-    src/qt/galaxycashaddressvalidator.cpp \
+SOURCES += src/galaxycashd.cpp \
     src/chainparams.cpp \
     src/version.cpp \
     src/sync.cpp \
@@ -284,21 +198,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/addrman.cpp \
     src/db.cpp \
     src/walletdb.cpp \
-    src/qt/clientmodel.cpp \
-    src/qt/guiutil.cpp \
-    src/qt/transactionrecord.cpp \
-    src/qt/optionsmodel.cpp \
-    src/qt/monitoreddatamapper.cpp \
-    src/qt/trafficgraphwidget.cpp \
-    src/qt/transactiondesc.cpp \
-    src/qt/transactiondescdialog.cpp \
-    src/qt/galaxycashstrings.cpp \
-    src/qt/galaxycashamountfield.cpp \
     src/wallet.cpp \
     src/keystore.cpp \
-    src/qt/transactionfilterproxy.cpp \
-    src/qt/transactionview.cpp \
-    src/qt/walletmodel.cpp \
     src/rpcclient.cpp \
     src/rpcprotocol.cpp \
     src/rpcserver.cpp \
@@ -310,19 +211,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/rpcblockchain.cpp \
     src/rpcrawtransaction.cpp \
     src/timedata.cpp \
-    src/qt/overviewpage.cpp \
-    src/qt/csvmodelwriter.cpp \
     src/crypter.cpp \
-    src/qt/sendcoinsentry.cpp \
-    src/qt/qvalidatedlineedit.cpp \
-    src/qt/galaxycashunits.cpp \
-    src/qt/qvaluecombobox.cpp \
-    src/qt/askpassphrasedialog.cpp \
     src/protocol.cpp \
-    src/qt/notificator.cpp \
-    src/qt/paymentserver.cpp \
-    src/qt/rpcconsole.cpp \
-    src/qt/blockbrowser.cpp \
     src/noui.cpp \
     src/scrypt-arm.S \
     src/scrypt-x86.S \
@@ -347,52 +237,12 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/simd.c \
     src/crypto/skein.c
 
-RESOURCES += \
-    src/qt/galaxycash.qrc
-
-FORMS += \
-    src/qt/forms/coincontroldialog.ui \
-    src/qt/forms/sendcoinsdialog.ui \
-    src/qt/forms/addressbookpage.ui \
-    src/qt/forms/signverifymessagedialog.ui \
-    src/qt/forms/aboutdialog.ui \
-    src/qt/forms/editaddressdialog.ui \
-    src/qt/forms/transactiondescdialog.ui \
-    src/qt/forms/overviewpage.ui \
-    src/qt/forms/sendcoinsentry.ui \
-    src/qt/forms/askpassphrasedialog.ui \
-    src/qt/forms/rpcconsole.ui \
-    src/qt/forms/blockbrowser.ui \
-    src/qt/forms/optionsdialog.ui
-
-contains(USE_QRCODE, 1) {
-HEADERS += src/qt/qrcodedialog.h
-SOURCES += src/qt/qrcodedialog.cpp
-FORMS += src/qt/forms/qrcodedialog.ui
-}
-
 CODECFORTR = UTF-8
 
-# for lrelease/lupdate
-# also add new translations to src/qt/galaxycash.qrc under translations/
-TRANSLATIONS = $$files(src/qt/locale/galaxycash_*.ts)
-
-isEmpty(QMAKE_LRELEASE) {
-    win32:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]\\lrelease.exe
-    else:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease
-}
-isEmpty(QM_DIR):QM_DIR = $$PWD/src/qt/locale
-# automatically build translations, so they can be included in resource file
-TSQM.name = lrelease ${QMAKE_FILE_IN}
-TSQM.input = TRANSLATIONS
-TSQM.output = $$QM_DIR/${QMAKE_FILE_BASE}.qm
-TSQM.commands = $$QMAKE_LRELEASE ${QMAKE_FILE_IN} -qm ${QMAKE_FILE_OUT}
-TSQM.CONFIG = no_link
-QMAKE_EXTRA_COMPILERS += TSQM
 
 # "Other files" to show in Qt Creator
 OTHER_FILES += \
-    doc/*.rst doc/*.txt doc/README README.md res/galaxycash-qt.rc
+    doc/*.rst doc/*.txt doc/README README.md src/galaxycashd.rc
 
 # platform specific defaults, if not overridden on command line
 isEmpty(BOOST_LIB_SUFFIX) {
@@ -426,7 +276,7 @@ isEmpty(BOOST_INCLUDE_PATH) {
 }
 
 windows:DEFINES += WIN32
-windows:RC_FILE = src/qt/res/galaxycash-qt.rc
+windows:RC_FILE = src/galaxycashd.rc
 
 windows:!contains(MINGW_THREAD_BUGFIX, 0) {
     # At least qmake's win32-g++-cross profile is missing the -lmingwthrd
@@ -439,20 +289,17 @@ windows:!contains(MINGW_THREAD_BUGFIX, 0) {
     QMAKE_LIBS_QT_ENTRY = -lmingwthrd $$QMAKE_LIBS_QT_ENTRY
 }
 
-macx:HEADERS += src/qt/macdockiconhandler.h
-macx:OBJECTIVE_SOURCES += src/qt/macdockiconhandler.mm
+
 macx:LIBS += -framework Foundation -framework ApplicationServices -framework AppKit
 macx:DEFINES += MAC_OSX MSG_NOSIGNAL=0
-macx:ICON = src/qt/res/icons/galaxycash.icns
-macx:TARGET = "GalaxyCash-Qt"
+macx:TARGET = "galaxycashd"
 macx:QMAKE_CFLAGS_THREAD += -pthread
 macx:QMAKE_LFLAGS_THREAD += -pthread
 macx:QMAKE_CXXFLAGS_THREAD += -pthread
-macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
@@ -471,5 +318,3 @@ contains(RELEASE, 1) {
     DEFINES += LINUX
     LIBS += -lrt -ldl
 }
-
-system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)

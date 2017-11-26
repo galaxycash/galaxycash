@@ -13,7 +13,6 @@ Block time:             3 Minutes
 
 Block reward:           6 GCH, 4 GCH after 10k block, 2 GCH after 100k block, and 16% Master reward
 
-
 Coinbase maturity:      6 blocks
 
 Network info:
