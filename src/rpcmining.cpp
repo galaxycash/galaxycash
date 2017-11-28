@@ -392,8 +392,8 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (vNodes.empty())
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "GalaxyCash is not connected!");
 
-    //if (IsInitialBlockDownload())
-    //    throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
+    if (IsInitialBlockDownload())
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
     // Update block
     static unsigned int nTransactionsUpdatedLast;
@@ -446,7 +446,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx;
         entry.push_back(Pair("data", HexStr(ssTx.begin(), ssTx.end())));
-
+        entry.push_back(Pair("txid", txHash.GetHex()));
         entry.push_back(Pair("hash", txHash.GetHex()));
 
         MapPrevTx mapInputs;
@@ -475,7 +475,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Object aux;
     aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
 
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
 
     static Array aMutable;
     if (aMutable.empty())
@@ -501,6 +501,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
+
     return result;
 }
 
@@ -508,10 +509,8 @@ Value submitblock(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "submitblock <hex data> [optional-params-obj]\n"
-            "[optional-params-obj] parameter is currently ignored.\n"
-            "Attempts to submit new block to network.\n"
-            "See https://en.galaxycash.it/wiki/BIP_0022 for full specification.");
+            "submitblock <hex data>\n"
+            "Attempts to submit new block to network.\n");
 
     vector<unsigned char> blockData(ParseHex(params[0].get_str()));
     CDataStream ssBlock(blockData, SER_NETWORK, PROTOCOL_VERSION);
@@ -521,39 +520,6 @@ Value submitblock(const Array& params, bool fHelp)
     }
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-    }
-
-    if (params.size() > 1)
-    {
-        const Object& oparam = params[1].get_obj();
-
-        const Value& coinstake_v = find_value(oparam, "coinstake");
-        if (coinstake_v.type() == str_type)
-        {
-            vector<unsigned char> txData(ParseHex(coinstake_v.get_str()));
-            CDataStream ssTx(txData, SER_NETWORK, PROTOCOL_VERSION);
-            CTransaction txCoinStake;
-            try {
-                ssTx >> txCoinStake;
-            }
-            catch (std::exception &e) {
-                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Coinstake decode failed");
-            }
-
-            block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
-            block.hashMerkleRoot = block.BuildMerkleTree();
-
-            CPubKey pubkey;
-            if (!pMiningKey->GetReservedKey(pubkey))
-                throw JSONRPCError(RPC_MISC_ERROR, "GetReservedKey failed");
-
-            CKey key;
-            if (!pwalletMain->GetKey(pubkey.GetID(), key))
-                throw JSONRPCError(RPC_MISC_ERROR, "GetKey failed");
-
-            if (!key.Sign(block.GetHash(), block.vchBlockSig))
-                throw JSONRPCError(RPC_MISC_ERROR, "Sign failed");
-        }
     }
 
     bool fAccepted = ProcessBlock(NULL, &block);

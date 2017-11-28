@@ -104,11 +104,11 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
-    result.push_back(Pair("versionHex", strprintf("%08x", block.nVersion)));
+    result.push_back(Pair("versionHex", strprintf("%08x", blockindex->nVersion)));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
-    result.push_back(Pair("mediantime", blockindex->GetMedianTimePast()));
+    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
@@ -271,16 +271,9 @@ Value getblock(const Array& params, bool fHelp)
             "txinfo optional to print more detailed tx info\n"
             "Returns details of a block with given block-hash.");
 
-    int verbosity = 1;
-    if (params.size() > 1)
-    {
-        if (!params[1].is_null())
-            verbosity = params[1].get_int();
-    }
     std::string strHash = params[0].get_str();
     uint256 hash(strHash);
 
-    /*
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
@@ -289,24 +282,19 @@ Value getblock(const Array& params, bool fHelp)
     block.ReadFromDisk(pblockindex, true);
 
     return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
-    */
+}
 
-    if (mapBlockIndex.count(hash) == 0)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+Value getlastblock(const Array& params, bool fHelp)
+{
+    if (fHelp)
+        throw runtime_error(
+            "getlastblock [txinfo]\n"
+            "txinfo optional to print more detailed tx info\n"
+            "Returns details of a block with given block-hash.");
 
     CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    block.ReadFromDisk(pblockindex, true);
-
-    if (verbosity <= 0)
-    {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
-        std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
-        return strHex;
-    }
-
-    return blockToJSON(block, pblockindex, verbosity >= 2);
+    block.ReadFromDisk(pindexBest, true);
+    return blockToJSON(block, pindexBest, params.size() > 0 ? params[0].get_bool() : false);
 }
 
 Value getblockbynumber(const Array& params, bool fHelp)
