@@ -992,7 +992,46 @@ int64_t GetTotalReward(int nFees, int nHeight)
     return GetProofOfWorkReward(nFees, nHeight) + GetMasterReward(nFees, nHeight);
 }
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
+const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo)
+{
+    const CBlockIndex *pindexAlgo = pindex;
+    while (pindexAlgo)
+    {
+        if (pindexAlgo->GetBlockAlgorithm() == algo)
+            return pindexAlgo;
+        else
+        {
+            if (pindexAlgo->pprev)
+                pindexAlgo = pindexAlgo->pprev;
+            else
+                return pindexAlgo;
+        }
+    }
+}
+
+const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo)
+{
+    const CBlockIndex *pindexAlgo = pindex->pprev;
+    if (pindexAlgo == NULL)
+        return NULL;
+
+    while (pindexAlgo)
+    {
+        if (pindexAlgo->GetBlockAlgorithm() == algo)
+            return pindexAlgo;
+        else
+        {
+            if (pindexAlgo->pprev)
+                pindexAlgo = pindexAlgo->pprev;
+            else
+                return NULL;
+        }
+    }
+}
+
+
+// ppcoin: find last block index up to pindex
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
 {
     while (pindex && pindex->pprev)
         pindex = pindex->pprev;
@@ -1002,8 +1041,8 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const CBlockIndex *BlockLastSolved = pindexLast;
-    const CBlockIndex *BlockReading = pindexLast;
+    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, pindexLast->GetBlockAlgorithm());
+    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, pindexLast->GetBlockAlgorithm());
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
     int64_t PastBlocksMin = 24;
@@ -1034,7 +1073,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
         LastBlockTime = BlockReading->GetBlockTime();
 
         if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = BlockReading->pprev;
+        BlockReading = GetPrevBlockIndexForAlgo(BlockReading->pprev, BlockReading->GetBlockAlgorithm());
     }
 
     arith_uint256 bnNew(PastDifficultyAverage);

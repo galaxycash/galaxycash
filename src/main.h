@@ -553,6 +553,21 @@ public:
 };
 
 
+// Get block version by algo
+inline int GetBlockVersion()
+{
+    switch (nMiningAlgo)
+    {
+    case 1:
+        return 10;
+    case 2:
+        return 11;
+    default:
+        return 9;
+    }
+}
+
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -568,6 +583,9 @@ class CBlock
 public:
     static const int MINIMAL_VERSION = 9;
     static const int CURRENT_VERSION = 9;
+    static const int X11_VERSION = 10;
+    static const int X12_VERSION = 9;
+    static const int X13_VERSION = 11;
 
     enum
     {
@@ -626,7 +644,7 @@ public:
 
     void SetNull()
     {
-        nVersion = CURRENT_VERSION;
+        nVersion = GetBlockVersion();
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -648,14 +666,56 @@ public:
         return nVersion;
     }
 
+    void SetAlgorithm(const int32_t algo)
+    {
+        switch (algo)
+        {
+        case ALGO_X11:
+            nVersion = X11_VERSION;
+        case ALGO_X13:
+            nVersion = X13_VERSION;
+        default:
+            nVersion = X12_VERSION;
+        }
+    }
+
+    int32_t GetAlgorithm() const
+    {
+        switch (nVersion)
+        {
+        case X11_VERSION:
+            return ALGO_X11;
+        case X13_VERSION:
+            return ALGO_X13;
+        default:
+            return ALGO_X12;
+        }
+    }
+
     uint256 GetHash() const
     {
-        return HashX12(BEGIN(nVersion), END(nNonce));
+        switch (nVersion)
+        {
+        case X11_VERSION:
+            return HashX11(BEGIN(nVersion), END(nNonce));
+        case X13_VERSION:
+            return HashX13(BEGIN(nVersion), END(nNonce));
+        default:
+            return HashX12(BEGIN(nVersion), END(nNonce));
+        }
     }
 
     uint256 GetPoWHash() const
     {
-        return HashX12(BEGIN(nVersion), END(nNonce));
+        switch (nVersion)
+        {
+        case X11_VERSION:
+            return HashX11(BEGIN(nVersion), END(nNonce));
+        case X13_VERSION:
+            return HashX13(BEGIN(nVersion), END(nNonce));
+        default:
+            return HashX12(BEGIN(nVersion), END(nNonce));
+        }
     }
 
     int64_t GetBlockTime() const
@@ -915,6 +975,19 @@ public:
     int32_t GetBlockVersion() const
     {
         return nVersion;
+    }
+
+    int32_t GetBlockAlgorithm() const
+    {
+        switch (nVersion)
+        {
+        case CBlock::X11_VERSION:
+            return CBlock::ALGO_X11;
+        case CBlock::X13_VERSION:
+            return CBlock::ALGO_X13;
+        default:
+            return CBlock::ALGO_X12;
+        }
     }
 
     uint256 GetBlockPoWHash() const
