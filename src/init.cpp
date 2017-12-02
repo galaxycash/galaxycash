@@ -583,6 +583,8 @@ bool AppInit2(boost::thread_group& threadGroup)
     fDiscover = GetBoolArg("-discover", true);
     fNameLookup = GetBoolArg("-dns", true);
 
+    nMiningAlgo = GetArg("-algo", "x12") == "x12" ? CBlock::ALGO_X12 : (GetArg("-algo", "x12") == "x11" ? CBlock::ALGO_X11 : CBlock::ALGO_X13 );
+
     bool fBound = false;
     if (!fNoListen)
     {
