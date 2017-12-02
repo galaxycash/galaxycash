@@ -1041,8 +1041,9 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, pindexLast->GetBlockAlgorithm());
-    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, pindexLast->GetBlockAlgorithm());
+    const int32_t algorithm = pindexLast->GetBlockAlgorithm();
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
     int64_t PastBlocksMin = 24;
@@ -1073,7 +1074,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
         LastBlockTime = BlockReading->GetBlockTime();
 
         if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = GetPrevBlockIndexForAlgo(BlockReading->pprev, BlockReading->GetBlockAlgorithm());
+        BlockReading = BlockReading->pprev;
     }
 
     arith_uint256 bnNew(PastDifficultyAverage);
