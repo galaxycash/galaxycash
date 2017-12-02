@@ -36,6 +36,10 @@
 #ifndef SPH_FUGUE_H__
 #define SPH_FUGUE_H__
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include <stddef.h>
 #include "sph_types.h"
 
@@ -282,5 +286,7 @@ void sph_fugue512_close(void *cc, void *dst);
  */
 void sph_fugue512_addbits_and_close(
 	void *cc, unsigned ub, unsigned n, void *dst);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

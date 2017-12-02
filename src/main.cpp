@@ -36,6 +36,8 @@ CTxMemPool mempool;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 
+int nMiningAlgo = CBlock::ALGO_X12;
+
 int nCoinbaseMaturity = 6;
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;

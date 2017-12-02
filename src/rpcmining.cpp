@@ -39,6 +39,42 @@ void ShutdownRPCMining()
     delete pMiningKey; pMiningKey = NULL;
 }
 
+Value getminingalgo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getminingalgo\n"
+            "Returns current mining algorithm.");
+
+    return GetArg("-algo", "x12");
+}
+
+
+Value setminingalgo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1)
+        throw runtime_error(
+            "setminingalgo <algo>\n"
+            "<algo> name of mining algorithm.");
+
+    if (params[0].get_str() == "x11")
+    {
+        mapArgs["-algo"] = "x11";
+        nMiningAlgo = CBlock::ALGO_X11;
+    }
+    else if (params[0].get_str() == "x13")
+    {
+        mapArgs["-algo"] = "x13";
+        nMiningAlgo = CBlock::ALGO_X13;
+    }
+    else
+    {
+        mapArgs["-algo"] = "x12";
+        nMiningAlgo = CBlock::ALGO_X12;
+    }
+    return Value::null;
+}
+
 Value getgenerate(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -369,7 +405,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             "  \"sizelimit\" : limit of block size\n"
             "  \"bits\" : compressed target of next block\n"
             "  \"height\" : height of the next block\n"
-            "See https://en.galaxycash.it/wiki/BIP_0022 for full specification.");
+            "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.");
 
     std::string strMode = "template";
     if (params.size() > 0)
@@ -446,7 +482,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx;
         entry.push_back(Pair("data", HexStr(ssTx.begin(), ssTx.end())));
-        entry.push_back(Pair("txid", txHash.GetHex()));
+
         entry.push_back(Pair("hash", txHash.GetHex()));
 
         MapPrevTx mapInputs;
@@ -475,7 +511,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Object aux;
     aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
 
-    uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
+    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
     static Array aMutable;
     if (aMutable.empty())
@@ -490,7 +526,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
     result.push_back(Pair("transactions", transactions));
     result.push_back(Pair("coinbaseaux", aux));
-    result.push_back(Pair("coinbasevalue", (int64_t)(pblock->vtx[0].vout[0].nValue)));
+    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
     result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit()+1));
     result.push_back(Pair("mutable", aMutable));
@@ -500,7 +536,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
-
 
     return result;
 }

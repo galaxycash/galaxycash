@@ -238,13 +238,13 @@ inline uint256 HashX13(const T1 pbegin, const T1 pend)
     sph_echo512 (&ctx_echo, static_cast<const void*>(&hash[9]), 64);
     sph_echo512_close(&ctx_echo, static_cast<void*>(&hash[10]));
 
-    sph_hamsi512_init(&ctx_echo);
-    sph_hamsi512 (&ctx_echo, static_cast<const void*>(&hash[10]), 64);
-    sph_hamsi512_close(&ctx_echo, static_cast<void*>(&hash[11]));
+    sph_hamsi512_init(&ctx_hamsi);
+    sph_hamsi512 (&ctx_hamsi, static_cast<const void*>(&hash[10]), 64);
+    sph_hamsi512_close(&ctx_hamsi, static_cast<void*>(&hash[11]));
 
-    sph_fugue512_init(&ctx_echo);
-    sph_fugue512 (&ctx_echo, static_cast<const void*>(&hash[11]), 64);
-    sph_fugue512_close(&ctx_echo, static_cast<void*>(&hash[12]));
+    sph_fugue512_init(&ctx_fugue);
+    sph_fugue512 (&ctx_fugue, static_cast<const void*>(&hash[11]), 64);
+    sph_fugue512_close(&ctx_fugue, static_cast<void*>(&hash[12]));
 
     return hash[12].trim256();
 }

@@ -83,6 +83,7 @@ extern bool fReindex;
 struct COrphanBlock;
 extern std::map<uint256, COrphanBlock*> mapOrphanBlocks;
 extern bool fHaveGUI;
+extern int nMiningAlgo;
 
 // Settings
 extern bool fUseFastIndex;
@@ -567,6 +568,13 @@ class CBlock
 public:
     static const int MINIMAL_VERSION = 9;
     static const int CURRENT_VERSION = 9;
+
+    enum
+    {
+        ALGO_X12 = 0,
+        ALGO_X11 = 1,
+        ALGO_X13 = 2
+    };
 
     int nVersion;
     uint256 hashPrevBlock;

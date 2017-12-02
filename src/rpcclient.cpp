@@ -117,6 +117,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddednodeinfo", 0 },
     { "setgenerate", 0 },
     { "setgenerate", 1 },
+    { "setminingalgo", 1 },
     { "sendtoaddress", 1 },
     { "generate", 3},
     { "settxfee", 0 },
@@ -129,6 +130,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getbalance", 1 },
     { "getblock", 1 },
     { "getlastblock", 0 },
+    { "getlastblock", 1 },
     { "getblockheader", 1 },
     { "getblockbynumber", 0 },
     { "getblockbynumber", 1 },
@@ -160,8 +162,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "signrawtransaction", 2 },
     { "keypoolrefill", 0 },
     { "importprivkey", 2 },
-    { "checkkernel", 0 },
-    { "checkkernel", 1 },
     { "submitblock", 1 },
 };
 
