@@ -7,7 +7,11 @@
 
 #include <stdint.h>
 
+#ifdef _WIN32
 #include "endian.h"
+#else
+#include <endian.h>
+#endif
 
 uint16_t static inline ReadLE16(const unsigned char* ptr)
 {
