@@ -1031,7 +1031,7 @@ const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int
 
 
 // ppcoin: find last block index up to pindex
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 {
     while (pindex && pindex->pprev)
         pindex = pindex->pprev;
