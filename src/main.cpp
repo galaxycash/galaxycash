@@ -992,43 +992,6 @@ int64_t GetTotalReward(int nFees, int nHeight)
     return GetProofOfWorkReward(nFees, nHeight) + GetMasterReward(nFees, nHeight);
 }
 
-const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo)
-{
-    const CBlockIndex *pindexAlgo = pindex;
-    while (pindexAlgo)
-    {
-        if (pindexAlgo->GetBlockAlgorithm() == algo)
-            return pindexAlgo;
-        else
-        {
-            if (pindexAlgo->pprev)
-                pindexAlgo = pindexAlgo->pprev;
-            else
-                return pindexAlgo;
-        }
-    }
-}
-
-const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo)
-{
-    const CBlockIndex *pindexAlgo = pindex->pprev;
-    if (pindexAlgo == NULL)
-        return NULL;
-
-    while (pindexAlgo)
-    {
-        if (pindexAlgo->GetBlockAlgorithm() == algo)
-            return pindexAlgo;
-        else
-        {
-            if (pindexAlgo->pprev)
-                pindexAlgo = pindexAlgo->pprev;
-            else
-                return NULL;
-        }
-    }
-}
-
 
 // ppcoin: find last block index up to pindex
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
@@ -1041,7 +1004,6 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const int32_t algorithm = pindexLast->GetBlockAlgorithm();
     const CBlockIndex *BlockLastSolved = pindexLast;
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
@@ -2003,7 +1965,7 @@ bool CBlock::AcceptBlock()
 {
     AssertLockHeld(cs_main);
 
-    if (GetVersion() < MINIMAL_VERSION || GetVersion() > CURRENT_VERSION)
+    if (GetVersion() < MINIMAL_VERSION || GetVersion() > (CURRENT_VERSION + 2))
         return DoS(100, error("AcceptBlock() : reject unknown block version %d", nVersion));
 
     // Check for duplicate

@@ -118,6 +118,8 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
     if (!pblock.get())
         return NULL;
 
+    pblock->nVersion = GetBlockVersion();
+
     CBlockIndex* pindexPrev = pindexBest;
     int nHeight = pindexPrev->nHeight + 1;
 

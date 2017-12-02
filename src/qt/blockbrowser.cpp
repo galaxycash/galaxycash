@@ -33,6 +33,30 @@ std::string getBlockHash(qint64 Height)
     return  pblockindex->GetBlockHash().GetHex(); // pblockindex->phashBlock->GetHex();
 }
 
+std::string getBlockAlgorithm(qint64 Height)
+{
+    if(Height > pindexBest->nHeight) { return "None"; }
+    if(Height < 0) { return "None"; }
+    qint64 desiredheight;
+    desiredheight = Height;
+    if (desiredheight < 0 || desiredheight > nBestHeight)
+        return 0;
+
+    CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+    while (pblockindex->nHeight > desiredheight)
+        pblockindex = pblockindex->pprev;
+
+    switch (pblockindex->GetBlockAlgorithm())
+    {
+    case CBlock::ALGO_X11:
+        return "x11";
+    case CBlock::ALGO_X13:
+        return "x13";
+    default:
+        return "x12";
+    }
+}
+
 qint64 getBlockTime(qint64 Height)
 {
     std::string strHash = getBlockHash(Height);
@@ -260,6 +284,7 @@ void BlockBrowser::updateExplorer(bool block)
 
         ui->heightLabelBE1->setText(QString::number(height));
         ui->hashBox->setText(QString::fromUtf8(getBlockHash(height).c_str()));
+        ui->algoBox->setText(QString::fromUtf8(getBlockAlgorithm(height).c_str()));
         ui->merkleBox->setText(QString::fromUtf8(getBlockMerkle(height).c_str()));
         ui->bitsBox->setText(QString::number(getBlocknBits(height)));
         ui->nonceBox->setText(QString::number(getBlockNonce(height)));
