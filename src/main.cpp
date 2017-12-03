@@ -1087,8 +1087,8 @@ unsigned int DarkGravityWaveOneAlgo(const CBlockIndex* pindexLast)
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const CBlockIndex *BlockLastSolved = pindexLast;
-    const CBlockIndex *BlockReading = pindexLast;
+    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, nAlgo);
+    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo);
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
     int64_t PastBlocksMin = 24;
