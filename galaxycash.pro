@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 1.1.1.1
+VERSION = 1.1.1.2
 INCLUDEPATH += src src/json src/qt
 QT += network
 DEFINES += QT_STATIC_BUILD

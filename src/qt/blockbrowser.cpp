@@ -6,7 +6,7 @@
 #include "txdb.h"
 
 
-double GetDifficulty(const CBlockIndex* blockindex);
+double GetDifficulty(const CBlockIndex* blockindex, const int);
 
 
 using namespace std;
@@ -289,7 +289,7 @@ void BlockBrowser::updateExplorer(bool block)
         ui->bitsBox->setText(QString::number(getBlocknBits(height)));
         ui->nonceBox->setText(QString::number(getBlockNonce(height)));
         ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(getBlockTime(height)).c_str()));
-        ui->diffBox->setText(QString::number(GetDifficulty(pindex), 'f', 6));
+        ui->diffBox->setText(QString::number(GetDifficulty(pindex, pindex->GetBlockAlgorithm()), 'f', 6));
         ui->hashRateLabel->setText("Block Hash Rate:");
         ui->diffLabel->setText("PoW Block Difficulty:");
         ui->moneySupplyBox->setText(QString::number(getMoneySupply(height), 'f', 6) + " GCH");

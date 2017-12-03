@@ -49,32 +49,6 @@ Value getminingalgo(const Array& params, bool fHelp)
     return GetArg("-algo", "x12");
 }
 
-
-Value setminingalgo(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() < 1)
-        throw runtime_error(
-            "setminingalgo <algo>\n"
-            "<algo> name of mining algorithm.");
-
-    if (params[0].get_str() == "x11")
-    {
-        mapArgs["-algo"] = "x11";
-        nMiningAlgo = CBlock::ALGO_X11;
-    }
-    else if (params[0].get_str() == "x13")
-    {
-        mapArgs["-algo"] = "x13";
-        nMiningAlgo = CBlock::ALGO_X13;
-    }
-    else
-    {
-        mapArgs["-algo"] = "x12";
-        nMiningAlgo = CBlock::ALGO_X12;
-    }
-    return Value::null;
-}
-
 Value getgenerate(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -122,6 +96,8 @@ Value getsubsidy(const Array& params, bool fHelp)
     return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight);
 }
 
+extern const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *, const int32_t);
+
 Value getmininginfo(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -134,7 +110,12 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("blocks",        (int)nBestHeight));
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
-    obj.push_back(Pair("difficulty",    GetDifficulty(pindexBest)));
+
+    diff.push_back(Pair("x11",          GetDifficulty(pindexBest, CBlock::ALGO_X11)));
+    diff.push_back(Pair("x12",          GetDifficulty(pindexBest, CBlock::ALGO_X12)));
+    diff.push_back(Pair("x13",          GetDifficulty(pindexBest, CBlock::ALGO_X13)));
+
+    obj.push_back(Pair("difficulty",    GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo)->nBits)));
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight)));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
@@ -536,7 +517,8 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
-
+    result.push_back(Pair("algo", pblock->GetAlgorithm()));
+    result.push_back(Pair("algo_name", GetAlgorithmName(pblock->GetAlgorithm())));
     return result;
 }
 

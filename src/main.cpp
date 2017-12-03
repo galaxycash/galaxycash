@@ -1001,7 +1001,28 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
     return pindex;
 }
 
-unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
+const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t nAlgo)
+{
+    while (pindex && pindex->pprev && GetBlockAlgorithm(pindex->nVersion) != nAlgo)
+        pindex = pindex->pprev;
+    return pindex;
+}
+
+const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t nAlgo)
+{
+    if (pindex->pprev)
+    {
+        pindex = pindex->pprev;
+
+        if (pindex->GetBlockAlgorithm() == nAlgo)
+            return pindex;
+        else
+            return GetPrevBlockIndexForAlgo(pindex, nAlgo);
+    }
+    return NULL;
+}
+
+unsigned int DarkGravityWaveOneAlgo(const CBlockIndex* pindexLast)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
     const CBlockIndex *BlockLastSolved = pindexLast;
@@ -1035,8 +1056,75 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
         }
         LastBlockTime = BlockReading->GetBlockTime();
 
-        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = BlockReading->pprev;
+        const CBlockIndex *pprev = BlockReading->pprev;
+        if (pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = pprev;
+    }
+    if (CountBlocks < PastBlocksMin)
+        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
+
+    arith_uint256 bnNew(PastDifficultyAverage);
+
+    int64_t _nTargetTimespan = CountBlocks * Params().PowTargetSpacing();
+
+    if (nActualTimespan < _nTargetTimespan/3)
+        nActualTimespan = _nTargetTimespan/3;
+    if (nActualTimespan > _nTargetTimespan*3)
+        nActualTimespan = _nTargetTimespan*3;
+
+    // Retarget
+    bnNew *= nActualTimespan;
+    bnNew /= _nTargetTimespan;
+
+    if (bnNew > PowLimit){
+        bnNew = PowLimit;
+    }
+
+    return bnNew.GetCompact();
+}
+
+unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
+{
+    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
+    int64_t nActualTimespan = 0;
+    int64_t LastBlockTime = 0;
+    int64_t PastBlocksMin = 24;
+    int64_t PastBlocksMax = 24;
+    int64_t CountBlocks = 0;
+    arith_uint256 PowLimit = UintToArith256(Params().ProofOfWorkLimit());
+    arith_uint256 PastDifficultyAverage;
+    arith_uint256 PastDifficultyAveragePrev;
+
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+        return PowLimit.GetCompact();
+    }
+
+    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
+        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+        if (BlockReading->GetBlockAlgorithm() != nAlgo)
+        {
+            BlockReading = BlockReading->pprev;
+            continue;
+        }
+        CountBlocks++;
+
+        if(CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
+        }
+
+        if(LastBlockTime > 0){
+            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            nActualTimespan += Diff;
+        }
+        LastBlockTime = BlockReading->GetBlockTime();
+
+        const CBlockIndex *pprev = BlockReading->pprev;
+        if (pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = pprev;
     }
 
     arith_uint256 bnNew(PastDifficultyAverage);
@@ -1059,12 +1147,14 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast)
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast)
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo)
 {
-    if (Params().NetworkID() == CChainParams::Network::TESTNET)
-        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
-        
-    return DarkGravityWave(pindexLast);
+    //if (Params().NetworkID() == CChainParams::Network::TESTNET)
+    //    return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
+    if (pindexLast->nHeight < 4975)
+        return DarkGravityWaveOneAlgo(pindexLast);
+
+    return DarkGravityWave(pindexLast, nAlgo);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
@@ -1772,7 +1862,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
         const CBlockIndex* pindex = pindexBest;
         for (int i = 0; i < 100 && pindex != NULL; i++)
         {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION)
+            if (pindex->nVersion > (CBlock::CURRENT_VERSION + 2))
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
@@ -1986,7 +2076,7 @@ bool CBlock::AcceptBlock()
          return DoS(50, error("AcceptBlock() : coinbase timestamp is too early"));
 
     // Check proof-of-work
-    if (nBits != GetNextTargetRequired(pindexPrev))
+    if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm()))
         return DoS(100, error("AcceptBlock() : incorrect %s", "proof-of-work"));
 
     // Check timestamp against prev

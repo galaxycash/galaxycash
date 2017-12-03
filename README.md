@@ -5,7 +5,7 @@ SPECIFICATIONS
 --------------
 Type:                   PoW
 
-Algorithm:              X12 (Galaxy)
+Algorithm:              X12 (GalaxyCash), X11 (DarkCoin), X13 (MaruCoin)
 
 Difficulty retarget:    Every block
 

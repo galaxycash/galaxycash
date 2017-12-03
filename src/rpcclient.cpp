@@ -117,7 +117,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddednodeinfo", 0 },
     { "setgenerate", 0 },
     { "setgenerate", 1 },
-    { "setminingalgo", 1 },
+    { "getminingalgo", 0 },
     { "sendtoaddress", 1 },
     { "generate", 3},
     { "settxfee", 0 },

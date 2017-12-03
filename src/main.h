@@ -127,7 +127,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle);
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast);
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo);
 int64_t GetProofOfWorkReward(int nFees, int nHeight);
 int64_t GetMasterReward(int nFees, int nHeight);
 int64_t GetTotalReward(int nFees, int nHeight);
@@ -137,6 +137,7 @@ std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 uint256 WantedByOrphan(const COrphanBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex);
+const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo);
 
 
 /** (try to) add transaction to memory pool **/
@@ -554,7 +555,7 @@ public:
 
 
 // Get block version by algo
-inline int GetBlockVersion()
+inline int32_t GetBlockVersion()
 {
     switch (nMiningAlgo)
     {
@@ -564,6 +565,32 @@ inline int GetBlockVersion()
         return 11;
     default:
         return 9;
+    }
+}
+inline std::string GetAlgorithmName(const int32_t nAlgo)
+{
+    switch (nAlgo)
+    {
+    case 1:
+        return "x11";
+    case 2:
+        return "x13";
+    default:
+        return "x12";
+    }
+}
+
+
+inline int32_t GetBlockAlgorithm(const int32_t nVersion)
+{
+    switch (nVersion)
+    {
+    case 10:
+        return 1;
+    case 11:
+        return 2;
+    default:
+        return 0;
     }
 }
 

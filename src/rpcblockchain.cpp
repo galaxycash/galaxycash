@@ -12,7 +12,7 @@ using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
 
-double GetDifficulty(const CBlockIndex* blockindex)
+double GetDifficulty(const CBlockIndex* blockindex, const int32_t algo)
 {
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
@@ -21,7 +21,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
         if (pindexBest == NULL)
             return 1.0;
         else
-            blockindex = GetLastBlockIndex(pindexBest);
+            blockindex = GetLastBlockIndexForAlgo(pindexBest, algo);
     }
     if (blockindex == NULL)
         return 1.0;
@@ -31,6 +31,27 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
     double dDiff =
         (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
+
+    while (nShift < 29)
+    {
+        dDiff *= 256.0;
+        nShift++;
+    }
+    while (nShift > 29)
+    {
+        dDiff /= 256.0;
+        nShift--;
+    }
+
+    return dDiff;
+}
+
+double GetDifficultyFromBits(unsigned int nBits)
+{
+    int nShift = (nBits >> 24) & 0xff;
+
+    double dDiff =
+        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
 
     while (nShift < 29)
     {
@@ -64,7 +85,7 @@ double GetPoWMHashPS()
         pindex = pindex->pnext;
     }
 
-    return GetDifficulty() * 4294.967296 / nTargetSpacingWork;
+    return GetDifficulty(NULL, nMiningAlgo) * 4294.967296 / nTargetSpacingWork;
 }
 
 
@@ -77,12 +98,14 @@ Object blockheaderToJSON(const CBlockIndex* blockindex)
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", blockindex->nVersion));
     result.push_back(Pair("versionHex", strprintf("%08x", blockindex->nVersion)));
+    result.push_back(Pair("algo", blockindex->GetBlockAlgorithm()));
+    result.push_back(Pair("algo_name", GetAlgorithmName(blockindex->GetBlockAlgorithm())));
     result.push_back(Pair("merkleroot", blockindex->hashMerkleRoot.GetHex()));
     result.push_back(Pair("time", (int64_t)blockindex->nTime));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
     result.push_back(Pair("nonce", (uint64_t)blockindex->nNonce));
     result.push_back(Pair("bits", strprintf("%08x", blockindex->nBits)));
-    result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
+    result.push_back(Pair("difficulty", GetDifficultyFromBits(blockindex->nBits)));
     result.push_back(Pair("chainwork", blockindex->GetBlockTrust().GetHex()));
 
     if (blockindex->pprev)
@@ -105,13 +128,15 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("versionHex", strprintf("%08x", blockindex->nVersion)));
+    result.push_back(Pair("algo", blockindex->GetBlockAlgorithm()));
+    result.push_back(Pair("algo_name", GetAlgorithmName(blockindex->GetBlockAlgorithm())));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
-    result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
+    result.push_back(Pair("difficulty", GetDifficultyFromBits(blockindex->nBits)));
     result.push_back(Pair("blocktrust", leftTrim(blockindex->GetBlockTrust().GetHex(), '0')));
     result.push_back(Pair("chaintrust", leftTrim(blockindex->nChainTrust.GetHex(), '0')));
     if (blockindex->pprev)
@@ -170,7 +195,8 @@ Value getdifficulty(const Array& params, bool fHelp)
         throw runtime_error(
             "getdifficulty\n"
             "Returns the difficulty as a multiple of the minimum difficulty.");
-    return GetDifficulty(pindexBest);
+
+    return GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo)->nBits);
 }
 
 
@@ -361,12 +387,13 @@ Value getblockchaininfo(const Array& params, bool fHelp)
             "}\n"
         );
 
-    Object obj;
+    Object obj, diff;
     obj.push_back(Pair("chain",                 Params().NetworkIDString()));
     obj.push_back(Pair("blocks",                nBestHeight));
     obj.push_back(Pair("headers",               pindexBest->nHeight));
     obj.push_back(Pair("bestblockhash",         pindexBest->GetBlockHash().GetHex()));
-    obj.push_back(Pair("difficulty",            (double)GetDifficulty(pindexBest)));
+
+    obj.push_back(Pair("difficulty",            GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo)->nBits)));
     obj.push_back(Pair("mediantime",            pindexBest->GetMedianTimePast()));
     obj.push_back(Pair("initialblockdownload",  IsInitialBlockDownload()));
     obj.push_back(Pair("chainwork",             pindexBest->GetBlockTrust().GetHex()));

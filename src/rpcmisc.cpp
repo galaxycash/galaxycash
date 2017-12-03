@@ -37,7 +37,7 @@ Value getinfo(const Array& params, bool fHelp)
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
-    Object obj;
+    Object obj, diff;
 
     obj.push_back(Pair("version",       CLIENT_VERSION));
     obj.push_back(Pair("protocolversion",(int)PROTOCOL_VERSION));
@@ -55,7 +55,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    obj.push_back(Pair("difficulty",    GetDifficulty(pindexBest)));
+    obj.push_back(Pair("difficulty",    GetDifficulty(pindexBest, nMiningAlgo)));
 
     obj.push_back(Pair("testnet",       TestNet()));
 #ifdef ENABLE_WALLET
