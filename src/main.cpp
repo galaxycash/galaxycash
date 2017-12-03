@@ -1127,8 +1127,6 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
         if (pprev == NULL) { assert(BlockReading); break; }
         BlockReading = pprev;
     }
-    if (CountBlocks < PastBlocksMin)
-        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
 
     arith_uint256 bnNew(PastDifficultyAverage);
 
