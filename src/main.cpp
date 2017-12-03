@@ -1060,8 +1060,6 @@ unsigned int DarkGravityWaveOneAlgo(const CBlockIndex* pindexLast)
         if (pprev == NULL) { assert(BlockReading); break; }
         BlockReading = pprev;
     }
-    if (CountBlocks < PastBlocksMin)
-        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
 
     arith_uint256 bnNew(PastDifficultyAverage);
 
@@ -1126,6 +1124,8 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
         if (pprev == NULL) { assert(BlockReading); break; }
         BlockReading = pprev;
     }
+    if (CountBlocks < PastBlocksMin)
+        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
 
     arith_uint256 bnNew(PastDifficultyAverage);
 
@@ -1151,7 +1151,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t 
 {
     //if (Params().NetworkID() == CChainParams::Network::TESTNET)
     //    return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
-    if (pindexLast->nHeight < 4975)
+    if (pindexLast->nHeight < 4984)
         return DarkGravityWaveOneAlgo(pindexLast);
 
     return DarkGravityWave(pindexLast, nAlgo);
