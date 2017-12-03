@@ -1010,6 +1010,9 @@ const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int
 
 const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t nAlgo)
 {
+    if (!pindex)
+        return NULL;
+
     if (pindex->pprev)
     {
         pindex = pindex->pprev;
@@ -1103,7 +1106,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
         if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
         if (BlockReading->GetBlockAlgorithm() != nAlgo)
         {
-            BlockReading = BlockReading->pprev;
+            BlockReading = GetPrevBlockIndexForAlgo(BlockReading, nAlgo);
             continue;
         }
         CountBlocks++;
