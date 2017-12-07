@@ -12,7 +12,6 @@
 #include "txmempool.h"
 #include "net.h"
 #include "script.h"
-#include "scrypt.h"
 #include "hash.h"
 
 #include <limits>
@@ -56,11 +55,7 @@ static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20
 /** Master address */
 static const char *MASTER_ADDRESS = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
 /** Master reward precent */
-static const int64_t MASTER_REWARD_PERCENT = 16;
-
-
-inline int64_t FutureDrift(int64_t nTime, int nHeight) { return nTime + 2 * 60 * 60; }
-inline unsigned int GetTargetSpacing(int nHeight) {return 360; }
+static const int64_t MASTER_REWARD_PERCENT_OLD = 16, MASTER_REWARD_PERCENT_NEW = 1;
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
@@ -84,6 +79,7 @@ struct COrphanBlock;
 extern std::map<uint256, COrphanBlock*> mapOrphanBlocks;
 extern bool fHaveGUI;
 extern int nMiningAlgo;
+extern bool fUseDefaultKey;
 
 // Settings
 extern bool fUseFastIndex;
@@ -129,7 +125,8 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo);
 int64_t GetProofOfWorkReward(int nFees, int nHeight);
-int64_t GetMasterReward(int nFees, int nHeight);
+int64_t GetMasterRewardOld(int nFees, int nHeight);
+int64_t GetMasterRewardNew(int nFees, int nHeight);
 int64_t GetTotalReward(int nFees, int nHeight);
 bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);

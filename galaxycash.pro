@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 1.1.1.3
+VERSION = 1.1.1.4
 INCLUDEPATH += src src/json src/qt
 QT += network
 DEFINES += QT_STATIC_BUILD
@@ -114,7 +114,7 @@ genleveldb.depends = FORCE
 PRE_TARGETDEPS += $$PWD/src/leveldb/libleveldb.a
 QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) clean
+QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; $$PWD/src/leveldb/libmemenv.a; cd $$PWD/src/leveldb ; $(MAKE) clean
 
 contains(USE_O3, 1) {
     message(Building O3 optimization flag)
@@ -160,8 +160,6 @@ HEADERS += src/qt/galaxycashgui.h \
     src/bignum.h \
     src/uint256.h \
     src/arith_uint256.h \
-    src/scrypt.h \
-    src/pbkdf2.h \
     src/serialize.h \
     src/core.h \
     src/main.h \
@@ -232,6 +230,8 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_fugue.h \
     src/crypto/sph_hamsi.h \
     src/crypto/sph_panama.h \
+    src/crypto/sph_sha0.h \
+    src/crypto/sph_sha1.h \
     src/crypto/sph_sha2.h \
     src/crypto/sph_echo.h \
     src/crypto/sph_groestl.h \
@@ -241,6 +241,7 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_shavite.h \
     src/crypto/sph_simd.h \
     src/crypto/sph_skein.h \
+    src/crypto/sph_ripemd.h \
     src/crypto/sph_types.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
@@ -314,11 +315,6 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/rpcconsole.cpp \
     src/qt/blockbrowser.cpp \
     src/noui.cpp \
-    src/scrypt-arm.S \
-    src/scrypt-x86.S \
-    src/scrypt-x86_64.S \
-    src/scrypt.cpp \
-    src/pbkdf2.cpp \
     src/crypto/aes_helper.c \
     src/crypto/blake.c \
     src/crypto/bmw.c \
@@ -327,7 +323,10 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/hamsi.c \
     src/crypto/hamsi_helper.c \
     src/crypto/panama.c \
+    src/crypto/sha0.c \
+    src/crypto/sha1.c \
     src/crypto/sha2.c \
+    src/crypto/sha2big.c \
     src/crypto/echo.c \
     src/crypto/groestl.c \
     src/crypto/jh.c \
@@ -335,6 +334,7 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/luffa.c \
     src/crypto/shavite.c \
     src/crypto/simd.c \
+    src/crypto/ripemd.c \
     src/crypto/skein.c
 
 RESOURCES += \

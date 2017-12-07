@@ -10,7 +10,7 @@
 #include "ui_interface.h"
 #include "uint256.h"
 #include "version.h"
-
+#include "net.h"
 #include <algorithm>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -193,6 +193,39 @@ uint256 GetRandHash()
     RAND_bytes((unsigned char*)&hash, sizeof(hash));
     return hash;
 }
+
+
+void SetupEnvironment()
+{
+    // On most POSIX systems (e.g. Linux, but not BSD) the environment's locale
+    // may be invalid, in which case the "C" locale is used as fallback.
+#if !defined(WIN32) && !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
+    try {
+        std::locale(""); // Raises a runtime error if current locale is invalid
+    } catch (const std::runtime_error&) {
+        setenv("LC_ALL", "C", 1);
+    }
+#endif
+    // The path locale is lazy initialized and to avoid deinitialization errors
+    // in multithreading environments, it is set explicitly by the main thread.
+    // A dummy locale is used to extract the internal default locale, used by
+    // boost::filesystem::path, which is then used to explicitly imbue the path.
+    std::locale loc = boost::filesystem::path::imbue(std::locale::classic());
+    boost::filesystem::path::imbue(loc);
+}
+
+bool SetupNetworking()
+{
+#ifdef WIN32
+    // Initialize Windows Sockets
+    WSADATA wsadata;
+    int ret = WSAStartup(MAKEWORD(2,2), &wsadata);
+    if (ret != NO_ERROR || LOBYTE(wsadata.wVersion ) != 2 || HIBYTE(wsadata.wVersion) != 2)
+        return false;
+#endif
+    return true;
+}
+
 
 // LogPrintf() has been broken a couple of times now
 // by well-meaning people adding mutexes in the most straightforward way.
@@ -912,7 +945,7 @@ bool WildcardMatch(const string& str, const string& mask)
 
 
 
-static std::string FormatException(std::exception* pex, const char* pszThread)
+static std::string FormatException(const std::exception* pex, const char* pszThread)
 {
 #ifdef WIN32
     char pszModule[MAX_PATH] = "";
@@ -928,7 +961,7 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
             "UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
 }
 
-void PrintException(std::exception* pex, const char* pszThread)
+void PrintException(const std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
     LogPrintf("\n\n************************\n%s\n", message);
@@ -937,7 +970,7 @@ void PrintException(std::exception* pex, const char* pszThread)
     throw;
 }
 
-void PrintExceptionContinue(std::exception* pex, const char* pszThread)
+void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
     LogPrintf("\n\n************************\n%s\n", message);
@@ -1227,4 +1260,65 @@ std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime)
     ss.imbue(loc);
     ss << boost::posix_time::from_time_t(nTime);
     return ss.str();
+}
+
+std::string FormatParagraph(const std::string& in, size_t width, size_t indent)
+{
+    std::stringstream out;
+    size_t col = 0;
+    size_t ptr = 0;
+    while(ptr < in.size())
+    {
+        // Find beginning of next word
+        ptr = in.find_first_not_of(' ', ptr);
+        if (ptr == std::string::npos)
+            break;
+        // Find end of next word
+        size_t endword = in.find_first_of(' ', ptr);
+        if (endword == std::string::npos)
+            endword = in.size();
+        // Add newline and indentation if this wraps over the allowed width
+        if (col > 0)
+        {
+            if ((col + endword - ptr) > width)
+            {
+                out << '\n';
+                for(size_t i=0; i<indent; ++i)
+                    out << ' ';
+                col = 0;
+            } else
+                out << ' ';
+        }
+        // Append word
+        out << in.substr(ptr, endword - ptr);
+        col += endword - ptr + 1;
+        ptr = endword;
+    }
+    return out.str();
+}
+
+void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp)
+{
+    strUsage += HelpMessageGroup(_("Chain selection options:"));
+    strUsage += HelpMessageOpt("-testnet", _("Use the test chain"));
+    if (debugHelp) {
+        strUsage += HelpMessageOpt("-regtest", "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
+                                   "This is intended for regression testing tools and app development.");
+    }
+}
+
+
+static const int screenWidth = 79;
+static const int optIndent = 2;
+static const int msgIndent = 7;
+
+std::string HelpMessageGroup(const std::string &message) {
+    return std::string(message) + std::string("\n\n");
+}
+
+std::string HelpMessageOpt(const std::string &option, const std::string &message) {
+    return std::string(optIndent,' ') + std::string(option) +
+           std::string("\n") + std::string(msgIndent,' ') +
+           FormatParagraph(message, screenWidth - msgIndent, msgIndent) +
+           std::string("\n\n");
 }

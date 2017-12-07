@@ -1087,11 +1087,11 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                     valtype& vch = stacktop(-1);
                     valtype vchHash((opcode == OP_RIPEMD160 || opcode == OP_SHA1 || opcode == OP_HASH160) ? 20 : 32);
                     if (opcode == OP_RIPEMD160)
-                        RIPEMD160(&vch[0], vch.size(), &vchHash[0]);
+                        Ripemd160Hash(&vch[0], vch.size(), &vchHash[0]);
                     else if (opcode == OP_SHA1)
-                        SHA1(&vch[0], vch.size(), &vchHash[0]);
+                        Sha1Hash(&vch[0], vch.size(), &vchHash[0]);
                     else if (opcode == OP_SHA256)
-                        SHA256(&vch[0], vch.size(), &vchHash[0]);
+                        Sha256Hash(&vch[0], vch.size(), &vchHash[0]);
                     else if (opcode == OP_HASH160)
                     {
                         uint160 hash160 = Hash160(vch);

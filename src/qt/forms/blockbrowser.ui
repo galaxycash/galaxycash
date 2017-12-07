@@ -108,27 +108,20 @@
         <height>410</height>
        </rect>
       </property>
-      <layout class="QGridLayout" name="gridLayoutBE" rowstretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" columnstretch="0,0">
+      <layout class="QGridLayout" name="gridLayoutBE" rowstretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" columnstretch="0,0">
        <property name="sizeConstraint">
         <enum>QLayout::SetDefaultConstraint</enum>
        </property>
        <property name="horizontalSpacing">
         <number>7</number>
        </property>
-       <item row="12" column="1">
+       <item row="11" column="1">
         <widget class="QLabel" name="moneySupplyBox">
          <property name="text">
           <string>0.00 GCH</string>
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-       <item row="12" column="0">
-        <widget class="QLabel" name="moneySupplyLabel">
-         <property name="text">
-          <string>Block Money Supply:</string>
          </property>
         </widget>
        </item>
@@ -139,7 +132,14 @@
          </property>
         </widget>
        </item>
-       <item row="20" column="1">
+       <item row="11" column="0">
+        <widget class="QLabel" name="moneySupplyLabel">
+         <property name="text">
+          <string>Block Money Supply:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="19" column="1">
         <widget class="QLabel" name="inputBox">
          <property name="text">
           <string/>
@@ -149,13 +149,6 @@
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-       <item row="11" column="0">
-        <widget class="QLabel" name="hashRateLabel">
-         <property name="text">
-          <string>Block Hashrate:</string>
          </property>
         </widget>
        </item>
@@ -169,7 +162,7 @@
          </property>
         </widget>
        </item>
-       <item row="16" column="1">
+       <item row="15" column="1">
         <widget class="QLabel" name="txID">
          <property name="text">
           <string>000</string>
@@ -196,17 +189,23 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="heightLabelBE2">
-         <property name="text">
-          <string>Block Height:</string>
-         </property>
-        </widget>
-       </item>
        <item row="10" column="0">
         <widget class="QLabel" name="diffLabel">
          <property name="text">
           <string>Block Difficulty:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="18" column="1">
+        <widget class="QLabel" name="outputBox">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
          </property>
         </widget>
        </item>
@@ -220,16 +219,24 @@
          </property>
         </widget>
        </item>
-       <item row="19" column="1">
-        <widget class="QLabel" name="outputBox">
+       <item row="3" column="0">
+        <widget class="QLabel" name="heightLabelBE2">
          <property name="text">
-          <string/>
+          <string>Block Height:</string>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="nonceLabel">
+         <property name="text">
+          <string>Block nNonce:</string>
          </property>
-         <property name="textInteractionFlags">
-          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="bitsLabel">
+         <property name="text">
+          <string>Block nBits:</string>
          </property>
         </widget>
        </item>
@@ -259,41 +266,10 @@
          </property>
         </widget>
        </item>
-       <item row="8" column="0">
-        <widget class="QLabel" name="bitsLabel">
-         <property name="text">
-          <string>Block nBits:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="0">
-        <widget class="QLabel" name="nonceLabel">
-         <property name="text">
-          <string>Block nNonce:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="18" column="0">
+       <item row="17" column="0">
         <widget class="QLabel" name="feesLabel">
          <property name="text">
           <string>Fees:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="17" column="1">
-        <widget class="QLabel" name="valueBox">
-         <property name="text">
-          <string/>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="hashLabel">
-         <property name="text">
-          <string>Block Hash:</string>
          </property>
         </widget>
        </item>
@@ -304,14 +280,48 @@
          </property>
         </widget>
        </item>
-       <item row="16" column="0">
+       <item row="4" column="0">
+        <widget class="QLabel" name="hashLabel">
+         <property name="text">
+          <string>Block Hash:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="1">
+        <widget class="QLabel" name="valueBox">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="0">
         <widget class="QLabel" name="txLabel">
          <property name="text">
           <string>Transaction ID:</string>
          </property>
         </widget>
        </item>
-       <item row="19" column="0">
+       <item row="17" column="1">
+        <widget class="QLabel" name="feesBox">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="0">
+        <widget class="QLabel" name="valueLabel">
+         <property name="text">
+          <string>Value out:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="18" column="0">
         <widget class="QLabel" name="outputLabel">
          <property name="text">
           <string>Outputs:</string>
@@ -344,23 +354,6 @@
          </property>
         </widget>
        </item>
-       <item row="18" column="1">
-        <widget class="QLabel" name="feesBox">
-         <property name="text">
-          <string/>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-       <item row="17" column="0">
-        <widget class="QLabel" name="valueLabel">
-         <property name="text">
-          <string>Value out:</string>
-         </property>
-        </widget>
-       </item>
        <item row="4" column="1">
         <widget class="QLabel" name="hashBox">
          <property name="enabled">
@@ -386,17 +379,7 @@
          </property>
         </widget>
        </item>
-       <item row="11" column="1">
-        <widget class="QLabel" name="hashRateBox">
-         <property name="text">
-          <string>0000 MH/s</string>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-       <item row="21" column="0">
+       <item row="20" column="0">
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -409,7 +392,7 @@
          </property>
         </spacer>
        </item>
-       <item row="15" column="0">
+       <item row="14" column="0">
         <widget class="QLineEdit" name="txBox">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -422,30 +405,7 @@
          </property>
         </widget>
        </item>
-       <item row="20" column="0">
-        <widget class="QLabel" name="inputLabel">
-         <property name="text">
-          <string>Inputs:</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-         </property>
-        </widget>
-       </item>
-       <item row="14" column="0">
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="15" column="1">
+       <item row="14" column="1">
         <widget class="QPushButton" name="txButton">
          <property name="text">
           <string>Decode Transaction</string>
@@ -463,6 +423,29 @@
         <widget class="QLabel" name="algoBox">
          <property name="text">
           <string>x12</string>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="0">
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="19" column="0">
+        <widget class="QLabel" name="inputLabel">
+         <property name="text">
+          <string>Inputs:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
          </property>
         </widget>
        </item>

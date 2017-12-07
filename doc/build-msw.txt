@@ -14,14 +14,17 @@ UNIX BUILD NOTES
 To Build
 --------
 
-Gen makefile:
+Qt GUI wallet:
 /mingw32/qt5-static/bin/qmake -makefile galaxycash.pro
-
-Release version:
 make release
 
-Debug version:
-make debug
+Daemon:
+/mingw32/qt5-static/bin/qmake -makefile galaxycashd.pro
+make release
+
+CommandLine Interface:
+/mingw32/qt5-static/bin/qmake -makefile galaxycash-cli.pro
+make release
 
 Dependencies
 ------------
@@ -33,6 +36,7 @@ Dependencies
  libboost    Boost             C++ Library
  miniupnpc   UPnP Support      Optional firewall-jumping support
  libqrencode QRCode generation Optional QRCode generation
+ Qt5         GUI for Wallet    Cross-platform GUI framework
 
 Note that libexecinfo should be installed, if you building under *BSD systems. 
 This library provides backtrace facility.
@@ -59,11 +63,11 @@ Licenses of statically linked libraries:
 Versions used in this release:
  GCC           7.2.0
  OpenSSL       1.0.2m
- Berkeley DB   5.3.28.NC
+ Berkeley DB   4.8NC
  Boost         1.64.0
  miniupnpc     1.9.20140401
  qrencode      3.4.4
- Qt5	       5.9.0
+ Qt5	       5.6.0+
 
 Dependency: MSYS2 mingw32
 ----------------------------------------------
@@ -72,3 +76,4 @@ pacman -S install mingw-w64-i686-openssl
 pacman -S install mingw-w64-i686-db
 pacman -S install mingw-w64-i686-boost
 pacman -S install mingw-w64-i686-qrencode
+pacman -S install mingw-w64-i686-miniupnpc

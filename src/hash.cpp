@@ -1,42 +1,105 @@
 #include "hash.h"
 
-int HMAC_SHA512_Init(HMAC_SHA512_CTX *pctx, const void *pkey, size_t len)
+
+CHmacSha256::CHmacSha256(const unsigned char* key, size_t keylen)
 {
-    unsigned char key[128];
-    if (len <= 128)
-    {
-        memcpy(key, pkey, len);
-        memset(key + len, 0, 128-len);
-    }
-    else
-    {
-        SHA512_CTX ctxKey;
-        SHA512_Init(&ctxKey);
-        SHA512_Update(&ctxKey, pkey, len);
-        SHA512_Final(key, &ctxKey);
-        memset(key + 64, 0, 64);
+    unsigned char rkey[64];
+    if (keylen <= 64) {
+        memcpy(rkey, key, keylen);
+        memset(rkey + keylen, 0, 64 - keylen);
+    } else {
+        CSha256().Write(key, keylen).Finalize(rkey);
+        memset(rkey + 32, 0, 32);
     }
 
-    for (int n=0; n<128; n++)
-        key[n] ^= 0x5c;
-    SHA512_Init(&pctx->ctxOuter);
-    SHA512_Update(&pctx->ctxOuter, key, 128);
+    for (int n = 0; n < 64; n++)
+        rkey[n] ^= 0x5c;
+    outer.Write(rkey, 64);
 
-    for (int n=0; n<128; n++)
-        key[n] ^= 0x5c ^ 0x36;
-    SHA512_Init(&pctx->ctxInner);
-    return SHA512_Update(&pctx->ctxInner, key, 128);
+    for (int n = 0; n < 64; n++)
+        rkey[n] ^= 0x5c ^ 0x36;
+    inner.Write(rkey, 64);
 }
 
-int HMAC_SHA512_Update(HMAC_SHA512_CTX *pctx, const void *pdata, size_t len)
+CHmacSha256 &CHmacSha256::Init(const unsigned char* key, size_t keylen)
 {
-    return SHA512_Update(&pctx->ctxInner, pdata, len);
+    outer.Reset(); inner.Reset();
+
+    unsigned char rkey[64];
+    if (keylen <= 64) {
+        memcpy(rkey, key, keylen);
+        memset(rkey + keylen, 0, 64 - keylen);
+    } else {
+        CSha256().Write(key, keylen).Finalize(rkey);
+        memset(rkey + 32, 0, 32);
+    }
+
+    for (int n = 0; n < 64; n++)
+        rkey[n] ^= 0x5c;
+    outer.Write(rkey, 64);
+
+    for (int n = 0; n < 64; n++)
+        rkey[n] ^= 0x5c ^ 0x36;
+    inner.Write(rkey, 64);
+
+    return *this;
 }
 
-int HMAC_SHA512_Final(unsigned char *pmd, HMAC_SHA512_CTX *pctx)
+void CHmacSha256::Finalize(unsigned char hash[OUTPUT_SIZE])
 {
-    unsigned char buf[64];
-    SHA512_Final(buf, &pctx->ctxInner);
-    SHA512_Update(&pctx->ctxOuter, buf, 64);
-    return SHA512_Final(pmd, &pctx->ctxOuter);
+    unsigned char temp[32];
+    inner.Finalize(temp);
+    outer.Write(temp, 32).Finalize(hash);
 }
+
+CHmacSha512::CHmacSha512(const unsigned char* key, size_t keylen)
+{
+    unsigned char rkey[128];
+    if (keylen <= 128) {
+        memcpy(rkey, key, keylen);
+        memset(rkey + keylen, 0, 128 - keylen);
+    } else {
+        CSha512().Write(key, keylen).Finalize(rkey);
+        memset(rkey + 64, 0, 64);
+    }
+
+    for (int n = 0; n < 128; n++)
+        rkey[n] ^= 0x5c;
+    outer.Write(rkey, 128);
+
+    for (int n = 0; n < 128; n++)
+        rkey[n] ^= 0x5c ^ 0x36;
+    inner.Write(rkey, 128);
+}
+
+CHmacSha512 &CHmacSha512::Init(const unsigned char* key, size_t keylen)
+{
+    outer.Reset(); inner.Reset();
+
+    unsigned char rkey[128];
+    if (keylen <= 128) {
+        memcpy(rkey, key, keylen);
+        memset(rkey + keylen, 0, 128 - keylen);
+    } else {
+        CSha512().Write(key, keylen).Finalize(rkey);
+        memset(rkey + 64, 0, 64);
+    }
+
+    for (int n = 0; n < 128; n++)
+        rkey[n] ^= 0x5c;
+    outer.Write(rkey, 128);
+
+    for (int n = 0; n < 128; n++)
+        rkey[n] ^= 0x5c ^ 0x36;
+    inner.Write(rkey, 128);
+
+    return *this;
+}
+
+void CHmacSha512::Finalize(unsigned char hash[OUTPUT_SIZE])
+{
+    unsigned char temp[64];
+    inner.Finalize(temp);
+    outer.Write(temp, 64).Finalize(hash);
+}
+

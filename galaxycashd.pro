@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 1.1.1.3
+VERSION = 1.1.1.4
 INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
@@ -108,8 +108,6 @@ HEADERS += src/addrman.h \
     src/bignum.h \
     src/uint256.h \
     src/arith_uint256.h \
-    src/scrypt.h \
-    src/pbkdf2.h \
     src/serialize.h \
     src/core.h \
     src/main.h \
@@ -156,6 +154,8 @@ HEADERS += src/addrman.h \
     src/crypto/sph_fugue.h \
     src/crypto/sph_hamsi.h \
     src/crypto/sph_panama.h \
+    src/crypto/sph_sha0.h \
+    src/crypto/sph_sha1.h \
     src/crypto/sph_sha2.h \
     src/crypto/sph_echo.h \
     src/crypto/sph_groestl.h \
@@ -165,6 +165,7 @@ HEADERS += src/addrman.h \
     src/crypto/sph_shavite.h \
     src/crypto/sph_simd.h \
     src/crypto/sph_skein.h \
+    src/crypto/sph_ripemd.h \
     src/crypto/sph_types.h
 
 SOURCES += src/galaxycashd.cpp \
@@ -203,11 +204,6 @@ SOURCES += src/galaxycashd.cpp \
     src/crypter.cpp \
     src/protocol.cpp \
     src/noui.cpp \
-    src/scrypt-arm.S \
-    src/scrypt-x86.S \
-    src/scrypt-x86_64.S \
-    src/scrypt.cpp \
-    src/pbkdf2.cpp \
     src/crypto/aes_helper.c \
     src/crypto/blake.c \
     src/crypto/bmw.c \
@@ -216,7 +212,10 @@ SOURCES += src/galaxycashd.cpp \
     src/crypto/hamsi.c \
     src/crypto/hamsi_helper.c \
     src/crypto/panama.c \
+    src/crypto/sha0.c \
+    src/crypto/sha1.c \
     src/crypto/sha2.c \
+    src/crypto/sha2big.c \
     src/crypto/echo.c \
     src/crypto/groestl.c \
     src/crypto/jh.c \
@@ -224,6 +223,7 @@ SOURCES += src/galaxycashd.cpp \
     src/crypto/luffa.c \
     src/crypto/shavite.c \
     src/crypto/simd.c \
+    src/crypto/ripemd.c \
     src/crypto/skein.c
 
 CODECFORTR = UTF-8

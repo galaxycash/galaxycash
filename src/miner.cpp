@@ -9,6 +9,10 @@
 #include "miner.h"
 #include "hash.h"
 #include "base58.h"
+#include "wallet.h"
+#include "walletdb.h"
+#include "init.h"
+#include <openssl/sha.h>
 
 using namespace std;
 
@@ -39,20 +43,18 @@ static const unsigned int pSHA256InitState[8] =
 
 void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 {
-    SHA256_CTX ctx;
+    CSha256 ctx;
     unsigned char data[64];
-
-    SHA256_Init(&ctx);
 
     for (int i = 0; i < 16; i++)
         ((uint32_t*)data)[i] = ByteReverse(((uint32_t*)pinput)[i]);
 
     for (int i = 0; i < 8; i++)
-        ctx.h[i] = ((uint32_t*)pinit)[i];
+        ctx.ctx.val[i] = ((uint32_t*) pinit)[i];
 
-    SHA256_Update(&ctx, data, sizeof(data));
+    ctx.Write(data, sizeof(data));
     for (int i = 0; i < 8; i++)
-        ((uint32_t*)pstate)[i] = ctx.h[i];
+        ((uint32_t*)pstate)[i] = ctx.ctx.val[i];
 }
 
 // Some explaining would be appreciated
@@ -99,17 +101,6 @@ public:
     }
 };
 
-unsigned char master_pubkey[] = {
-  0x04, 0xd7, 0x1b, 0x74, 0xe0, 0xc8, 0x29, 0xaa, 0x5b, 0x8e, 0x14, 0xf2,
-  0x3b, 0xdb, 0xff, 0xb2, 0xf0, 0x67, 0xaf, 0x10, 0xa0, 0xde, 0xaa, 0xe9,
-  0x02, 0x6e, 0x87, 0x1b, 0xdb, 0xc7, 0x79, 0x67, 0x1e, 0xa1, 0x86, 0x5c,
-  0x9d, 0x03, 0xe9, 0xe7, 0xe0, 0xc5, 0x7f, 0xc2, 0xa9, 0xd8, 0xba, 0x28,
-  0xb4, 0x8f, 0x8c, 0x12, 0xf9, 0x4f, 0xc0, 0x2d, 0x38, 0x9e, 0xe9, 0x9c,
-  0x1f, 0xfd, 0xa5, 0x8a, 0x9b
-};
-unsigned int master_pubkey_len = 65;
-
-
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
 CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
 {
@@ -130,9 +121,13 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
     txNew.vout.resize(2);
 
     CPubKey pubkey;
-    if (!reservekey.GetReservedKey(pubkey))
-        return NULL;
-    txNew.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
+    if (!fUseDefaultKey)
+    {
+        if (!reservekey.GetReservedKey(pubkey))
+            return NULL;
+    }
+
+    txNew.vout[0].scriptPubKey.SetDestination(fUseDefaultKey ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
     txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(std::string(MASTER_ADDRESS)).Get());
 
 
@@ -361,7 +356,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
             LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
         pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
-        pblock->vtx[0].vout[1].nValue = GetMasterReward(nFees, pindexPrev->nHeight + 1);
+        pblock->vtx[0].vout[1].nValue = GetMasterRewardNew(nFees, pindexPrev->nHeight + 1);
 
         if (pFees)
             *pFees = nFees;

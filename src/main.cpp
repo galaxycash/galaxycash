@@ -51,6 +51,7 @@ int64_t nTimeBestReceived = 0;
 bool fImporting = false;
 bool fReindex = false;
 bool fHaveGUI = false;
+bool fUseDefaultKey = false;
 
 struct COrphanBlock {
     uint256 hashBlock;
@@ -293,7 +294,7 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
         return false;
     }
     // nTime has different purpose from nLockTime but can be used in similar attacks
-    if (tx.nTime > FutureDrift(GetAdjustedTime(), nBestHeight + 1)) {
+    if (tx.nTime > GetAdjustedTime() + 2 * 60 * 60) {
         reason = "time-too-new";
         return false;
     }
@@ -970,26 +971,35 @@ int64_t GetProofOfWorkReward(int nFees, int nHeight)
 {
     int64_t nSubsidy = 0;
 
-    if (nHeight < 10000)
-        nSubsidy = 6 * COIN;
-    else if (nHeight < 100000)
-        nSubsidy = 4 * COIN;
-    else
-        nSubsidy = 2 * COIN;
+    if (pindexBest->nMoneySupply < MAX_MONEY)
+    {
+        if (nHeight < 10000)
+            nSubsidy = 6 * COIN;
+        else if (nHeight < 100000)
+            nSubsidy = 4 * COIN;
+        else
+            nSubsidy = 2 * COIN;
+    }
 
-    return nSubsidy + nFees;
+    return (nSubsidy + nFees);
 }
 
 // master coin base reward
-int64_t GetMasterReward(int nFees, int nHeight)
+int64_t GetMasterRewardOld(int nFees, int nHeight)
 {
-    return (GetProofOfWorkReward(nFees, nHeight) / 100) * MASTER_REWARD_PERCENT;
+    return (GetProofOfWorkReward(nFees, nHeight) / 100) * MASTER_REWARD_PERCENT_OLD;
+}
+
+// master coin base reward
+int64_t GetMasterRewardNew(int nFees, int nHeight)
+{
+    return (GetProofOfWorkReward(nFees, nHeight) / 100) * MASTER_REWARD_PERCENT_NEW;
 }
 
 // total coin base reward
 int64_t GetTotalReward(int nFees, int nHeight)
 {
-    return GetProofOfWorkReward(nFees, nHeight) + GetMasterReward(nFees, nHeight);
+    return GetProofOfWorkReward(nFees, nHeight) + GetMasterRewardOld(nFees, nHeight);
 }
 
 
@@ -1152,7 +1162,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t 
 {
     //if (Params().NetworkID() == CChainParams::Network::TESTNET)
     //    return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
-    if (pindexLast->nHeight < 4984)
+    if (pindexLast->nHeight <= 5042)
         return DarkGravityWaveOneAlgo(pindexLast);
 
     return DarkGravityWave(pindexLast, nAlgo);
@@ -1187,7 +1197,7 @@ bool IsInitialBlockDownload()
         nLastUpdate = GetTime();
     }
     return (GetTime() - nLastUpdate < 15 &&
-            pindexBest->GetBlockTime() < GetTime() - 8 * 60 * 60);
+            pindexBest->GetBlockTime() < GetTime() - 2 * 60 * 60);
 }
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
@@ -2005,7 +2015,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot) const
         return DoS(50, error("CheckBlock() : proof of work failed"));
 
     // Check timestamp
-    if (GetBlockTime() > FutureDrift(GetAdjustedTime(), nBestHeight + 1))
+    if (GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
         return error("CheckBlock() : block timestamp too far in the future");
 
     // First transaction must be coinbase, the rest must not be
@@ -2073,16 +2083,12 @@ bool CBlock::AcceptBlock()
 
 
     // Check coinbase timestamp
-    if (GetBlockTime() > FutureDrift((int64_t)vtx[0].nTime, nHeight))
+    if (GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
          return DoS(50, error("AcceptBlock() : coinbase timestamp is too early"));
 
     // Check proof-of-work
     if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm()))
         return DoS(100, error("AcceptBlock() : incorrect %s", "proof-of-work"));
-
-    // Check timestamp against prev
-    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || FutureDrift(GetBlockTime(), nHeight) < pindexPrev->GetBlockTime())
-        return error("AcceptBlock() : block's timestamp is too early");
 
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, vtx)

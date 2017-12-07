@@ -245,6 +245,33 @@ void dumpfile(const std::string &name, const unsigned char *data, const uint32_t
     s.close();
 }
 
+Value dumppubkey(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "dumpprivkey <galaxycashaddress>\n"
+            "Reveals the private key corresponding to <galaxycashaddress>.");
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CGalaxyCashAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid GalaxyCash address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+    CKey vchSecret;
+    if (!pwalletMain->GetKey(keyID, vchSecret))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+
+    CPubKey pubkey = vchSecret.GetPubKey();
+    pubkey.Decompress();
+    dumpfile(params[0].get_str() + ".pubkey", &pubkey[0], pubkey.size());
+
+    return HexStr(pubkey);
+}
+
 Value dumpprivkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -265,9 +292,8 @@ Value dumpprivkey(const Array& params, bool fHelp)
     if (!pwalletMain->GetKey(keyID, vchSecret))
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
 
-    CPubKey key = vchSecret.GetPubKey();
-    key.Decompress();
-    dumpfile(params[0].get_str() + ".pubkey", &key[0], 65);
+    CPrivKey privkey = vchSecret.GetPrivKey();
+    dumpfile(params[0].get_str() + ".privkey", &privkey[0], privkey.size());
 
     return CGalaxyCashSecret(vchSecret).ToString();
 }

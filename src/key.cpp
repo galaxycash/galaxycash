@@ -544,12 +544,11 @@ void static BIP32Hash(const unsigned char chainCode[32], unsigned int nChild, un
     num[1] = (nChild >> 16) & 0xFF;
     num[2] = (nChild >>  8) & 0xFF;
     num[3] = (nChild >>  0) & 0xFF;
-    HMAC_SHA512_CTX ctx;
-    HMAC_SHA512_Init(&ctx, chainCode, 32);
-    HMAC_SHA512_Update(&ctx, &header, 1);
-    HMAC_SHA512_Update(&ctx, data, 32);
-    HMAC_SHA512_Update(&ctx, num, 4);
-    HMAC_SHA512_Final(output, &ctx);
+    CHmacSha512 ctx(chainCode, 32);
+    ctx.Write(&header, 1);
+    ctx.Write(data, 32);
+    ctx.Write(num, 4);
+    ctx.Finalize(output);
 }
 
 bool CKey::Derive(CKey& keyChild, unsigned char ccChild[32], unsigned int nChild, const unsigned char cc[32]) const {
@@ -597,12 +596,11 @@ bool CExtKey::Derive(CExtKey &out, unsigned int nChild) const {
 
 void CExtKey::SetMaster(const unsigned char *seed, unsigned int nSeedLen) {
     static const char hashkey[] = {'B','i','t','c','o','i','n',' ','s','e','e','d'};
-    HMAC_SHA512_CTX ctx;
-    HMAC_SHA512_Init(&ctx, hashkey, sizeof(hashkey));
-    HMAC_SHA512_Update(&ctx, seed, nSeedLen);
+    CHmacSha512 ctx((const unsigned char*) hashkey, sizeof(hashkey));
+    ctx.Write(seed, nSeedLen);
     unsigned char out[64];
     LockObject(out);
-    HMAC_SHA512_Final(out, &ctx);
+    ctx.Finalize(out);
     key.Set(&out[0], &out[32], true);
     memcpy(vchChainCode, &out[32], 32);
     UnlockObject(out);

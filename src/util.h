@@ -101,6 +101,10 @@ extern volatile bool fReopenDebugLog;
 void RandAddSeed();
 void RandAddSeedPerfmon();
 
+
+void SetupEnvironment();
+bool SetupNetworking();
+
 /* Return true if log accepts specified category */
 bool LogAcceptCategory(const char* category);
 /* Send a string to the log output */
@@ -144,8 +148,8 @@ static inline bool error(const char* format)
 }
 
 
-void PrintException(std::exception* pex, const char* pszThread);
-void PrintExceptionContinue(std::exception* pex, const char* pszThread);
+void PrintException(const std::exception* pex, const char* pszThread);
+void PrintExceptionContinue(const std::exception* pex, const char* pszThread);
 void ParseString(const std::string& str, char c, std::vector<std::string>& v);
 std::string FormatMoney(int64_t n, bool fPlus=false);
 bool ParseMoney(const std::string& str, int64_t& nRet);
@@ -186,6 +190,7 @@ int64_t GetTime();
 void SetMockTime(int64_t nMockTimeIn);
 std::string FormatFullVersion();
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
+std::string FormatParagraph(const std::string& in, size_t width = 79, size_t indent = 0);
 void runCommand(std::string strCommand);
 
 
@@ -562,5 +567,24 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         PrintException(NULL, name);
     }
 }
+
+void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp);
+
+/**
+ * Format a string to be used as group of options in help messages
+ *
+ * @param message Group name (e.g. "RPC server options:")
+ * @return the formatted string
+ */
+std::string HelpMessageGroup(const std::string& message);
+
+/**
+ * Format a string to be used as option description in help messages
+ *
+ * @param option Option message (e.g. "-rpcuser=<user>")
+ * @param message Option description (e.g. "Username for JSON-RPC connections")
+ * @return the formatted string
+ */
+std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
 #endif

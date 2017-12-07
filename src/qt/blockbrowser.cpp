@@ -290,7 +290,6 @@ void BlockBrowser::updateExplorer(bool block)
         ui->nonceBox->setText(QString::number(getBlockNonce(height)));
         ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(getBlockTime(height)).c_str()));
         ui->diffBox->setText(QString::number(GetDifficulty(pindex, pindex->GetBlockAlgorithm()), 'f', 6));
-        ui->hashRateLabel->setText("Block Hash Rate:");
         ui->diffLabel->setText("PoW Block Difficulty:");
         ui->moneySupplyBox->setText(QString::number(getMoneySupply(height), 'f', 6) + " GCH");
     }

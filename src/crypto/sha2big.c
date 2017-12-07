@@ -35,6 +35,10 @@
 
 #include "sph_sha2.h"
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #if SPH_64
 
 #define CH(X, Y, Z)    ((((Y) ^ (Z)) & (X)) ^ (Z))
@@ -244,4 +248,8 @@ sph_sha384_comp(const sph_u64 msg[16], sph_u64 val[8])
 #undef SHA3_IN
 }
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

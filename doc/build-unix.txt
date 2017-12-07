@@ -14,17 +14,27 @@ UNIX BUILD NOTES
 To Build
 --------
 
+Qt GUI Wallet
 qmake -makefile galaxycash.pro
 make
 
+Deamon
+qmake -makefile galaxycashd.pro
+make
+
+CommandLine Interface
+qmake -makefile galaxycash-cli.pro
+make
 
 Versions used in this release:
  GCC           7.2.0
  OpenSSL       1.0.2m
- Berkeley DB   5.3.28.NC
+ Berkeley DB   4.8 NC
  Boost         1.64.0
  miniupnpc     1.9.20140401
  qrencode      3.4.4
+
+ For build qt wallet need Qt5.6+ libraries.
 
 Dependency Build Instructions: Ubuntu & Debian
 ----------------------------------------------
