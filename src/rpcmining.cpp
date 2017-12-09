@@ -39,6 +39,65 @@ void ShutdownRPCMining()
     delete pMiningKey; pMiningKey = NULL;
 }
 
+/**
+ * Return average network hashes per second based on the last 'lookup' blocks,
+ * or from the last difficulty change if 'lookup' is nonpositive.
+ * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
+ */
+Value GetNetworkHashPS(int lookup, int height) {
+    CBlockIndex *pb = pindexBest;
+
+    if (pb == NULL || !pb->nHeight)
+        return 0;
+
+    // If lookup is -1, then use blocks since last difficulty change.
+    if (lookup <= 0)
+        lookup = pb->nHeight % Params().DifficultyAdjustmentInterval() + 1;
+
+    // If lookup is larger than chain, then set it to chain length.
+    if (lookup > pb->nHeight)
+        lookup = pb->nHeight;
+
+    CBlockIndex *pb0 = pb;
+    int64_t minTime = pb0->GetBlockTime();
+    int64_t maxTime = minTime;
+    for (int i = 0; i < lookup; i++) {
+        if (!pb0->pprev)
+            break;
+        pb0 = pb0->pprev;
+        int64_t time = pb0->GetBlockTime();
+        minTime = std::min(time, minTime);
+        maxTime = std::max(time, maxTime);
+    }
+
+    // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
+    if (minTime == maxTime)
+        return 0;
+
+    arith_uint256 workDiff = UintToArith256(pb->GetBlockTrust()) - UintToArith256(pb0->GetBlockTrust());
+    int64_t timeDiff = maxTime - minTime;
+
+    return workDiff.getdouble() / timeDiff;
+}
+
+Value getnetworkhashps(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw std::runtime_error(
+            "getnetworkhashps ( nblocks height )\n"
+            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
+            "\nArguments:\n"
+            "1. nblocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
+            "2. height      (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+            "\nResult:\n"
+            "x             (numeric) Hashes per second estimated\n"
+       );
+
+    return GetPoWMHashPS();
+}
+
 Value getminingalgo(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
