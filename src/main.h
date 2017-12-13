@@ -75,8 +75,7 @@ extern const std::string strMessageMagic;
 extern int64_t nTimeBestReceived;
 extern bool fImporting;
 extern bool fReindex;
-struct COrphanBlock;
-extern std::map<uint256, COrphanBlock*> mapOrphanBlocks;
+extern std::map<uint256, CBlock*> mapOrphanBlocks;
 extern bool fHaveGUI;
 extern int nMiningAlgo;
 extern bool fUseDefaultKey;
@@ -132,7 +131,7 @@ bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
 std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
-uint256 WantedByOrphan(const COrphanBlock* pblockOrphan);
+uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex);
 const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo);
 

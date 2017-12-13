@@ -281,6 +281,26 @@ bool CTxDB::WriteBestInvalidTrust(CBigNum bnBestInvalidTrust)
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust);
 }
 
+bool CTxDB::ReadSyncCheckpoint(uint256& hashCheckpoint)
+{
+    return Read(string("hashSyncCheckpoint"), hashCheckpoint);
+}
+
+bool CTxDB::WriteSyncCheckpoint(uint256 hashCheckpoint)
+{
+    return Write(string("hashSyncCheckpoint"), hashCheckpoint);
+}
+
+bool CTxDB::ReadCheckpointPubKey(string& strPubKey)
+{
+    return Read(string("strCheckpointPubKey"), strPubKey);
+}
+
+bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
+{
+    return Write(string("strCheckpointPubKey"), strPubKey);
+}
+
 static CBlockIndex *InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)

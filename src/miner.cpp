@@ -43,18 +43,20 @@ static const unsigned int pSHA256InitState[8] =
 
 void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 {
-    CSha256 ctx;
+    SHA256_CTX ctx;
     unsigned char data[64];
+
+    SHA256_Init(&ctx);
 
     for (int i = 0; i < 16; i++)
         ((uint32_t*)data)[i] = ByteReverse(((uint32_t*)pinput)[i]);
 
     for (int i = 0; i < 8; i++)
-        ctx.ctx.val[i] = ((uint32_t*) pinit)[i];
+        ctx.h[i] = ((uint32_t*)pinit)[i];
 
-    ctx.Write(data, sizeof(data));
+    SHA256_Update(&ctx, data, sizeof(data));
     for (int i = 0; i < 8; i++)
-        ((uint32_t*)pstate)[i] = ctx.ctx.val[i];
+        ((uint32_t*)pstate)[i] = ctx.h[i];
 }
 
 // Some explaining would be appreciated

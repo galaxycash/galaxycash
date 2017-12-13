@@ -46,6 +46,7 @@ uint256 nBestChainTrust = 0;
 uint256 nBestInvalidTrust = 0;
 
 uint256 hashBestChain = 0;
+uint256 hashCheckpoint = 0;
 CBlockIndex* pindexBest = NULL;
 int64_t nTimeBestReceived = 0;
 bool fImporting = false;
@@ -53,13 +54,9 @@ bool fReindex = false;
 bool fHaveGUI = false;
 bool fUseDefaultKey = false;
 
-struct COrphanBlock {
-    uint256 hashBlock;
-    uint256 hashPrev;
-    vector<unsigned char> vchBlock;
-};
-map<uint256, COrphanBlock*> mapOrphanBlocks;
-multimap<uint256, COrphanBlock*> mapOrphanBlocksByPrev;
+
+map<uint256, CBlock*> mapOrphanBlocks;
+multimap<uint256, CBlock*> mapOrphanBlocksByPrev;
 size_t nOrphanBlocksSize = 0;
 
 map<uint256, CTransaction> mapOrphanTransactions;
@@ -70,6 +67,131 @@ CScript COINBASE_FLAGS;
 
 const string strMessageMagic = "GalaxyCash Signed Message:\n";
 
+
+
+static const std::string checkPubkey = "044aa7e3b3354086c35cbffac0a99b9b2a924a5e32711b8427ca54a6cf1ece5c62377a4a8ff97b5ef620842112b6d115dbfca46ca846592b6c9ec3861092f78289";
+static const std::string checkPrivkey = "";
+
+class CHardUnsignedCheckpoint
+{
+public:
+    uint256                     hash;
+    unsigned int                height;
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(hash);
+        READWRITE(height);
+    )
+
+    CHardUnsignedCheckpoint()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        hash = 0;
+        height = 0;
+    }
+
+    bool IsNull() const
+    {
+        return hash.IsNull();
+    }
+};
+
+class CHardCheckpoint : public CHardUnsignedCheckpoint
+{
+public:
+    std::vector<unsigned char>  msg;
+    std::vector<unsigned char>  sig;
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(msg);
+        READWRITE(sig);
+    )
+
+    CHardCheckpoint()
+    {
+        SetNull();
+    }
+
+    bool Set(const uint256 &hashCheckpoint, const unsigned int checkpointHeight)
+    {
+        hash = hashCheckpoint;
+        height = checkpointHeight;
+
+        if (checkPrivkey.empty())
+            return true;
+
+        // Test signing a sync-checkpoint with genesis block
+        CDataStream sMsg(SER_NETWORK, PROTOCOL_VERSION);
+        sMsg << (CHardUnsignedCheckpoint)(*this);
+        msg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
+
+        std::vector<unsigned char> vchPrivKey = ParseHex(checkPrivkey);
+        CKey key;
+        key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false); // if key is not correct openssl may crash
+        if (!key.Sign(Hash(msg.begin(), msg.end()), sig))
+            return false;
+
+        return true;
+    }
+
+    bool CheckCheckpoint()
+    {
+        CPubKey key(ParseHex(checkPubkey));
+        if (!key.Verify(Hash(msg.begin(), msg.end()), sig))
+            return error("CHardCheckpoint::CheckSignature() : verify signature failed");
+
+        // Now unserialize the data
+        CDataStream sMsg(msg, SER_NETWORK, PROTOCOL_VERSION);
+        sMsg >> *(CHardUnsignedCheckpoint*)this;
+        return true;
+    }
+
+    void SetNull()
+    {
+        CHardUnsignedCheckpoint::SetNull();
+        msg.clear();
+        sig.clear();
+    }
+
+    bool IsNull() const
+    {
+        return hash.IsNull();
+    }
+
+    bool RelayTo(CNode* pnode) const
+    {
+        // we only relay sync-checkpoints to fully connected nodes
+        if (!pnode->fSuccessfullyConnected)
+            return false;
+
+        // returns true if wasn't already sent
+        if (pnode->hashCheckpointKnown != hash)
+        {
+            pnode->hashCheckpointKnown = hash;
+            pnode->PushMessage("checkpoint", *this);
+            return true;
+        }
+        return false;
+    }
+
+    void SendCheckpoint()
+    {
+        // Relay checkpoint
+        {
+            LOCK(cs_vNodes);
+            BOOST_FOREACH(CNode* pnode, vNodes)
+                RelayTo(pnode);
+        }
+    }
+};
+
+static CHardCheckpoint hardCheckpoint;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -915,55 +1037,22 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
     return true;
 }
 
-uint256 static GetOrphanRoot(const uint256& hash)
-{
-    map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.find(hash);
-    if (it == mapOrphanBlocks.end())
-        return hash;
 
+uint256 static GetOrphanRoot(const CBlock* pblock)
+{
     // Work back to the first block in the orphan chain
-    do {
-        map<uint256, COrphanBlock*>::iterator it2 = mapOrphanBlocks.find(it->second->hashPrev);
-        if (it2 == mapOrphanBlocks.end())
-            return it->first;
-        it = it2;
-    } while(true);
+    while (mapOrphanBlocks.count(pblock->hashPrevBlock))
+        pblock = mapOrphanBlocks[pblock->hashPrevBlock];
+    return pblock->GetHash();
 }
 
 // ppcoin: find block wanted by given orphan block
-uint256 WantedByOrphan(const COrphanBlock* pblockOrphan)
+uint256 WantedByOrphan(const CBlock* pblockOrphan)
 {
     // Work back to the first block in the orphan chain
-    while (mapOrphanBlocks.count(pblockOrphan->hashPrev))
-        pblockOrphan = mapOrphanBlocks[pblockOrphan->hashPrev];
-    return pblockOrphan->hashPrev;
-}
-
-// Remove a random orphan block (which does not have any dependent orphans).
-void static PruneOrphanBlocks()
-{
-  size_t nMaxOrphanBlocksSize = GetArg("-maxorphanblocksmib", DEFAULT_MAX_ORPHAN_BLOCKS) * ((size_t) 1 << 20);
-    while (nOrphanBlocksSize > nMaxOrphanBlocksSize)
-    {
-        // Pick a random orphan block.
-        int pos = insecure_rand() % mapOrphanBlocksByPrev.size();
-        std::multimap<uint256, COrphanBlock*>::iterator it = mapOrphanBlocksByPrev.begin();
-        while (pos--) it++;
-
-        // As long as this block has other orphans depending on it, move to one of those successors.
-               do {
-                   std::multimap<uint256, COrphanBlock*>::iterator it2 = mapOrphanBlocksByPrev.find(it->second->hashBlock);
-                   if (it2 == mapOrphanBlocksByPrev.end())
-                       break;
-                   it = it2;
-               } while(1);
-
-                    uint256 hash = it->second->hashBlock;
-                    nOrphanBlocksSize -= it->second->vchBlock.size();
-                    delete it->second;
-                    mapOrphanBlocksByPrev.erase(it);
-                    mapOrphanBlocks.erase(hash);
-                }
+    while (mapOrphanBlocks.count(pblockOrphan->hashPrevBlock))
+        pblockOrphan = mapOrphanBlocks[pblockOrphan->hashPrevBlock];
+    return pblockOrphan->hashPrevBlock;
 }
 
 // miner's coin base reward
@@ -1160,10 +1249,8 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo)
 {
-    //if (Params().NetworkID() == CChainParams::Network::TESTNET)
-    //    return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
-    if (pindexLast->nHeight <= 5042)
-        return DarkGravityWaveOneAlgo(pindexLast);
+    //if (pindexLast->nHeight < 5042 && !TestNet())
+    //    return DarkGravityWaveOneAlgo(pindexLast);
 
     return DarkGravityWave(pindexLast, nAlgo);
 }
@@ -1866,6 +1953,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
       nBestBlockTrust.GetLow64(),
       DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()));
 
+
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload)
     {
@@ -2062,6 +2150,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot) const
     return true;
 }
 
+
 bool CBlock::AcceptBlock()
 {
     AssertLockHeld(cs_main);
@@ -2088,25 +2177,32 @@ bool CBlock::AcceptBlock()
 
     // Check proof-of-work
     if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm()))
-        return DoS(100, error("AcceptBlock() : incorrect %s", "proof-of-work"));
+        return DoS(100, error("AcceptBlock() : incorrect proof-of-work %i, %i", nHeight, nBits));
 
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, vtx)
         if (!IsFinalTx(tx, nHeight, GetBlockTime()))
             return DoS(10, error("AcceptBlock() : contains a non-final transaction"));
 
+
     // Check that the block chain matches the known block chain up to a checkpoint
     if (!Checkpoints::CheckHardened(nHeight, hash))
         return DoS(100, error("AcceptBlock() : rejected by hardened checkpoint lock-in at %d", nHeight));
 
-    uint256 hashProof = GetPoWHash();
-
-
-    // Check that the block satisfies synchronized checkpoint
+    // ppcoin: check that the block satisfies synchronized checkpoint
     if (!Checkpoints::CheckSync(nHeight))
-        return error("AcceptBlock() : rejected by synchronized checkpoint");
+    {
+        if(!GetBoolArg("-nosynccheckpoints", false))
+        {
+            return error("AcceptBlock() : rejected by synchronized checkpoint");
+        }
+        else
+        {
+            strMiscWarning = _("WARNING: syncronized checkpoint violation detected, but skipped!");
+        }
+    }
 
-
+    uint256 hashProof = GetPoWHash();
 
     // Enforce rule that the coinbase starts with serialized block height
     CScript expect = CScript() << nHeight;
@@ -2124,6 +2220,7 @@ bool CBlock::AcceptBlock()
     if (!AddToBlockIndex(nFile, nBlockPos, hashProof))
         return error("AcceptBlock() : AddToBlockIndex failed");
 
+
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
     if (hashBestChain == hash)
@@ -2132,6 +2229,12 @@ bool CBlock::AcceptBlock()
         BOOST_FOREACH(CNode* pnode, vNodes)
             if (nBestHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
+    }
+
+    if (hardCheckpoint.hash != hash && !checkPrivkey.empty())
+    {
+        hardCheckpoint.Set(hash, nHeight);
+        hardCheckpoint.SendCheckpoint();
     }
 
     return true;
@@ -2175,12 +2278,38 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
+
+    if (!IsInitialBlockDownload() && !pfrom)
+    {
+        if (checkPrivkey.empty())
+        {
+            if (!hardCheckpoint.IsNull())
+            {
+                if (mapBlockIndex.count(pblock->hashPrevBlock))
+                {
+                    const CBlockIndex *pprev = mapBlockIndex[pblock->hashPrevBlock];
+
+                    if (hardCheckpoint.height >= pprev->nHeight && pprev->GetBlockHash() != hardCheckpoint.hash)
+                    {
+                        return error("ProcessBlock() : rejected by hard checkpoint!");
+                    }
+                    else
+                        hardCheckpoint.Set(pblock->GetHash(), pprev->nHeight + 1);
+                }
+            }
+        }
+    }
+
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
-        return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString());
+        return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().substr(0,20).c_str());
     if (mapOrphanBlocks.count(hash))
-        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString());
+        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().substr(0,20).c_str());
+
+    // Preliminary checks
+    if (!pblock->CheckBlock())
+        return error("ProcessBlock() : CheckBlock FAILED");
 
     if (pblock->hashPrevBlock != hashBestChain)
     {
@@ -2195,32 +2324,20 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
     }
 
-    // Preliminary checks
-    if (!pblock->CheckBlock())
-        return error("ProcessBlock() : CheckBlock FAILED");
-
-    // If we don't already have its previous block, shunt it off to holding area until we get it
+    // If don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
     {
-        LogPrintf("ProcessBlock: ORPHAN BLOCK %lu, prev=%s\n", (unsigned long)mapOrphanBlocks.size(), pblock->hashPrevBlock.ToString());
+        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().substr(0,20).c_str());
 
-        // Accept orphans as long as there is a node to request its parents from
-        if (pfrom) {
-            PruneOrphanBlocks();
-            COrphanBlock* pblock2 = new COrphanBlock();
-            {
-                CDataStream ss(SER_DISK, CLIENT_VERSION);
-                ss << *pblock;
-                pblock2->vchBlock = std::vector<unsigned char>(ss.begin(), ss.end());
-            }
-            pblock2->hashBlock = hash;
-            pblock2->hashPrev = pblock->hashPrevBlock;
-            nOrphanBlocksSize += pblock2->vchBlock.size();
-            mapOrphanBlocks.insert(make_pair(hash, pblock2));
-            mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrev, pblock2));
+        CBlock* pblock2 = new CBlock(*pblock);
 
-            // Ask this guy to fill in what we're missing
-            PushGetBlocks(pfrom, pindexBest, GetOrphanRoot(hash));
+        mapOrphanBlocks.insert(make_pair(hash, pblock2));
+        mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
+
+        // Ask this guy to fill in what we're missing
+        if (pfrom)
+        {
+            pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
             // ppcoin: getblocks may not obtain the ancestor block rejected
             // earlier by duplicate-stake check so we ask for it again directly
             if (!IsInitialBlockDownload())
@@ -2239,27 +2356,20 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     for (unsigned int i = 0; i < vWorkQueue.size(); i++)
     {
         uint256 hashPrev = vWorkQueue[i];
-        for (multimap<uint256, COrphanBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
+        for (multimap<uint256, CBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
              mi != mapOrphanBlocksByPrev.upper_bound(hashPrev);
              ++mi)
         {
-            CBlock block;
-            {
-                CDataStream ss(mi->second->vchBlock, SER_DISK, CLIENT_VERSION);
-                ss >> block;
-            }
-            block.BuildMerkleTree();
-            if (block.AcceptBlock())
-                vWorkQueue.push_back(mi->second->hashBlock);
-            mapOrphanBlocks.erase(mi->second->hashBlock);
-
-            nOrphanBlocksSize -= mi->second->vchBlock.size();
-            delete mi->second;
+            CBlock* pblockOrphan = (*mi).second;
+            if (pblockOrphan->AcceptBlock())
+                vWorkQueue.push_back(pblockOrphan->GetHash());
+            mapOrphanBlocks.erase(pblockOrphan->GetHash());
+            delete pblockOrphan;
         }
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    LogPrintf("ProcessBlock: ACCEPTED\n");
+    printf("ProcessBlock: ACCEPTED (%s)\n", GetAlgorithmName(pblock->GetAlgorithm()).c_str());
 
     return true;
 }
@@ -2344,6 +2454,8 @@ bool LoadBlockIndex(bool fAllowNew)
     if (!txdb.LoadBlockIndex())
         return false;
 
+
+
     //
     // Init with genesis block
     //
@@ -2361,6 +2473,9 @@ bool LoadBlockIndex(bool fAllowNew)
         if (!block.AddToBlockIndex(nFile, nBlockPos, Params().HashGenesisBlock()))
             return error("LoadBlockIndex() : genesis block not accepted");
     }
+
+    const CBlockIndex *checkpoint = Checkpoints::AutoSelectSyncCheckpoint();
+    hardCheckpoint.Set(checkpoint->GetBlockHash(), checkpoint->nHeight);
 
     return true;
 }
@@ -2804,6 +2919,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
         }
 
+        // Ask the first connected node for block updates
+        static int nAskedForBlocks = 0;
+        if (!pfrom->fClient && !pfrom->fOneShot &&
+            (pfrom->nStartingHeight > (nBestHeight - 144)) &&
+            (nAskedForBlocks < 1 || vNodes.size() <= 1))
+        {
+            nAskedForBlocks++;
+            pfrom->PushGetBlocks(pindexBest, uint256(0));
+        }
+
         pfrom->fSuccessfullyConnected = true;
 
         LogPrintf("receive version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString(), addrFrom.ToString(), pfrom->addr.ToString());
@@ -2931,7 +3056,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 if (!fImporting)
                     pfrom->AskFor(inv);
             } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                PushGetBlocks(pfrom, pindexBest, GetOrphanRoot(inv.hash));
+                PushGetBlocks(pfrom, pindexBest, GetOrphanRoot(mapOrphanBlocks[inv.hash]));
             } else if (nInv == nLastBlock) {
                 // In case we are on a very long side-chain, it is possible that we already have
                 // the last block in an inv bundle sent in response to getblocks. Try to detect
@@ -3039,6 +3164,30 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         pfrom->PushMessage("headers", vHeaders);
     }
 
+    else if (strCommand == "checkpoint")
+    {
+
+        CHardCheckpoint checkpoint;
+        vRecv >> checkpoint;
+
+        {
+            if (checkpoint.CheckCheckpoint())
+            {
+                if(checkPrivkey.empty())
+                {
+                    LogPrintf("received checkpoint %s\n", checkpoint.hash.ToString().c_str());
+
+                    // Relay
+                    pfrom->hashCheckpointKnown = checkpoint.hash;
+                    LOCK(cs_vNodes);
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                        checkpoint.RelayTo(pnode);
+
+                    hardCheckpoint = checkpoint;
+                }
+            }
+        }
+    }
 
     else if (strCommand == "tx")
     {
@@ -3446,6 +3595,18 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                 nLastRebroadcast = GetTime();
         }
 
+        // Checkpoint
+        if (!IsInitialBlockDownload())
+        {
+            LOCK(cs_vNodes);
+            BOOST_FOREACH(CNode* pnode, vNodes)
+            {
+                if (pnode->hashCheckpointKnown == hardCheckpoint.hash)
+                    continue;
+
+                hardCheckpoint.RelayTo(pnode);
+            }
+        }
         //
         // Message: addr
         //

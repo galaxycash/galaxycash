@@ -73,7 +73,14 @@ Dependency: MSYS2 mingw32
 ----------------------------------------------
 pacman -S install mingw-w64-i686-qt5-static
 pacman -S install mingw-w64-i686-openssl
-pacman -S install mingw-w64-i686-db
 pacman -S install mingw-w64-i686-boost
 pacman -S install mingw-w64-i686-qrencode
 pacman -S install mingw-w64-i686-miniupnpc
+
+Berkley DB 4.8 build from source
+
+wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
+tar -xzvf db-4.8.30.NC.tar.gz
+cd db-4.8.30.NC/build_unix/
+../dist/configure --enable-mingw --enable-cxx --disable-shared --disable-replication --prefix=/mingw32/
+make install

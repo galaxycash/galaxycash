@@ -4,16 +4,17 @@
 #ifndef GALAXYCASH_CHECKPOINT_H
 #define GALAXYCASH_CHECKPOINT_H
 
+
 #include <map>
+#ifdef WIN32
+#include <winsock2.h>
+#endif
 #include "net.h"
 #include "util.h"
 
 class uint256;
 class CBlockIndex;
 
-/** Block-chain checkpoints are compiled-in sanity checks.
- * They are updated every release or three.
- */
 namespace Checkpoints
 {
     // Returns true if block passes checkpoint checks
@@ -28,4 +29,5 @@ namespace Checkpoints
     const CBlockIndex* AutoSelectSyncCheckpoint();
     bool CheckSync(int nHeight);
 }
+
 #endif

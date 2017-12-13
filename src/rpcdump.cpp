@@ -238,9 +238,9 @@ Value importwallet(const Array& params, bool fHelp)
     return Value::null;
 }
 
-void dumpfile(const std::string &name, const unsigned char *data, const uint32_t len)
+void dumpfile(const std::string &name, const char *data, const uint32_t len)
 {
-    std::fstream s(name, std::ios::binary | std::ios::out);
+    std::fstream s(name, std::ios::out);
     s.write((const char *) data, len);
     s.close();
 }
@@ -267,9 +267,11 @@ Value dumppubkey(const Array& params, bool fHelp)
 
     CPubKey pubkey = vchSecret.GetPubKey();
     pubkey.Decompress();
-    dumpfile(params[0].get_str() + ".pubkey", &pubkey[0], pubkey.size());
 
-    return HexStr(pubkey);
+    std::string data = HexStr(pubkey.begin(), pubkey.end(), false);
+    dumpfile(params[0].get_str() + ".pubkey", data.c_str(), data.size());
+
+    return data;
 }
 
 Value dumpprivkey(const Array& params, bool fHelp)
@@ -293,7 +295,8 @@ Value dumpprivkey(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
 
     CPrivKey privkey = vchSecret.GetPrivKey();
-    dumpfile(params[0].get_str() + ".privkey", &privkey[0], privkey.size());
+    std::string data = HexStr(privkey.begin(), privkey.end(), false);
+    dumpfile(params[0].get_str() + ".privkey", data.c_str(), data.size());
 
     return CGalaxyCashSecret(vchSecret).ToString();
 }
