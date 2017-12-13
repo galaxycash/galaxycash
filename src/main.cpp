@@ -1208,7 +1208,71 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo)
             BlockReading = GetPrevBlockIndexForAlgo(BlockReading, nAlgo);
             continue;
         }
-        CountBlocks++;
+        CountBlocks++;;
+
+        if(CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
+        }
+
+        if(LastBlockTime > 0){
+            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            nActualTimespan += Diff;
+        }
+        LastBlockTime = BlockReading->GetBlockTime();
+
+        const CBlockIndex *pprev = BlockReading->pprev;
+        if (pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = pprev;
+    }
+
+    arith_uint256 bnNew(PastDifficultyAverage);
+
+    int64_t _nTargetTimespan = CountBlocks * Params().PowTargetSpacing();
+
+    if (nActualTimespan < _nTargetTimespan/3)
+        nActualTimespan = _nTargetTimespan/3;
+    if (nActualTimespan > _nTargetTimespan*3)
+        nActualTimespan = _nTargetTimespan*3;
+
+    // Retarget
+    bnNew *= nActualTimespan;
+    bnNew /= _nTargetTimespan;
+
+    if (bnNew > PowLimit){
+        bnNew = PowLimit;
+    }
+
+    return bnNew.GetCompact();
+}
+
+unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlgo)
+{
+    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, nAlgo);
+    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo);
+    int64_t nActualTimespan = 0;
+    int64_t LastBlockTime = 0;
+    int64_t PastBlocksMin = 24;
+    int64_t PastBlocksMax = 24;
+    int64_t CountBlocks = 0;
+    arith_uint256 PowLimit = UintToArith256(Params().ProofOfWorkLimit());
+    arith_uint256 PastDifficultyAverage;
+    arith_uint256 PastDifficultyAveragePrev;
+
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+        return PowLimit.GetCompact();
+    }
+
+    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0;) {
+        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+        if (BlockReading->GetBlockAlgorithm() != nAlgo)
+        {
+            BlockReading = GetPrevBlockIndexForAlgo(BlockReading, nAlgo);
+            continue;
+        }
+        CountBlocks++; i++;
 
         if(CountBlocks <= PastBlocksMin) {
             if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
@@ -1252,7 +1316,10 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t 
     //if (pindexLast->nHeight < 5042 && !TestNet())
     //    return DarkGravityWaveOneAlgo(pindexLast);
 
-    return DarkGravityWave(pindexLast, nAlgo);
+    if (pindexLast->nHeight < 12234)
+        return DarkGravityWave(pindexLast, nAlgo); // old version with multialgo difficulty bug
+
+    return DarkGravityWaveV2(pindexLast, nAlgo);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
