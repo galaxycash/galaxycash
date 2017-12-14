@@ -55,7 +55,11 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    obj.push_back(Pair("difficulty",    GetDifficulty(pindexBest, CBlock::ALGO_X11) + GetDifficulty(pindexBest, CBlock::ALGO_X12) + GetDifficulty(pindexBest, CBlock::ALGO_X13)));
+    obj.push_back(Pair("last_x12_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12)->nHeight : -1));
+    obj.push_back(Pair("last_x11_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11)->nHeight : -1));
+    obj.push_back(Pair("last_x13_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13)->nHeight : -1));
+
+    obj.push_back(Pair("difficulty",    GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact()) + GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact()) + GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact())));
 
     obj.push_back(Pair("testnet",       TestNet()));
 #ifdef ENABLE_WALLET
