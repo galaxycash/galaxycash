@@ -126,14 +126,13 @@ public:
         if (checkPrivkey.empty())
             return true;
 
-        // Test signing a sync-checkpoint with genesis block
         CDataStream sMsg(SER_NETWORK, PROTOCOL_VERSION);
         sMsg << (CHardUnsignedCheckpoint)(*this);
         msg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
 
         std::vector<unsigned char> vchPrivKey = ParseHex(checkPrivkey);
         CKey key;
-        key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false); // if key is not correct openssl may crash
+        key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false);
         if (!key.Sign(Hash(msg.begin(), msg.end()), sig))
             return false;
 
@@ -146,7 +145,6 @@ public:
         if (!key.Verify(Hash(msg.begin(), msg.end()), sig))
             return error("CHardCheckpoint::CheckSignature() : verify signature failed");
 
-        // Now unserialize the data
         CDataStream sMsg(msg, SER_NETWORK, PROTOCOL_VERSION);
         sMsg >> *(CHardUnsignedCheckpoint*)this;
         return true;
