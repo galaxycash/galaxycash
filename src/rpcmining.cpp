@@ -184,8 +184,13 @@ Value getmininginfo(const Array& params, bool fHelp)
     return obj;
 }
 
+extern bool IsWaitCheckpoint();
+
 Value getworkex(const Array& params, bool fHelp)
 {
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
+
     if (fHelp || params.size() > 2)
         throw runtime_error(
             "getworkex [data, coinbase]\n"
@@ -313,6 +318,10 @@ Value getworkex(const Array& params, bool fHelp)
 
 Value getwork(const Array& params, bool fHelp)
 {
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
+
+
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getwork [data]\n"
@@ -427,6 +436,9 @@ Value getwork(const Array& params, bool fHelp)
 
 Value getblocktemplate(const Array& params, bool fHelp)
 {
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
+
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getblocktemplate [params]\n"

@@ -484,6 +484,8 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 double dHashesPerSec = 0.0;
 int64_t nHPSTimerStart = 0;
 
+extern bool IsWaitCheckpoint();
+
 void static GalaxyCashMiner(CWallet *pwallet)
 {
     LogPrintf("GalaxyCashMiner started\n");
@@ -500,7 +502,10 @@ void static GalaxyCashMiner(CWallet *pwallet)
         // on an obsolete chain. In regtest mode we expect to fly solo.
         while (vNodes.empty())
             MilliSleep(1000);
-        
+
+        if (IsWaitCheckpoint())
+            continue;
+
 
         //
         // Create new block
@@ -512,22 +517,22 @@ void static GalaxyCashMiner(CWallet *pwallet)
         auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, &nFees));
         if (!pblocktemplate.get())
             return;
-	CBlock *pblock = pblocktemplate.get();
-        
+    CBlock *pblock = pblocktemplate.get();
+
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
         LogPrintf("Running GalaxyCashMiner with %llu transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-        
+
         uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
-	int64_t nStart = GetTime();
-	uint256 hash;
+    int64_t nStart = GetTime();
+    uint256 hash;
 
         while (true)
         {
             unsigned int nHashesDone = 0;
             hash = pblock->GetHash();
-            
+
             if (hash <= hashTarget)
             {
                 // Found a solution
@@ -535,8 +540,8 @@ void static GalaxyCashMiner(CWallet *pwallet)
                 CheckWork(pblock, *pwallet, reservekey);
                 SetThreadPriority(THREAD_PRIORITY_LOWEST);
                 break;
-            }       
-	    ++pblock->nNonce;    
+            }
+        ++pblock->nNonce;
 
             // Meter hashes/sec
             static int64_t nHashCounter;
@@ -574,8 +579,8 @@ void static GalaxyCashMiner(CWallet *pwallet)
                 break;
 
             // Update nTime every few seconds
- 	    pblock->UpdateTime(pindexPrev);
-            
+        pblock->UpdateTime(pindexPrev);
+
             if (TestNet())
             {
                 // Changing pblock->nTime can change work required on testnet:
@@ -586,6 +591,59 @@ void static GalaxyCashMiner(CWallet *pwallet)
     catch (boost::thread_interrupted)
     {
         LogPrintf("GalaxyCashMiner terminated\n");
+        throw;
+    }
+}
+
+void static GalaxyCashMinerCL(CWallet *pwallet)
+{
+    LogPrintf("GalaxyCashMinerCL started\n");
+    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+    RenameThread("galaxycash-miner-cl");
+
+    // Each thread has its own key and counter
+    CReserveKey reservekey(pwallet);
+    unsigned int nExtraNonce = 0;
+    try
+    {
+        while (true)
+        {
+
+            // Busy-wait for the network to come online so we don't waste time mining
+            // on an obsolete chain. In regtest mode we expect to fly solo.
+            while (vNodes.empty())
+                MilliSleep(1000);
+
+
+            //
+            // Create new block
+            //
+            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+            CBlockIndex* pindexPrev = pindexBest;
+
+            int64_t nFees;
+            auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, &nFees));
+            if (!pblocktemplate.get())
+                return;
+
+            CBlock *pblock = pblocktemplate.get();
+
+            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+
+            LogPrintf("Running GalaxyCashMinerCL with %llu transactions in block (%u bytes)\n", pblock->vtx.size(),
+                   ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+
+            uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
+            int64_t nStart = GetTime();
+            uint256 hash;
+            uint32_t nonce = pblock->nNonce;
+
+            // To be continued
+        }
+    }
+    catch (boost::thread_interrupted)
+    {
+        LogPrintf("GalaxyCashMinerCL terminated\n");
         throw;
     }
 }

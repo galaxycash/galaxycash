@@ -242,7 +242,12 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_simd.h \
     src/crypto/sph_skein.h \
     src/crypto/sph_ripemd.h \
-    src/crypto/sph_types.h
+    src/crypto/sph_types.h \
+    src/CL/cl.h \
+    src/CL/cl_platform.h \
+    src/CL/cl_ext.h \
+    src/CL/dynacl.h \
+    src/CL/opencl.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -335,7 +340,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/shavite.c \
     src/crypto/simd.c \
     src/crypto/ripemd.c \
-    src/crypto/skein.c
+    src/crypto/skein.c \
+    src/dynacl.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc

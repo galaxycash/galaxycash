@@ -77,6 +77,7 @@ class CHardUnsignedCheckpoint
 public:
     uint256                     hash;
     unsigned int                height;
+    bool                        oldest;
 
     IMPLEMENT_SERIALIZE
     (
@@ -89,10 +90,21 @@ public:
         SetNull();
     }
 
+    void MarkOldest()
+    {
+        oldest = true;
+    }
+
+    bool IsOldest() const
+    {
+        return oldest;
+    }
+
     void SetNull()
     {
         hash = 0;
         height = 0;
+        oldest = true;
     }
 
     bool IsNull() const
@@ -122,6 +134,7 @@ public:
     {
         hash = hashCheckpoint;
         height = checkpointHeight;
+        oldest = false;
 
         if (checkPrivkey.empty())
             return true;
@@ -190,6 +203,11 @@ public:
 };
 
 static CHardCheckpoint hardCheckpoint;
+
+bool IsWaitCheckpoint()
+{
+    return hardCheckpoint.IsOldest();
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -2354,14 +2372,16 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 {
                     const CBlockIndex *pprev = mapBlockIndex[pblock->hashPrevBlock];
 
-                    if (hardCheckpoint.height >= pprev->nHeight && pprev->GetBlockHash() != hardCheckpoint.hash)
+                    if (hardCheckpoint.height != pprev->nHeight && pprev->GetBlockHash() != hardCheckpoint.hash)
                     {
                         return error("ProcessBlock() : rejected by hard checkpoint!");
                     }
                     else
-                        hardCheckpoint.Set(pblock->GetHash(), pprev->nHeight + 1);
+                        hardCheckpoint.SetNull();
                 }
             }
+            else
+                return error("ProcessBlock() : rejected by null hard checkpoint!");
         }
     }
 
@@ -2434,7 +2454,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    printf("ProcessBlock: ACCEPTED (%s)\n", GetAlgorithmName(pblock->GetAlgorithm()).c_str());
+    LogPrintf("ProcessBlock: ACCEPTED (%s)\n", GetAlgorithmName(pblock->GetAlgorithm()).c_str());
 
     return true;
 }
@@ -3240,15 +3260,21 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             {
                 if(checkPrivkey.empty())
                 {
-                    LogPrintf("received checkpoint %s\n", checkpoint.hash.ToString().c_str());
+                    LogPrintf("received checkpoint %s, %i\n", checkpoint.hash.ToString().c_str(), checkpoint.height);
 
                     // Relay
                     pfrom->hashCheckpointKnown = checkpoint.hash;
                     LOCK(cs_vNodes);
                     BOOST_FOREACH(CNode* pnode, vNodes)
+                    {
+                        if (pnode == pfrom)
+                            continue;
+
                         checkpoint.RelayTo(pnode);
+                    }
 
                     hardCheckpoint = checkpoint;
+                    hardCheckpoint.oldest = false;
                 }
             }
         }
@@ -3665,12 +3691,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         {
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodes)
-            {
-                if (pnode->hashCheckpointKnown == hardCheckpoint.hash)
-                    continue;
-
                 hardCheckpoint.RelayTo(pnode);
-            }
         }
         //
         // Message: addr
