@@ -188,9 +188,6 @@ extern bool IsWaitCheckpoint();
 
 Value getworkex(const Array& params, bool fHelp)
 {
-    if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
-
     if (fHelp || params.size() > 2)
         throw runtime_error(
             "getworkex [data, coinbase]\n"
@@ -200,8 +197,11 @@ Value getworkex(const Array& params, bool fHelp)
     if (vNodes.empty())
         throw JSONRPCError(-9, "GalaxyCash is not connected!");
 
-    //if (IsInitialBlockDownload())
-    //    throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
+    if (IsInitialBlockDownload())
+        throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
+
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
@@ -310,6 +310,7 @@ Value getworkex(const Array& params, bool fHelp)
 
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
+
         assert(pwalletMain != NULL);
         return CheckWork(pblock, *pwalletMain, *pMiningKey);
     }
@@ -318,9 +319,6 @@ Value getworkex(const Array& params, bool fHelp)
 
 Value getwork(const Array& params, bool fHelp)
 {
-    if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
-
 
     if (fHelp || params.size() > 1)
         throw runtime_error(
@@ -335,9 +333,11 @@ Value getwork(const Array& params, bool fHelp)
     if (vNodes.empty())
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "GalaxyCash is not connected!");
 
-    //if (IsInitialBlockDownload())
-    //    throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
+    if (IsInitialBlockDownload())
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -397,7 +397,7 @@ Value getwork(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
 
         Object result;
         result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate)))); // deprecated
@@ -436,9 +436,6 @@ Value getwork(const Array& params, bool fHelp)
 
 Value getblocktemplate(const Array& params, bool fHelp)
 {
-    if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Hard checkpoint is old!");
-
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getblocktemplate [params]\n"
@@ -482,6 +479,8 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     // Update block
     static unsigned int nTransactionsUpdatedLast;
@@ -599,6 +598,9 @@ Value submitblock(const Array& params, bool fHelp)
         throw runtime_error(
             "submitblock <hex data>\n"
             "Attempts to submit new block to network.\n");
+
+    if (IsWaitCheckpoint())
+        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     vector<unsigned char> blockData(ParseHex(params[0].get_str()));
     CDataStream ssBlock(blockData, SER_NETWORK, PROTOCOL_VERSION);

@@ -25,9 +25,18 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 #    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
 #    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
 
-OBJECTS_DIR = build
-MOC_DIR = build
-UI_DIR = build
+
+win32:OBJECTS_DIR = build
+win32:MOC_DIR = build
+win32:UI_DIR = build
+
+linux:OBJECTS_DIR = build_unix
+linux:MOC_DIR = build_unix
+linux:UI_DIR = build_unix
+
+macx:OBJECTS_DIR = build_macx
+macx:MOC_DIR = build_macx
+macx:UI_DIR = build_macx
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {

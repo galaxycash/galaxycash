@@ -10,7 +10,9 @@ CONFIG += thread static
 CONFIG -= app_bundle
 CONFIG -= qt
 
-OBJECTS_DIR = build_daemon
+win32:OBJECTS_DIR = build
+linux:OBJECTS_DIR = build_unix
+macx:OBJECTS_DIR = build_macx
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {

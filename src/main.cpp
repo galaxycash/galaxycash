@@ -77,7 +77,7 @@ class CHardUnsignedCheckpoint
 public:
     uint256                     hash;
     unsigned int                height;
-    bool                        oldest;
+
 
     IMPLEMENT_SERIALIZE
     (
@@ -90,21 +90,10 @@ public:
         SetNull();
     }
 
-    void MarkOldest()
-    {
-        oldest = true;
-    }
-
-    bool IsOldest() const
-    {
-        return oldest;
-    }
-
     void SetNull()
     {
         hash = 0;
         height = 0;
-        oldest = true;
     }
 
     bool IsNull() const
@@ -118,6 +107,7 @@ class CHardCheckpoint : public CHardUnsignedCheckpoint
 public:
     std::vector<unsigned char>  msg;
     std::vector<unsigned char>  sig;
+    bool                        oldest;
 
     IMPLEMENT_SERIALIZE
     (
@@ -128,6 +118,16 @@ public:
     CHardCheckpoint()
     {
         SetNull();
+    }
+
+    void MarkOldest()
+    {
+        oldest = true;
+    }
+
+    bool IsOldest() const
+    {
+        return oldest;
     }
 
     bool Set(const uint256 &hashCheckpoint, const unsigned int checkpointHeight)
@@ -168,6 +168,7 @@ public:
         CHardUnsignedCheckpoint::SetNull();
         msg.clear();
         sig.clear();
+        oldest = true;
     }
 
     bool IsNull() const
@@ -2357,6 +2358,32 @@ void PushGetBlocks(CNode* pnode, CBlockIndex* pindexBegin, uint256 hashEnd)
     pnode->PushMessage("getblocks", CBlockLocator(pindexBegin), hashEnd);
 }
 
+// Remove a random orphan block (which does not have any dependent orphans).
+void static PruneOrphanBlocks()
+{
+    size_t nMaxOrphanBlocksSize = GetArg("-maxorphanblocksmib", DEFAULT_MAX_ORPHAN_BLOCKS) * ((size_t) 1 << 20);
+    while (nOrphanBlocksSize > nMaxOrphanBlocksSize)
+    {
+        // Pick a random orphan block.
+        int pos = insecure_rand() % mapOrphanBlocksByPrev.size();
+        std::multimap<uint256, CBlock*>::iterator it = mapOrphanBlocksByPrev.begin();
+        while (pos--) it++;
+
+        // As long as this block has other orphans depending on it, move to one of those successors.
+        do {
+            std::multimap<uint256, CBlock*>::iterator it2 = mapOrphanBlocksByPrev.find(it->second->GetHash());
+            if (it2 == mapOrphanBlocksByPrev.end())
+                break;
+            it = it2;
+        } while(1);
+
+        uint256 hash = it->second->GetHash();
+        delete it->second;
+        mapOrphanBlocksByPrev.erase(it);
+        mapOrphanBlocks.erase(hash);
+    }
+}
+
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
@@ -2413,6 +2440,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
     {
         printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().substr(0,20).c_str());
+
+        PruneOrphanBlocks();
 
         CBlock* pblock2 = new CBlock(*pblock);
 
