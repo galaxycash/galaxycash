@@ -177,6 +177,8 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty",    GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo)->nBits)));
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight)));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
+    obj.push_back(Pair("generate",      GetBoolArg("-gen", false)));
+    obj.push_back(Pair("genproclimit",  (int)GetArg("-genproclimit", -1)));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     obj.push_back(Pair("pooledtx",      (uint64_t)mempool.size()));
 
@@ -201,7 +203,12 @@ Value getworkex(const Array& params, bool fHelp)
         throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
 
     if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
+    {
+        MilliSleep(1000);
+
+        if (IsWaitCheckpoint())
+            throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
+    }
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
@@ -337,7 +344,12 @@ Value getwork(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
     if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
+    {
+        MilliSleep(1000);
+
+        if (IsWaitCheckpoint())
+            throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
+    }
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -479,8 +491,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
-    if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     // Update block
     static unsigned int nTransactionsUpdatedLast;
@@ -562,7 +572,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Object aux;
     aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
 
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
 
     static Array aMutable;
     if (aMutable.empty())
@@ -577,7 +587,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
     result.push_back(Pair("transactions", transactions));
     result.push_back(Pair("coinbaseaux", aux));
-    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
+    result.push_back(Pair("coinbasevalue", (int64_t)(pblock->vtx[0].vout[0].nValue + pblock->vtx[0].vout[1].nValue)));
     result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit()+1));
     result.push_back(Pair("mutable", aMutable));
@@ -598,9 +608,6 @@ Value submitblock(const Array& params, bool fHelp)
         throw runtime_error(
             "submitblock <hex data>\n"
             "Attempts to submit new block to network.\n");
-
-    if (IsWaitCheckpoint())
-        throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
 
     vector<unsigned char> blockData(ParseHex(params[0].get_str()));
     CDataStream ssBlock(blockData, SER_NETWORK, PROTOCOL_VERSION);

@@ -654,7 +654,8 @@ Value sendmany(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid GalaxyCash address: ")+s.name_);
 
         if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+s.name_);
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+s.name_)
+                ;
         setAddress.insert(address);
 
         CScript scriptPubKey;
@@ -667,11 +668,6 @@ Value sendmany(const Array& params, bool fHelp)
     }
 
     EnsureWalletIsUnlocked();
-
-    // Check funds
-    int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
-    if (totalAmount > nBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     // Send
     CReserveKey keyChange(pwalletMain);

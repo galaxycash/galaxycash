@@ -147,7 +147,7 @@ public:
         CKey key;
         key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false);
         if (!key.Sign(Hash(msg.begin(), msg.end()), sig))
-            return false;
+            return error("CHardCheckpoint::Set() : failed sign checkpoint");
 
         return true;
     }
@@ -2294,6 +2294,13 @@ bool CBlock::AcceptBlock()
         !std::equal(expect.begin(), expect.end(), vtx[0].vin[0].scriptSig.begin()))
         return DoS(100, error("AcceptBlock() : block height mismatch in coinbase"));
 
+
+    if (hardCheckpoint.hash != hash && !checkPrivkey.empty())
+    {
+        hardCheckpoint.Set(hash, nHeight);
+        hardCheckpoint.SendCheckpoint();
+    }
+
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return error("AcceptBlock() : out of disk space");
@@ -2304,7 +2311,6 @@ bool CBlock::AcceptBlock()
     if (!AddToBlockIndex(nFile, nBlockPos, hashProof))
         return error("AcceptBlock() : AddToBlockIndex failed");
 
-
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
     if (hashBestChain == hash)
@@ -2313,12 +2319,6 @@ bool CBlock::AcceptBlock()
         BOOST_FOREACH(CNode* pnode, vNodes)
             if (nBestHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
-    }
-
-    if (hardCheckpoint.hash != hash && !checkPrivkey.empty())
-    {
-        hardCheckpoint.Set(hash, nHeight);
-        hardCheckpoint.SendCheckpoint();
     }
 
     return true;
@@ -2388,53 +2388,12 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
-
-    if (!IsInitialBlockDownload() && !pfrom)
-    {
-        if (checkPrivkey.empty())
-        {
-            if (!hardCheckpoint.IsNull())
-            {
-                if (mapBlockIndex.count(pblock->hashPrevBlock))
-                {
-                    const CBlockIndex *pprev = mapBlockIndex[pblock->hashPrevBlock];
-
-                    if (hardCheckpoint.height != pprev->nHeight && pprev->GetBlockHash() != hardCheckpoint.hash)
-                    {
-                        return error("ProcessBlock() : rejected by hard checkpoint!");
-                    }
-                    else
-                        hardCheckpoint.SetNull();
-                }
-            }
-            else
-                return error("ProcessBlock() : rejected by null hard checkpoint!");
-        }
-    }
-
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().substr(0,20).c_str());
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().substr(0,20).c_str());
-
-    // Preliminary checks
-    if (!pblock->CheckBlock())
-        return error("ProcessBlock() : CheckBlock FAILED");
-
-    if (pblock->hashPrevBlock != hashBestChain)
-    {
-        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-        const CBlockIndex* pcheckpoint = Checkpoints::AutoSelectSyncCheckpoint();
-        int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
-        if (deltaTime < 0)
-        {
-            if (pfrom)
-                pfrom->Misbehaving(1);
-            return error("ProcessBlock() : block with timestamp before last checkpoint");
-        }
-    }
 
     // If don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
@@ -2458,6 +2417,41 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
         }
         return true;
+    }
+
+    // Preliminary checks
+    if (!pblock->CheckBlock())
+        return error("ProcessBlock() : CheckBlock FAILED");
+
+    if (!IsInitialBlockDownload() && !pfrom)
+    {
+        if (checkPrivkey.empty())
+        {
+            if (IsWaitCheckpoint())
+            {
+                int wait = 5;
+
+                MilliSleep(1000);
+                while (wait-- > 0)
+                {
+                    if (IsWaitCheckpoint())
+                        MilliSleep(1000);
+                    else
+                        break;
+                }
+            }
+
+            if (!hardCheckpoint.IsNull())
+            {
+                const CBlockIndex *pprev = mapBlockIndex[pblock->hashPrevBlock];
+                if (hardCheckpoint.height != pprev->nHeight && pprev->GetBlockHash() != hardCheckpoint.hash)
+                    return error("ProcessBlock() : rejected by hard checkpoint!");
+                else
+                    hardCheckpoint.SetNull();
+            }
+            else
+                return error("ProcessBlock() : rejected by null hard checkpoint!");
+        }
     }
 
     // Store to disk
@@ -3280,29 +3274,32 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     else if (strCommand == "checkpoint")
     {
-
-        CHardCheckpoint checkpoint;
-        vRecv >> checkpoint;
-
+        uint32_t oldHeight = hardCheckpoint.height;
+        uint256 oldCheckpoint = hardCheckpoint.hash;
         {
-            if (checkpoint.CheckCheckpoint())
+            CHardCheckpoint sync;
+            vRecv >> sync;
+
+            if (sync.CheckCheckpoint())
             {
-                if(checkPrivkey.empty())
+                if (sync.height > oldHeight)
                 {
-                    LogPrintf("received checkpoint %s, %i\n", checkpoint.hash.ToString().c_str(), checkpoint.height);
-
-                    // Relay
-                    pfrom->hashCheckpointKnown = checkpoint.hash;
-                    LOCK(cs_vNodes);
-                    BOOST_FOREACH(CNode* pnode, vNodes)
+                    if (pfrom && !mapBlockIndex.count(hardCheckpoint.hash))
                     {
-                        if (pnode == pfrom)
-                            continue;
-
-                        checkpoint.RelayTo(pnode);
+                        pfrom->PushGetBlocks(pindexBest, sync.hash);
+                        // ask directly as well in case rejected earlier by duplicate
+                        // proof-of-stake because getblocks may not get it this time
+                        pfrom->AskFor(CInv(MSG_BLOCK, mapOrphanBlocks.count(sync.hash)? WantedByOrphan(mapOrphanBlocks[sync.hash]) : sync.hash));
                     }
 
-                    hardCheckpoint = checkpoint;
+                    // Relay
+                    pfrom->hashCheckpointKnown = sync.hash;
+
+                    LOCK(cs_vNodes);
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                        sync.RelayTo(pnode);
+
+                    hardCheckpoint.Set(sync.hash, sync.height);
                     hardCheckpoint.oldest = false;
                 }
             }
