@@ -2316,7 +2316,7 @@ bool IsFork(const uint256 hash, int &nForkTime)
 
 CBlockIndex *GetForkBlock(const uint256 hash)
 {
-    int numBlocksCheck = 6;
+    int numBlocksCheck = 32;
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
@@ -2328,66 +2328,76 @@ CBlockIndex *GetForkBlock(const uint256 hash)
     return NULL;
 }
 
+
 CBlockIndex *ReconstructFork(const uint256 hash)
 {
-    CBlockIndex *forkBlock = GetForkBlock(hash);
-    if (!forkBlock)
+    CBlockIndex *pfork = GetForkBlock(hash);
+    if (!pfork)
         return NULL;
 
-    uint256 forkHash = forkBlock->GetBlockHash();
-
-
+    vector<CBlockIndex*> vDisconnect;
+    for (CBlockIndex* pindex = pindexBest; pindex != pfork; pindex = pindex->pprev)
+        vDisconnect.push_back(pindex);
     CTxDB txdb;
     if (!txdb.TxnBegin())
+    {
+        LogPrintf("ReconstructFork: txdb begin failed");
+        return NULL;
+    }
+    // Disconnect shorter branch
+    list<CTransaction> vResurrect;
+    BOOST_FOREACH(CBlockIndex* pindex, vDisconnect)
+    {
+        CBlock block;
+        if (!block.ReadFromDisk(pindex))
+        {
+            LogPrintf("ReconstructFork: ReadFromDisk for disconnect failed");
+            return NULL;
+        }
+        if (!block.DisconnectBlock(txdb, pindex))
+        {
+            LogPrintf("ReconstructFork: DisconnectBlock %s failed", pindex->GetBlockHash().ToString());
+            return NULL;
+        }
+
+        // Queue memory transactions to resurrect.
+        // We only do this for blocks after the last checkpoint (reorganisation before that
+        // point should only happen with -reindex/-loadblock, or a misbehaving peer.
+        BOOST_REVERSE_FOREACH(const CTransaction& tx, block.vtx)
+            if (!(tx.IsCoinBase() || tx.IsCoinStake()) && pindex->nHeight > Checkpoints::GetTotalBlocksEstimate())
+                vResurrect.push_front(tx);
+    }
+
+    // Resurrect memory transactions that were in the disconnected branch
+    BOOST_FOREACH(CTransaction& tx, vResurrect)
+        AcceptToMemoryPool(mempool, tx, false, NULL);
+
+
+    CBlockIndex *pblock = pfork->pprev;
+    if (!pblock)
         return NULL;
 
-    CBlockIndex *prevBlock = forkBlock->pprev;
-    if (!prevBlock)
-        return NULL;
 
-    CBlock oldBlock;
-    oldBlock.ReadFromDisk(forkBlock, true);
-    oldBlock.DisconnectBlock(txdb, forkBlock);
-    txdb.WriteHashBestChain(prevBlock->GetBlockHash());
+    txdb.WriteHashBestChain(pblock->GetBlockHash());
 
-    mapBlockIndex.erase(oldBlock.GetHash());
-    if (oldBlock.IsProofOfStake())
-        setStakeSeen.erase(oldBlock.GetProofOfStake());
+    CDiskBlockIndex disk(pblock);
+    disk.hashNext = 0;
+    txdb.WriteBlockIndex(disk);
+    txdb.TxnCommit();
 
-    std::vector<uint256> oldTxs;
-    for (int i = 0; i < oldBlock.vtx.size(); i++)
-        pwalletMain->EraseFromWallet(oldBlock.vtx[i].GetHash());
-
-    pindexBest = prevBlock;
+    pindexBest = pblock;
     pindexBest->pnext = NULL;
     hashBestChain = pindexBest->GetBlockHash();
     pblockindexFBBHLast = NULL;
     nBestHeight = pindexBest->nHeight;
     nBestChainTrust = pindexBest->nChainTrust;
 
-    txdb.WriteBlockIndex(CDiskBlockIndex(pindexBest));
-    txdb.TxnCommit();
 
     pwalletMain->SetBestChain(CBlockLocator(pindexBest));
 
+    LogPrintf("Reconstruction fork ok.\n");
+
     return pindexBest;
-
-    /*if(Reorganize(txdb, prevBlock))
-    {
-        mapBlockIndex.erase(forkHash);
-
-        pindexBest = prevBlock;
-        pindexBest->pnext = NULL;
-        hashBestChain = pindexBest->GetBlockHash();
-        pblockindexFBBHLast = NULL;
-        nBestHeight = pindexBest->nHeight;
-        nBestChainTrust = pindexBest->nChainTrust;
-
-        pwalletMain->SetBestChain(CBlockLocator(pindexBest));
-
-        return pindexBest;
-    }
-    return NULL;*/
 }
 
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
@@ -2401,7 +2411,9 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString());
 
-    if (pblock->hashPrevBlock != hashBestChain && nBestHeight > 13840)
+    if (pblock->hashPrevBlock != hashBestChain &&
+            nBestHeight > 13840 &&
+            !IsInitialBlockDownload())
     {
         int forkTime = pindexBest->GetBlockTime();
         if (IsFork(pblock->hashPrevBlock, forkTime))
