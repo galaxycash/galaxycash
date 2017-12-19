@@ -2423,6 +2423,24 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
 
+    if (!IsCanonicalBlockSignature(pblock, false)) {
+        if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION) {
+            pfrom->Misbehaving(100);
+        }
+
+        return error("ProcessBlock(): bad block signature encoding");
+    }
+
+    if (!IsCanonicalBlockSignature(pblock, true)) {
+        if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_LOW_S_VERSION) {
+            pfrom->Misbehaving(100);
+            return error("ProcessBlock(): bad block signature encoding (low-s)");
+        }
+
+        if (!EnsureLowS(pblock->vchBlockSig))
+            return error("ProcessBlock(): EnsureLowS failed");
+    }
+
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");

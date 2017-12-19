@@ -213,12 +213,13 @@ Value stop(const Array& params, bool fHelp)
 //
 // Call Table
 //
-
+extern Value getnetworkinfo(const Array& params, bool fHelp);
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
   //  ------------------------  -----------------------  ---------- ---------- ---------
     { "help",                   &help,                   true,      true,      false },
+    { "getnetworkinfo",         &getnetworkinfo,         true,      false,     false },
     { "stop",                   &stop,                   true,      true,      false },
     { "getbestblockhash",       &getbestblockhash,       true,      false,     false },
     { "getblockcount",          &getblockcount,          true,      false,     false },

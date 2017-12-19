@@ -249,3 +249,69 @@ Value getnettotals(const Array& params, bool fHelp)
     obj.push_back(Pair("timemillis", GetTimeMillis()));
     return obj;
 }
+
+std::string GetNetworkName(enum Network net) {
+    switch(net)
+    {
+    case NET_IPV4: return "ipv4";
+    case NET_IPV6: return "ipv6";
+    case NET_TOR: return "onion";
+    default: return "";
+    }
+}
+
+static Value GetNetworksInfo()
+{
+    Array networks;
+    for(int n=0; n<NET_MAX; ++n)
+    {
+        enum Network network = static_cast<enum Network>(n);
+        if(network == NET_UNROUTABLE)
+            continue;
+
+        Object obj;
+        obj.push_back(Pair("name", GetNetworkName(network)));
+        networks.push_back(obj);
+    }
+    return networks;
+}
+
+Value getnetworkinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getnetworkinfo\n"
+            "Returns an object containing various state info regarding P2P networking.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"version\": xxxxx,                      (numeric) the server version\n"
+            "  \"subversion\": \"/Dash Core:x.x.x/\",     (string) the server subversion string\n"
+            "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
+            "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
+            "  \"timeoffset\": xxxxx,                   (numeric) the time offset\n"
+            "  \"connections\": xxxxx,                  (numeric) the number of connections\n"
+            "  \"networks\": [                          (array) information per network\n"
+            "  {\n"
+            "    \"name\": \"xxx\",                     (string) network (ipv4, ipv6 or onion)\n"
+            "    \"limited\": true|false,               (boolean) is the network limited using -onlynet?\n"
+            "    \"reachable\": true|false,             (boolean) is the network reachable?\n"
+            "  }\n"
+            "  ,...\n"
+            "  ],\n"
+            "  \"warnings\": \"...\"                    (string) any network warnings (such as alert messages) \n"
+            "}\n"
+        );
+
+    LOCK(cs_main);
+
+    Object obj;
+    obj.push_back(Pair("version",       CLIENT_VERSION));
+    obj.push_back(Pair("subversion",    FormatFullVersion()));
+    obj.push_back(Pair("protocolversion",PROTOCOL_VERSION));
+    obj.push_back(Pair("localservices",       strprintf("%016x", nLocalServices)));
+    obj.push_back(Pair("timeoffset",    GetTimeOffset()));
+    obj.push_back(Pair("connections",   (int)vNodes.size()));
+    obj.push_back(Pair("networks",      GetNetworksInfo()));
+    obj.push_back(Pair("warnings",       GetWarnings("statusbar")));
+    return obj;
+}
