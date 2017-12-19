@@ -1003,7 +1003,7 @@ void ThreadMapPort()
             }
         }
 
-        string strDesc = "Nevacoin " + FormatFullVersion();
+        string strDesc = "GalaxyCash " + FormatFullVersion();
 
         try {
           while (true) {
@@ -1539,7 +1539,7 @@ bool BindListenPort(const CService &addrBind, string& strError)
     {
         int nErr = WSAGetLastError();
         if (nErr == WSAEADDRINUSE)
-            strError = strprintf(_("Unable to bind to %s on this computer. Nevacoin is probably already running."), addrBind.ToString());
+            strError = strprintf(_("Unable to bind to %s on this computer. GalaxyCash is probably already running."), addrBind.ToString());
         else
             strError = strprintf(_("Unable to bind to %s on this computer (bind returned error %d, %s)"), addrBind.ToString(), nErr, strerror(nErr));
         LogPrintf("%s\n", strError);

@@ -2314,9 +2314,21 @@ bool IsFork(const uint256 hash, int &nForkTime)
     return false;
 }
 
+CBlockIndex *GetForkByOrphan(const uint256 hash)
+{
+    std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.find(hash);
+    if (it != mapOrphanBlocks.end())
+    {
+        if (mapBlockIndex.count((*it).second->hashPrev))
+            return mapBlockIndex[(*it).second->hashPrev];
+    }
+
+    return NULL;
+}
+
 CBlockIndex *GetForkBlock(const uint256 hash)
 {
-    int numBlocksCheck = 32;
+    int numBlocksCheck = 64;
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
@@ -2325,79 +2337,70 @@ CBlockIndex *GetForkBlock(const uint256 hash)
 
         block = block->pprev;
     }
-    return NULL;
+    return GetForkByOrphan(hash);
 }
 
 
 CBlockIndex *ReconstructFork(const uint256 hash)
 {
-    CBlockIndex *pfork = GetForkBlock(hash);
-    if (!pfork)
+    CBlockIndex *forkBlock = GetForkBlock(hash);
+    if (!forkBlock)
         return NULL;
 
-    vector<CBlockIndex*> vDisconnect;
-    for (CBlockIndex* pindex = pindexBest; pindex != pfork; pindex = pindex->pprev)
-        vDisconnect.push_back(pindex);
+    uint256 forkHash = forkBlock->GetBlockHash();
+
+
     CTxDB txdb;
     if (!txdb.TxnBegin())
-    {
-        LogPrintf("ReconstructFork: txdb begin failed");
-        return NULL;
-    }
-    // Disconnect shorter branch
-    list<CTransaction> vResurrect;
-    BOOST_FOREACH(CBlockIndex* pindex, vDisconnect)
-    {
-        CBlock block;
-        if (!block.ReadFromDisk(pindex))
-        {
-            LogPrintf("ReconstructFork: ReadFromDisk for disconnect failed");
-            return NULL;
-        }
-        if (!block.DisconnectBlock(txdb, pindex))
-        {
-            LogPrintf("ReconstructFork: DisconnectBlock %s failed", pindex->GetBlockHash().ToString());
-            return NULL;
-        }
-
-        // Queue memory transactions to resurrect.
-        // We only do this for blocks after the last checkpoint (reorganisation before that
-        // point should only happen with -reindex/-loadblock, or a misbehaving peer.
-        BOOST_REVERSE_FOREACH(const CTransaction& tx, block.vtx)
-            if (!(tx.IsCoinBase() || tx.IsCoinStake()) && pindex->nHeight > Checkpoints::GetTotalBlocksEstimate())
-                vResurrect.push_front(tx);
-    }
-
-    // Resurrect memory transactions that were in the disconnected branch
-    BOOST_FOREACH(CTransaction& tx, vResurrect)
-        AcceptToMemoryPool(mempool, tx, false, NULL);
-
-
-    CBlockIndex *pblock = pfork->pprev;
-    if (!pblock)
         return NULL;
 
+    CBlockIndex *prevBlock = forkBlock->pprev;
+    if (!prevBlock)
+        return NULL;
 
-    txdb.WriteHashBestChain(pblock->GetBlockHash());
+    CBlock oldBlock;
+    oldBlock.ReadFromDisk(forkBlock, true);
+    oldBlock.DisconnectBlock(txdb, forkBlock);
+    txdb.WriteHashBestChain(prevBlock->GetBlockHash());
 
-    CDiskBlockIndex disk(pblock);
-    disk.hashNext = 0;
-    txdb.WriteBlockIndex(disk);
-    txdb.TxnCommit();
+    mapBlockIndex.erase(oldBlock.GetHash());
+    if (oldBlock.IsProofOfStake())
+        setStakeSeen.erase(oldBlock.GetProofOfStake());
 
-    pindexBest = pblock;
+    std::vector<uint256> oldTxs;
+    for (int i = 0; i < oldBlock.vtx.size(); i++)
+        pwalletMain->EraseFromWallet(oldBlock.vtx[i].GetHash());
+
+    pindexBest = prevBlock;
     pindexBest->pnext = NULL;
     hashBestChain = pindexBest->GetBlockHash();
     pblockindexFBBHLast = NULL;
     nBestHeight = pindexBest->nHeight;
     nBestChainTrust = pindexBest->nChainTrust;
 
+    CDiskBlockIndex disk(pindexBest);
+    disk.hashNext = 0;
+
+    txdb.WriteBlockIndex(disk);
+    txdb.TxnCommit();
 
     pwalletMain->SetBestChain(CBlockLocator(pindexBest));
 
-    LogPrintf("Reconstruction fork ok.\n");
-
     return pindexBest;
+
+    /*if(Reorganize(txdb, prevBlock))
+    {
+        mapBlockIndex.erase(forkHash);
+        pindexBest = prevBlock;
+        pindexBest->pnext = NULL;
+        hashBestChain = pindexBest->GetBlockHash();
+        pblockindexFBBHLast = NULL;
+        nBestHeight = pindexBest->nHeight;
+        nBestChainTrust = pindexBest->nChainTrust;
+        pwalletMain->SetBestChain(CBlockLocator(pindexBest));
+        return pindexBest;
+    }
+    return NULL;*/
 }
 
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
@@ -2415,15 +2418,30 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             nBestHeight > 13840 &&
             !IsInitialBlockDownload())
     {
-        int forkTime = pindexBest->GetBlockTime();
+        int forkTime = 0;
         if (IsFork(pblock->hashPrevBlock, forkTime))
         {
-            if (pblock->GetBlockTime() < forkTime)
+
+            if (pblock->GetBlockTime() <= forkTime)
             {
                 if (ReconstructFork(pblock->hashPrevBlock))
                 {
                     LogPrintf("ProcessBlock: Fork reconstruction..\n");
                     return ProcessBlock(pfrom, pblock);
+                }
+                else
+                {
+                    {
+                        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
+                        const CBlockIndex* pcheckpoint = Checkpoints::AutoSelectSyncCheckpoint();
+                        int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
+                        if (deltaTime < 0)
+                        {
+                            if (pfrom)
+                                pfrom->Misbehaving(1);
+                            return error("ProcessBlock() : block with timestamp before last checkpoint");
+                        }
+                    }
                 }
             }
         }
