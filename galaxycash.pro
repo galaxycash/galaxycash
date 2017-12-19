@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 1.1.1.5
+VERSION = 1.1.1.6
 INCLUDEPATH += src src/json src/qt
 QT += network
 DEFINES += QT_STATIC_BUILD
@@ -156,6 +156,7 @@ HEADERS += src/qt/galaxycashgui.h \
     src/qt/aboutdialog.h \
     src/qt/editaddressdialog.h \
     src/qt/galaxycashaddressvalidator.h \
+    src/kernel.h \
     src/addrman.h \
     src/base58.h \
     src/chainparams.h \
@@ -270,6 +271,7 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/aboutdialog.cpp \
     src/qt/editaddressdialog.cpp \
     src/qt/galaxycashaddressvalidator.cpp \
+    src/kernel.cpp \
     src/chainparams.cpp \
     src/version.cpp \
     src/sync.cpp \

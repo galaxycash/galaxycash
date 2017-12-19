@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-cli
-VERSION = 1.1.1.5
+VERSION = 1.1.1.6
 INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
@@ -102,6 +102,7 @@ QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qu
 DEPENDPATH += src src/json
 HEADERS += src/addrman.h \
     src/base58.h \
+    src/kernel.h \
     src/chainparams.h \
     src/chainparamsseeds.h \
     src/checkpoints.h \
@@ -175,6 +176,7 @@ HEADERS += src/addrman.h \
 
 SOURCES += src/galaxycash-cli.cpp \
     src/chainparams.cpp \
+    src/kernel.cpp \
     src/version.cpp \
     src/sync.cpp \
     src/txmempool.cpp \

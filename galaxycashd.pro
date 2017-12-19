@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 1.1.1.5
+VERSION = 1.1.1.6
 INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
@@ -98,6 +98,7 @@ QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qu
 # Input
 DEPENDPATH += src src/json
 HEADERS += src/addrman.h \
+    src/kernel.h \
     src/base58.h \
     src/chainparams.h \
     src/chainparamsseeds.h \
@@ -171,6 +172,7 @@ HEADERS += src/addrman.h \
     src/crypto/sph_types.h
 
 SOURCES += src/galaxycashd.cpp \
+    src/kernel.cpp \
     src/chainparams.cpp \
     src/version.cpp \
     src/sync.cpp \

@@ -365,6 +365,10 @@ bool CTxDB::LoadBlockIndex()
         pindexNew->nMint          = diskindex.nMint;
         pindexNew->nMoneySupply   = diskindex.nMoneySupply;
         pindexNew->nFlags         = diskindex.nFlags;
+        pindexNew->nStakeModifier = diskindex.nStakeModifier;
+        pindexNew->bnStakeModifierV2 = diskindex.bnStakeModifierV2;
+        pindexNew->prevoutStake   = diskindex.prevoutStake;
+        pindexNew->nStakeTime     = diskindex.nStakeTime;
         pindexNew->hashProof      = diskindex.hashProof;
         pindexNew->nVersion       = diskindex.nVersion;
         pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
@@ -380,6 +384,10 @@ bool CTxDB::LoadBlockIndex()
             delete iterator;
             return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
         }
+
+        // NovaCoin: build setStakeSeen
+        if (pindexNew->IsProofOfStake())
+            setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
 
         iterator->Next();
     }
@@ -444,7 +452,7 @@ bool CTxDB::LoadBlockIndex()
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         // check level 1: verify block validity
         // check level 7: verify block signature too
-        if (nCheckLevel>0 && !block.CheckBlock(true, true))
+        if (nCheckLevel>0 && !block.CheckBlock(true, true, (nCheckLevel>6)))
         {
             LogPrintf("LoadBlockIndex() : *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->pprev;
@@ -554,3 +562,4 @@ bool CTxDB::LoadBlockIndex()
 
     return true;
 }
+

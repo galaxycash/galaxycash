@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2012 GalaxyCash Developers
+// Copyright (c) 2009-2012 Bitcoin Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -86,7 +86,6 @@ Value getpeerinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("conntime", (int64_t)stats.nTimeConnected));
         obj.push_back(Pair("timeoffset", stats.nTimeOffset));
         obj.push_back(Pair("pingtime", stats.dPingTime));
-        obj.push_back(Pair("minping", stats.dPingMin));
         if (stats.dPingWait > 0.0)
             obj.push_back(Pair("pingwait", stats.dPingWait));
         obj.push_back(Pair("version", stats.nVersion));
@@ -143,25 +142,6 @@ Value addnode(const Array& params, bool fHelp)
 
     return Value::null;
 }
-
-Value disconnectnode(const Array& params, bool fHelp)
- {
-     if (fHelp || params.size() != 1)
-         throw runtime_error(
-             "disconnectnode \"node\" \n"
-             "\nImmediately disconnects from the specified node.\n"
-             "\nArguments:\n"
-             "1. \"node\"     (string, required) The node (see getpeerinfo for nodes)\n"
-         );
-
-     CNode* pNode = FindNode(params[0].get_str());
-     if (pNode == NULL)
-         throw JSONRPCError(RPC_CLIENT_NODE_NOT_CONNECTED, "Node not found in connected nodes");
-
-     pNode->CloseSocketDisconnect();
-
-     return Value::null;
- }
 
 Value getaddednodeinfo(const Array& params, bool fHelp)
 {

@@ -62,6 +62,7 @@ public:
 
         // POW params
         powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
+        stakeLimit = ~uint256(0) >> 20;
         nPowTargetSpacing = 3 * 60; // 3 minutes
         nPowTargetTimespan = 6 * 60 * 60; // 6 hours
 
@@ -93,8 +94,9 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x43580fb123f142578ca6c1e6f4ce411b551279e1968a875e6b493ec3da51bdb9"));
 
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("195.133.201.213", "195.133.201.213:7604"));
         vSeeds.push_back(CDNSSeedData("5.189.152.63", "5.189.152.63:7604"));
+        vSeeds.push_back(CDNSSeedData("195.133.201.213", "195.133.201.213:7604"));
+
 
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);

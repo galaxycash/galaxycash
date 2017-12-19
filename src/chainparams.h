@@ -57,6 +57,7 @@ public:
     const MessageStartChars& MessageStart() const { return pchMessageStart; }
     int GetDefaultPort() const { return nDefaultPort; }
     const uint256& ProofOfWorkLimit() const { return powLimit; }
+    const uint256& ProofOfStakeLimit() const { return stakeLimit; }
     int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
     virtual const CBlock& GenesisBlock() const = 0;
     virtual bool RequireRPCPassword() const { return true; }
@@ -80,6 +81,7 @@ protected:
     int nRPCPort;
     int64_t nPowTargetTimespan;
     int64_t nPowTargetSpacing;
+    uint256 stakeLimit;
     uint256 powLimit;
     int nSubsidyHalvingInterval;
     string strDataDir;

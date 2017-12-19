@@ -22,6 +22,8 @@
 #include "json/json_spirit_utils.h"
 #include "json/json_spirit_value.h"
 
+extern double GetDifficultyFromBits(unsigned int nBits);
+
 using namespace std;
 using namespace boost;
 using namespace boost::assign;
@@ -38,14 +40,14 @@ Value getinfo(const Array& params, bool fHelp)
     GetProxy(NET_IPV4, proxy);
 
     Object obj, diff;
-
-    obj.push_back(Pair("version",       CLIENT_VERSION));
+    obj.push_back(Pair("version",       FormatFullVersion()));
     obj.push_back(Pair("protocolversion",(int)PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
         obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
         obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
         obj.push_back(Pair("newmint",       ValueFromAmount(pwalletMain->GetNewMint())));
+        obj.push_back(Pair("stake",         ValueFromAmount(pwalletMain->GetStake())));
     }
 #endif
     obj.push_back(Pair("blocks",        (int)nBestHeight));
@@ -55,11 +57,11 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    obj.push_back(Pair("last_x12_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12)->nHeight : -1));
-    obj.push_back(Pair("last_x11_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11)->nHeight : -1));
-    obj.push_back(Pair("last_x13_block", GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13)->nHeight : -1));
+    obj.push_back(Pair("algorithm", GetAlgorithmName(nMiningAlgo)));
 
-    obj.push_back(Pair("difficulty",    GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact()) + GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X11)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact()) + GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13) ? GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X13)->nBits : UintToArith256(Params().ProofOfWorkLimit()).GetCompact())));
+    diff.push_back(Pair("proof-of-work",  GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits)));
+    diff.push_back(Pair("proof-of-stake", GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("difficulty",    diff));
 
     obj.push_back(Pair("testnet",       TestNet()));
 #ifdef ENABLE_WALLET

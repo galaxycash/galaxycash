@@ -104,14 +104,14 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
+CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFees)
 {
     // Create new block
     auto_ptr<CBlock> pblock(new CBlock());
     if (!pblock.get())
         return NULL;
 
-    pblock->nVersion = GetBlockVersion();
+    pblock->nVersion = fProofOfStake ? CBlock::X12_VERSION : GetBlockVersion();
 
     CBlockIndex* pindexPrev = pindexBest;
     int nHeight = pindexPrev->nHeight + 1;
@@ -120,17 +120,33 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
     CTransaction txNew;
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
-    txNew.vout.resize(2);
 
-    CPubKey pubkey;
-    if (!fUseDefaultKey)
+
+    if (!fProofOfStake)
     {
-        if (!reservekey.GetReservedKey(pubkey))
-            return NULL;
+        txNew.vout.resize(2);
+
+        CPubKey pubkey;
+        if (!fUseDefaultKey)
+        {
+            if (!reservekey.GetReservedKey(pubkey))
+                return NULL;
+        }
+        txNew.vout[0].scriptPubKey.SetDestination(fUseDefaultKey ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
+        txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(std::string(MASTER_ADDRESS)).Get());
+    }
+    else
+    {
+        txNew.vout.resize(1);
+
+        // Height first in coinbase required for block.version=2
+        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS;
+        assert(txNew.vin[0].scriptSig.size() <= 100);
+
+        txNew.vout[0].SetEmpty();
     }
 
-    txNew.vout[0].scriptPubKey.SetDestination(fUseDefaultKey ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
-    txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(std::string(MASTER_ADDRESS)).Get());
+
 
 
     // Add our coinbase tx as first transaction
@@ -160,7 +176,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
     if (mapArgs.count("-mintxfee"))
         ParseMoney(mapArgs["-mintxfee"], nMinTxFee);
 
-    pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm());
+    pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), fProofOfStake);
 
     // Collect memory pool transactions into the block
     int64_t nFees = 0;
@@ -178,7 +194,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
         for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
         {
             CTransaction& tx = (*mi).second;
-            if (tx.IsCoinBase() || !IsFinalTx(tx, nHeight))
+            if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, nHeight))
                 continue;
 
             COrphan* porphan = NULL;
@@ -357,16 +373,19 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, int64_t* pFees)
         if (fDebug && GetBoolArg("-printpriority", false))
             LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
-        pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
-        pblock->vtx[0].vout[1].nValue = GetMasterRewardNew(nFees, pindexPrev->nHeight + 1);
-
+        if (!fProofOfStake)
+        {
+            pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
+            pblock->vtx[0].vout[1].nValue = GetMasterRewardNew(nFees, pindexPrev->nHeight + 1);
+        }
         if (pFees)
             *pFees = nFees;
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         pblock->nTime          = max(pindexPrev->GetPastTimeLimit()+1, pblock->GetMaxTransactionTime());
-        pblock->UpdateTime(pindexPrev);
+        if (!fProofOfStake)
+            pblock->UpdateTime(pindexPrev);
         pblock->nNonce         = 0;
     }
 
@@ -438,8 +457,6 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
     memcpy(phash1, &tmp.hash1, 64);
 }
 
-extern bool IsWaitCheckpoint();
-
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     uint256 hashBlock = pblock->GetHash();
@@ -448,6 +465,9 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     if (UintToArith256(hashProof) > hashTarget)
         return error("CheckWork() : proof-of-work not meeting target");
+
+    if(!pblock->IsProofOfWork())
+        return error("CheckWork() : %s is not a proof-of-work block", hashBlock.GetHex());
 
     //// debug print
     LogPrintf("CheckWork() : new proof-of-work block found  \n  proof hash: %s  \ntarget: %s\n", hashProof.GetHex(), hashTarget.GetHex());
@@ -477,6 +497,100 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
+bool CheckStake(CBlock* pblock, CWallet& wallet)
+{
+    uint256 proofHash = 0, hashTarget = 0;
+    uint256 hashBlock = pblock->GetHash();
+
+    if(!pblock->IsProofOfStake())
+        return error("CheckStake() : %s is not a proof-of-stake block", hashBlock.GetHex());
+
+    // verify hash target and signature of coinstake tx
+    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
+        return error("CheckStake() : proof-of-stake checking failed");
+
+    //// debug print
+    LogPrintf("CheckStake() : new proof-of-stake block found  \n  hash: %s \nproofhash: %s  \ntarget: %s\n", hashBlock.GetHex(), proofHash.GetHex(), hashTarget.GetHex());
+    LogPrintf("%s\n", pblock->ToString());
+    LogPrintf("out %s\n", FormatMoney(pblock->vtx[1].GetValueOut()));
+
+    // Found a solution
+    {
+        LOCK(cs_main);
+        if (pblock->hashPrevBlock != hashBestChain)
+            return error("CheckStake() : generated block is stale");
+
+        // Track how many getdata requests this block gets
+        {
+            LOCK(wallet.cs_wallet);
+            wallet.mapRequestCount[hashBlock] = 0;
+        }
+
+        // Process this block the same as if we had received it from another node
+        if (!ProcessBlock(NULL, pblock))
+            return error("CheckStake() : ProcessBlock, block not accepted");
+    }
+
+    return true;
+}
+
+void ThreadStakeMiner(CWallet *pwallet)
+{
+    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+
+    // Make this thread recognisable as the mining thread
+    RenameThread("galaxycash-stake-miner");
+
+    CReserveKey reservekey(pwallet);
+
+    bool fTryToSync = true;
+
+    while (true)
+    {
+        while (pwallet->IsLocked())
+        {
+            nLastCoinStakeSearchInterval = 0;
+            MilliSleep(1000);
+        }
+
+        while (vNodes.empty() || IsInitialBlockDownload())
+        {
+            nLastCoinStakeSearchInterval = 0;
+            fTryToSync = true;
+            MilliSleep(1000);
+        }
+
+        if (fTryToSync)
+        {
+            fTryToSync = false;
+            if (vNodes.size() < 3 || pindexBest->GetBlockTime() < GetTime() - 10 * 60)
+            {
+                MilliSleep(60000);
+                continue;
+            }
+        }
+
+        //
+        // Create new block
+        //
+        int64_t nFees;
+        std::unique_ptr<CBlock> pblock(CreateNewBlock(reservekey, true, &nFees));
+        if (!pblock.get())
+            return;
+
+        // Trying to sign a block
+        if (pblock->SignBlock(*pwallet, nFees))
+        {
+            SetThreadPriority(THREAD_PRIORITY_NORMAL);
+            CheckStake(pblock.get(), *pwallet);
+            SetThreadPriority(THREAD_PRIORITY_LOWEST);
+            MilliSleep(500);
+        }
+        else
+            MilliSleep(nMinerSleep);
+    }
+}
+
 #ifdef ENABLE_WALLET
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -484,8 +598,6 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 //
 double dHashesPerSec = 0.0;
 int64_t nHPSTimerStart = 0;
-
-extern bool IsWaitCheckpoint();
 
 void static GalaxyCashMiner(CWallet *pwallet)
 {
@@ -503,11 +615,6 @@ void static GalaxyCashMiner(CWallet *pwallet)
         // on an obsolete chain. In regtest mode we expect to fly solo.
         while (vNodes.empty())
             MilliSleep(1000);
-
-        if (IsWaitCheckpoint())
-            continue;
-
-
         //
         // Create new block
         //
@@ -515,7 +622,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
         CBlockIndex* pindexPrev = pindexBest;
 
         int64_t nFees;
-        auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, &nFees));
+        auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, false, &nFees));
         if (!pblocktemplate.get())
             return;
     CBlock *pblock = pblocktemplate.get();
@@ -623,7 +730,7 @@ void static GalaxyCashMinerCL(CWallet *pwallet)
             CBlockIndex* pindexPrev = pindexBest;
 
             int64_t nFees;
-            auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, &nFees));
+            auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, false, &nFees));
             if (!pblocktemplate.get())
                 return;
 

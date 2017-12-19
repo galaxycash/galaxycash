@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef _GALAXYCASHRPC_CLIENT_H_
-#define _GALAXYCASHRPC_CLIENT_H_ 1
+#ifndef _HONEYRPC_CLIENT_H_
+#define _HONEYRPC_CLIENT_H_ 1
 
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_utils.h"

@@ -10,13 +10,15 @@
 #include "txdb.h"
 #include "init.h"
 #include "miner.h"
-
+#include "kernel.h"
 
 #include <boost/assign/list_of.hpp>
 
 using namespace json_spirit;
 using namespace std;
 using namespace boost::assign;
+
+extern double GetDifficultyFromBits(unsigned int nBits);
 
 // Key used by getwork/getblocktemplate miners.
 // Allocated in InitRPCMining, free'd in ShutdownRPCMining
@@ -37,65 +39,6 @@ void ShutdownRPCMining()
         return;
 
     delete pMiningKey; pMiningKey = NULL;
-}
-
-/**
- * Return average network hashes per second based on the last 'lookup' blocks,
- * or from the last difficulty change if 'lookup' is nonpositive.
- * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
- */
-Value GetNetworkHashPS(int lookup, int height) {
-    CBlockIndex *pb = pindexBest;
-
-    if (pb == NULL || !pb->nHeight)
-        return 0;
-
-    // If lookup is -1, then use blocks since last difficulty change.
-    if (lookup <= 0)
-        lookup = pb->nHeight % Params().DifficultyAdjustmentInterval() + 1;
-
-    // If lookup is larger than chain, then set it to chain length.
-    if (lookup > pb->nHeight)
-        lookup = pb->nHeight;
-
-    CBlockIndex *pb0 = pb;
-    int64_t minTime = pb0->GetBlockTime();
-    int64_t maxTime = minTime;
-    for (int i = 0; i < lookup; i++) {
-        if (!pb0->pprev)
-            break;
-        pb0 = pb0->pprev;
-        int64_t time = pb0->GetBlockTime();
-        minTime = std::min(time, minTime);
-        maxTime = std::max(time, maxTime);
-    }
-
-    // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
-    if (minTime == maxTime)
-        return 0;
-
-    arith_uint256 workDiff = UintToArith256(pb->GetBlockTrust()) - UintToArith256(pb0->GetBlockTrust());
-    int64_t timeDiff = maxTime - minTime;
-
-    return workDiff.getdouble() / timeDiff;
-}
-
-Value getnetworkhashps(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 2)
-        throw std::runtime_error(
-            "getnetworkhashps ( nblocks height )\n"
-            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
-            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
-            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
-            "\nArguments:\n"
-            "1. nblocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
-            "2. height      (numeric, optional, default=-1) To estimate at the time of the given height.\n"
-            "\nResult:\n"
-            "x             (numeric) Hashes per second estimated\n"
-       );
-
-    return GetPoWMHashPS();
 }
 
 Value getminingalgo(const Array& params, bool fHelp)
@@ -155,7 +98,32 @@ Value getsubsidy(const Array& params, bool fHelp)
     return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight);
 }
 
-extern const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *, const int32_t);
+Value getstakesubsidy(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getstakesubsidy <hex string>\n"
+            "Returns proof-of-stake subsidy value for the specified coinstake.");
+
+    RPCTypeCheck(params, list_of(str_type));
+
+    vector<unsigned char> txData(ParseHex(params[0].get_str()));
+    CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
+    CTransaction tx;
+    try {
+        ssData >> tx;
+    }
+    catch (std::exception &e) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+    }
+
+    uint64_t nCoinAge;
+    CTxDB txdb("r");
+    if (!tx.GetCoinAge(txdb, pindexBest, nCoinAge))
+        throw JSONRPCError(RPC_MISC_ERROR, "GetCoinAge failed");
+
+    return (uint64_t)GetProofOfStakeReward(pindexBest, nCoinAge, 0);
+}
 
 Value getmininginfo(const Array& params, bool fHelp)
 {
@@ -164,29 +132,156 @@ Value getmininginfo(const Array& params, bool fHelp)
             "getmininginfo\n"
             "Returns an object containing mining-related information.");
 
+    uint64_t nWeight = 0;
+    if (pwalletMain)
+        nWeight = pwalletMain->GetStakeWeight();
 
-    Object obj, diff;
+    Object obj, diff, weight;
     obj.push_back(Pair("blocks",        (int)nBestHeight));
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
 
-    diff.push_back(Pair("x11",          GetDifficulty(pindexBest, CBlock::ALGO_X11)));
-    diff.push_back(Pair("x12",          GetDifficulty(pindexBest, CBlock::ALGO_X12)));
-    diff.push_back(Pair("x13",          GetDifficulty(pindexBest, CBlock::ALGO_X13)));
+    diff.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits)));
+    diff.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    diff.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("difficulty",    diff));
 
-    obj.push_back(Pair("difficulty",    GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo)->nBits)));
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight)));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
-    obj.push_back(Pair("generate",      GetBoolArg("-gen", false)));
-    obj.push_back(Pair("genproclimit",  (int)GetArg("-genproclimit", -1)));
+    obj.push_back(Pair("netstakeweight", GetPoSKernelPS()));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     obj.push_back(Pair("pooledtx",      (uint64_t)mempool.size()));
+
+    weight.push_back(Pair("minimum",    (uint64_t)nWeight));
+    weight.push_back(Pair("maximum",    (uint64_t)0));
+    weight.push_back(Pair("combined",  (uint64_t)nWeight));
+    obj.push_back(Pair("stakeweight", weight));
 
     obj.push_back(Pair("testnet",       TestNet()));
     return obj;
 }
 
-extern bool IsWaitCheckpoint();
+Value getstakinginfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getstakinginfo\n"
+            "Returns an object containing staking-related information.");
+
+    uint64_t nWeight = 0;
+    if (pwalletMain)
+        nWeight = pwalletMain->GetStakeWeight();
+
+    uint64_t nNetworkWeight = GetPoSKernelPS();
+    bool staking = nLastCoinStakeSearchInterval && nWeight;
+    uint64_t nExpectedTime = staking ? (Params().PowTargetSpacing() * nNetworkWeight / nWeight) : 0;
+
+    Object obj;
+
+    obj.push_back(Pair("enabled", GetBoolArg("-staking", true)));
+    obj.push_back(Pair("staking", staking));
+    obj.push_back(Pair("errors", GetWarnings("statusbar")));
+
+    obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
+    obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
+    obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
+
+    obj.push_back(Pair("difficulty", GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+
+    obj.push_back(Pair("weight", (uint64_t)nWeight));
+    obj.push_back(Pair("netstakeweight", (uint64_t)nNetworkWeight));
+
+    obj.push_back(Pair("expectedtime", nExpectedTime));
+
+    return obj;
+}
+
+Value checkkernel(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "checkkernel [{\"txid\":txid,\"vout\":n},...] [createblocktemplate=false]\n"
+            "Check if one of given inputs is a kernel input at the moment.\n"
+        );
+
+    RPCTypeCheck(params, list_of(array_type)(bool_type));
+
+    Array inputs = params[0].get_array();
+    bool fCreateBlockTemplate = params.size() > 1 ? params[1].get_bool() : false;
+
+    if (vNodes.empty())
+        throw JSONRPCError(-9, "GalaxyCash is not connected!");
+
+    if (IsInitialBlockDownload())
+        throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
+
+    COutPoint kernel;
+    CBlockIndex* pindexPrev = pindexBest;
+    unsigned int nBits = GetNextTargetRequired(pindexPrev, CBlock::ALGO_X12, true);
+    int64_t nTime = GetAdjustedTime();
+    nTime &= ~STAKE_TIMESTAMP_MASK;
+
+    BOOST_FOREACH(Value& input, inputs)
+    {
+        const Object& o = input.get_obj();
+
+        const Value& txid_v = find_value(o, "txid");
+        if (txid_v.type() != str_type)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing txid key");
+        string txid = txid_v.get_str();
+        if (!IsHex(txid))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected hex txid");
+
+        const Value& vout_v = find_value(o, "vout");
+        if (vout_v.type() != int_type)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+        int nOutput = vout_v.get_int();
+        if (nOutput < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+        COutPoint cInput(uint256(txid), nOutput);
+        if (CheckKernel(pindexPrev, nBits, nTime, cInput))
+        {
+            kernel = cInput;
+            break;
+        }
+    }
+
+    Object result;
+    result.push_back(Pair("found", !kernel.IsNull()));
+
+    if (kernel.IsNull())
+        return result;
+
+    Object oKernel;
+    oKernel.push_back(Pair("txid", kernel.hash.GetHex()));
+    oKernel.push_back(Pair("vout", (int64_t)kernel.n));
+    oKernel.push_back(Pair("time", nTime));
+    result.push_back(Pair("kernel", oKernel));
+
+    if (!fCreateBlockTemplate)
+        return result;
+
+    int64_t nFees;
+    std::unique_ptr<CBlock> pblock(CreateNewBlock(*pMiningKey, true, &nFees));
+
+    pblock->nTime = pblock->vtx[0].nTime = nTime;
+
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << *pblock;
+
+    result.push_back(Pair("blocktemplate", HexStr(ss.begin(), ss.end())));
+    result.push_back(Pair("blocktemplatefees", nFees));
+
+    CPubKey pubkey;
+    if (!pMiningKey->GetReservedKey(pubkey))
+        throw JSONRPCError(RPC_MISC_ERROR, "GetReservedKey failed");
+
+    result.push_back(Pair("blocktemplatesignkey", HexStr(pubkey)));
+
+    return result;
+}
 
 Value getworkex(const Array& params, bool fHelp)
 {
@@ -202,13 +297,6 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
 
-    if (IsWaitCheckpoint())
-    {
-        MilliSleep(1000);
-
-        if (IsWaitCheckpoint())
-            throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
-    }
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
@@ -317,7 +405,6 @@ Value getworkex(const Array& params, bool fHelp)
 
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
-
         assert(pwalletMain != NULL);
         return CheckWork(pblock, *pwalletMain, *pMiningKey);
     }
@@ -326,7 +413,6 @@ Value getworkex(const Array& params, bool fHelp)
 
 Value getwork(const Array& params, bool fHelp)
 {
-
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getwork [data]\n"
@@ -342,14 +428,6 @@ Value getwork(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
-
-    if (IsWaitCheckpoint())
-    {
-        MilliSleep(1000);
-
-        if (IsWaitCheckpoint())
-            throw JSONRPCError(RPC_HARD_CHECKPOINT_OLDEST, "Waiting checkpoint...");
-    }
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -500,6 +578,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (pindexPrev != pindexBest ||
         (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5))
     {
+
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = NULL;
 
@@ -535,7 +614,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
-        if (tx.IsCoinBase())
+        if (tx.IsCoinBase() || tx.IsCoinStake())
             continue;
 
         Object entry;
@@ -587,7 +666,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
     result.push_back(Pair("transactions", transactions));
     result.push_back(Pair("coinbaseaux", aux));
-    result.push_back(Pair("coinbasevalue", (int64_t)(pblock->vtx[0].vout[0].nValue + pblock->vtx[0].vout[1].nValue)));
+    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
     result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit()+1));
     result.push_back(Pair("mutable", aMutable));
@@ -597,8 +676,8 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
-    result.push_back(Pair("algo", pblock->GetAlgorithm()));
-    result.push_back(Pair("algo_name", GetAlgorithmName(pblock->GetAlgorithm())));
+    result.push_back(Pair("algorithm", GetAlgorithmName(pblock->GetAlgorithm())));
+
     return result;
 }
 
@@ -606,8 +685,12 @@ Value submitblock(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "submitblock <hex data>\n"
-            "Attempts to submit new block to network.\n");
+            "submitblock <hex data> [optional-params-obj]\n"
+            "[optional-params-obj] parameter is currently ignored.\n"
+            "Attempts to submit new block to network.\n"
+            "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.");
+
+    MilliSleep(500);
 
     vector<unsigned char> blockData(ParseHex(params[0].get_str()));
     CDataStream ssBlock(blockData, SER_NETWORK, PROTOCOL_VERSION);
@@ -617,6 +700,39 @@ Value submitblock(const Array& params, bool fHelp)
     }
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+    }
+
+    if (params.size() > 1)
+    {
+        const Object& oparam = params[1].get_obj();
+
+        const Value& coinstake_v = find_value(oparam, "coinstake");
+        if (coinstake_v.type() == str_type)
+        {
+            vector<unsigned char> txData(ParseHex(coinstake_v.get_str()));
+            CDataStream ssTx(txData, SER_NETWORK, PROTOCOL_VERSION);
+            CTransaction txCoinStake;
+            try {
+                ssTx >> txCoinStake;
+            }
+            catch (std::exception &e) {
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Coinstake decode failed");
+            }
+
+            block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
+            block.hashMerkleRoot = block.BuildMerkleTree();
+
+            CPubKey pubkey;
+            if (!pMiningKey->GetReservedKey(pubkey))
+                throw JSONRPCError(RPC_MISC_ERROR, "GetReservedKey failed");
+
+            CKey key;
+            if (!pwalletMain->GetKey(pubkey.GetID(), key))
+                throw JSONRPCError(RPC_MISC_ERROR, "GetKey failed");
+
+            if (!key.Sign(block.GetHash(), block.vchBlockSig))
+                throw JSONRPCError(RPC_MISC_ERROR, "Sign failed");
+        }
     }
 
     bool fAccepted = ProcessBlock(NULL, &block);
