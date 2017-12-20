@@ -226,6 +226,7 @@ public:
     uint256 hashContinue;
     CBlockIndex* pindexLastGetBlocksBegin;
     uint256 hashLastGetBlocksEnd;
+    uint256 hashCheckpointKnown;
     int nStartingHeight;
     bool fStartSync;
 
@@ -280,6 +281,7 @@ public:
         hashContinue = 0;
         pindexLastGetBlocksBegin = 0;
         hashLastGetBlocksEnd = 0;
+        hashCheckpointKnown = 0;
         nStartingHeight = -1;
         fStartSync = false;
         fGetAddr = false;

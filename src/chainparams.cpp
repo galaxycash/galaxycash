@@ -56,6 +56,9 @@ public:
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
 
+        // Last block
+        nLastBlock = 14868;
+
         // Ports
         nDefaultPort = 7604;
         nRPCPort = 4604;
@@ -94,10 +97,9 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x43580fb123f142578ca6c1e6f4ce411b551279e1968a875e6b493ec3da51bdb9"));
 
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("5.189.152.63", "5.189.152.63:7604"));
-        vSeeds.push_back(CDNSSeedData("195.133.201.213", "195.133.201.213:7604"));
-
-
+        vSeeds.push_back(CDNSSeedData("195.133.201.213:7604", "195.133.201.213"));
+        vSeeds.push_back(CDNSSeedData("coinsmarkets.com:7604", "coinsmarkets.com"));
+        vSeeds.push_back(CDNSSeedData("coinsmarkets.com:10003", "coinsmarkets.com:10003"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);

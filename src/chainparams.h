@@ -71,6 +71,7 @@ public:
     int64_t PowTargetTimespan() const { return nPowTargetTimespan; }
     int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
+    int64_t LastBlock() const { return nLastBlock; }
 
 protected:
     CChainParams() {};
@@ -79,6 +80,7 @@ protected:
     MessageStartChars pchMessageStart;
     int nDefaultPort;
     int nRPCPort;
+    int64_t nLastBlock;
     int64_t nPowTargetTimespan;
     int64_t nPowTargetSpacing;
     uint256 stakeLimit;

@@ -297,6 +297,8 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
 
+    if (pindexBest->nHeight > Params().LastBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
@@ -428,6 +430,9 @@ Value getwork(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
+
+    if (pindexBest->nHeight > Params().LastBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -701,6 +706,9 @@ Value submitblock(const Array& params, bool fHelp)
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
     }
+
+    if (block.IsProofOfWork() && pindexBest->nHeight > Params().LastBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
     if (params.size() > 1)
     {

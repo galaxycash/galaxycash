@@ -469,6 +469,9 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     if(!pblock->IsProofOfWork())
         return error("CheckWork() : %s is not a proof-of-work block", hashBlock.GetHex());
 
+    if (pindexBest->nHeight > Params().LastBlock())
+        return error("CheckWork() : GalaxyCash no more PoW blocks!");
+
     //// debug print
     LogPrintf("CheckWork() : new proof-of-work block found  \n  proof hash: %s  \ntarget: %s\n", hashProof.GetHex(), hashTarget.GetHex());
     LogPrintf("%s\n", pblock->ToString());

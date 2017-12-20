@@ -11,12 +11,16 @@ Difficulty retarget:    Every block
 
 Block time:             3 Minutes
 
-PoW Block reward:       6 GCH, 4 GCH after 10k block, 2 GCH after 100k block, and 1% dev reward
-PoS Block reward:       50% of Current PoW Reward
+PoW Block reward:       6 GCH, 4 GCH after 10k block
+
+PoW Last Block:         14868
+
+PoS Block reward:       3 GCH, 2 GCH after 10k block, 1 GCH after 15k block, 0.5 GCH after 50k block, 0.25 after 100k block
 
 Coinbase maturity:      6 blocks
 
 Minimum POS Age:        6 Hours
+
 Maximum POS Age:        No Max
 
 Network info:
