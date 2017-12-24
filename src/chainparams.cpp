@@ -98,7 +98,6 @@ public:
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("195.133.201.213:7604", "195.133.201.213"));
-        vSeeds.push_back(CDNSSeedData("coinsmarkets.com:7604", "coinsmarkets.com"));
         vSeeds.push_back(CDNSSeedData("coinsmarkets.com:10003", "coinsmarkets.com:10003"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);

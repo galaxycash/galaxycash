@@ -1,6 +1,6 @@
 #include "overviewpage.h"
 #include "ui_overviewpage.h"
-
+#include "util.h"
 #include "clientmodel.h"
 #include "walletmodel.h"
 #include "galaxycashunits.h"
@@ -51,6 +51,9 @@ public:
             foreground = qvariant_cast<QColor>(value);
         }
 
+        if (GetBoolArg("-black", false))
+            foreground = QColor(120 * 0.6,127 * 0.6,139 * 0.6);
+
         painter->setPen(foreground);
         painter->drawText(addressRect, Qt::AlignLeft|Qt::AlignVCenter, address);
 
@@ -60,11 +63,11 @@ public:
         }
         else if(!confirmed)
         {
-            foreground = COLOR_UNCONFIRMED;
+            foreground = GetBoolArg("-black", false) ? QColor(120 * 0.6,127 * 0.6,139 * 0.6) : COLOR_UNCONFIRMED;
         }
         else
         {
-            foreground = option.palette.color(QPalette::Text);
+            foreground = GetBoolArg("-black", false) ? QColor(120,127,139) : option.palette.color(QPalette::Text);
         }
         painter->setPen(foreground);
         QString amountText = GalaxyCashUnits::formatWithUnit(unit, amount, true);
@@ -74,7 +77,7 @@ public:
         }
         painter->drawText(amountRect, Qt::AlignRight|Qt::AlignVCenter, amountText);
 
-        painter->setPen(option.palette.color(QPalette::Text));
+        painter->setPen(GetBoolArg("-black", false) ? QColor(120,127,139) : option.palette.color(QPalette::Text));
         painter->drawText(amountRect, Qt::AlignLeft|Qt::AlignVCenter, GUIUtil::dateTimeStr(date));
 
         painter->restore();

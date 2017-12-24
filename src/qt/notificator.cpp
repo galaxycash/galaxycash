@@ -216,7 +216,7 @@ void Notificator::notifyDBus(Class cls, const QString &title, const QString &tex
 
 void Notificator::notifySystray(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout)
 {
-    if (!GetBoolArg("nonotify", false))
+    if (GetBoolArg("nonotify", false))
         return;
 
     Q_UNUSED(icon);

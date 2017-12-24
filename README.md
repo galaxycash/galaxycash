@@ -1,6 +1,8 @@
 GalaxyCash
 ======
 
+Block Explorer: https://galaxycash.info/
+
 SPECIFICATIONS
 --------------
 Type:                   PoW/PoS Hybrid

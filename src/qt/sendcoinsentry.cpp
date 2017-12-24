@@ -7,7 +7,7 @@
 #include "walletmodel.h"
 #include "optionsmodel.h"
 #include "addresstablemodel.h"
-
+#include "util.h"
 #include <QApplication>
 #include <QClipboard>
 
@@ -28,6 +28,13 @@ SendCoinsEntry::SendCoinsEntry(QWidget *parent) :
 #endif
     setFocusPolicy(Qt::TabFocus);
     setFocusProxy(ui->payTo);
+
+    if (GetBoolArg("-black", false))
+    {
+        ui->addressBookButton->setIcon(QIcon(":/icons/black/address-book"));
+        ui->pasteButton->setIcon(QIcon(":/icons/black/editpaste"));
+        ui->deleteButton->setIcon(QIcon(":/icons/black/remove"));
+    }
 
     GUIUtil::setupAddressWidget(ui->payTo, this);
 }

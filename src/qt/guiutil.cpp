@@ -184,6 +184,8 @@ QString getSaveFileName(QWidget *parent, const QString &caption,
     {
         myDir = dir;
     }
+
+
     QString result = QFileDialog::getSaveFileName(parent, caption, myDir, filter, &selectedFilter);
 
     /* Extract first suffix from filter pattern "Description (*.foo)" or "Description (*.foo *.bar ...) */
@@ -466,10 +468,15 @@ void SetBlackThemeQSS(QApplication& app)
                       "QFrame         { border: none; }"
                       "QComboBox      { color: rgb(255,255,255); }"
                       "QComboBox QAbstractItemView::item { color: rgb(255,255,255); }"
-                      "QPushButton    { background: rgb(149,148,148); color: rgb(21,21,21); }"
+                      "QPushButton    { background: rgb(120,127,139); color: rgb(21,21,21); }"
+                      "QSpacer        { background: rgb(120,127,139); color: rgb(21,21,21); }"
+                      "QSpacer::item    { background: rgb(120,127,139); color: rgb(21,21,21); }"
+                      "QSpacerItem    { background: rgb(120,127,139); color: rgb(21,21,21); }"
                       "QDoubleSpinBox { background: rgb(63,67,72); color: rgb(255,255,255); border-color: rgb(194,194,194); }"
                       "QLineEdit      { background: rgb(63,67,72); color: rgb(255,255,255); border-color: rgb(194,194,194); }"
                       "QTextEdit      { background: rgb(63,67,72); color: rgb(255,255,255); }"
+                      "QText          { color: rgb(120,127,139); }"
+                      "QLine          { background: rgb(120,127,139); color: rgb(255,255,255); }"
                       "QPlainTextEdit { background: rgb(63,67,72); color: rgb(255,255,255); }"
                       "QMenuBar       { background: rgb(41,44,48); color: rgb(110,116,126); }"
                       "QMenu          { background: rgb(30,32,36); color: rgb(222,222,222); }"
@@ -483,7 +490,7 @@ void SetBlackThemeQSS(QApplication& app)
                       "QTabBar::tab:!selected { background: rgb(24,26,30); margin-top: 2px; }"
                       "QTabWidget::pane { border: 1px solid rgb(78,79,83); }"
                       "QToolButton    { background: rgb(30,32,36); color: rgb(116,122,134); border: none; border-left-color: rgb(30,32,36); border-left-style: solid; border-left-width: 6px; margin-top: 8px; margin-bottom: 8px; }"
-                      "QToolButton:checked { color: rgb(255,255,255); border: none; border-left-color: rgb(149,148,148); border-left-style: solid; border-left-width: 6px; }"
+                      "QToolButton:checked { color: rgb(255,255,255); border: none; border-left-color: rgb(120,127,139); border-left-style: solid; border-left-width: 6px; }"
                       "QProgressBar   { color: rgb(149,148,148); border-color: rgb(255,255,255); border-width: 3px; border-style: solid; }"
                       "QProgressBar::chunk { background: rgb(255,255,255); }"
                       "QTreeView::item { background: rgb(41,44,48); color: rgb(212,213,213); }"

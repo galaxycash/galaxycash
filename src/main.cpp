@@ -38,14 +38,16 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 
-int nStakeMinConfirmations = 50;
+
+int nCoinbaseMaturity = 6;
+int nStakeMinConfirmations = (nCoinbaseMaturity + 1) * 2;
 unsigned int nStakeMinAge = 6 * 60 * 60; // 6 hours
 unsigned int nModifierInterval = 5 * 60; // time to elapse before new modifier is computed
 int64_t nLastCoinStakeSearchInterval = 0;
 
 int nMiningAlgo = CBlock::ALGO_X12;
 
-int nCoinbaseMaturity = 6;
+
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -1010,20 +1012,20 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
     if (pindexBest->nMoneySupply < MAX_MONEY)
     {
         if (nHeight < 10000)
-            nSubsidy = (TestNet() ? 1000 : 6) * COIN;
+            nSubsidy = (TestNet() ? 1000 : 3) * COIN;
         else if (nHeight < 15000)
-            nSubsidy = (TestNet() ? 100 : 4) * COIN;
-        else if (nHeight < 50000)
             nSubsidy = (TestNet() ? 100 : 2) * COIN;
-        else if (nHeight < 100000)
+        else if (nHeight < 50000)
             nSubsidy = (TestNet() ? 100 : 1) * COIN;
+        else if (nHeight < 100000)
+            nSubsidy = (TestNet() ? 100 : 0.5) * COIN;
         else
-            nSubsidy = (TestNet() ? 10 : 0.5) * COIN;
+            nSubsidy = (TestNet() ? 10 : 0.25) * COIN;
     }
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d nHeight=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
-    return (nSubsidy / 100 * 50) + nFees; // 50% of PoW reward
+    return nSubsidy+ nFees;
 }
 
 // ppcoin: find last block index up to pindex
@@ -2308,9 +2310,11 @@ static CBlockIndex *InsertBlockIndex(uint256 hash, CBlock *block)
     return pindexNew;
 }
 
+static const int numForkBlocksCheck = 16;
+
 bool IsFork(const uint256 hash, int &nForkTime)
 {
-    int numBlocksCheck = 6;
+    int numBlocksCheck = numForkBlocksCheck;
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
@@ -2327,7 +2331,7 @@ bool IsFork(const uint256 hash, int &nForkTime)
 
 CBlockIndex *GetForkBlock(const uint256 hash)
 {
-    int numBlocksCheck = 16;
+    int numBlocksCheck = numForkBlocksCheck;
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
@@ -2498,7 +2502,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     }
 
     if (pblock->hashPrevBlock != hashBestChain &&
-            nBestHeight > 13840 &&
+            nBestHeight > 15800 &&
             !IsInitialBlockDownload())
     {
         int forkTime = 0;

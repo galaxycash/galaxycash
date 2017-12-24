@@ -180,7 +180,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     {
         QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
         connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
-        timerStakingIcon->start(30 * 1000);
+        timerStakingIcon->start(20 * 1000);
         updateStakingIcon();
     }
 
@@ -245,31 +245,31 @@ void GalaxyCashGUI::createActions()
 {
     QActionGroup *tabGroup = new QActionGroup(this);
 
-    overviewAction = new QAction(QIcon(":/icons/overview"), tr("&Dashboard"), this);
+    overviewAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/overview" : ":/icons/overview"), tr("&Dashboard"), this);
     overviewAction->setToolTip(tr("Show general overview of wallet"));
     overviewAction->setCheckable(true);
     overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
     tabGroup->addAction(overviewAction);
 
-    receiveCoinsAction = new QAction(QIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
+    receiveCoinsAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/receiving_addresses" : ":/icons/receiving_addresses"), tr("&Receive"), this);
     receiveCoinsAction->setToolTip(tr("Show the list of addresses for receiving payments"));
     receiveCoinsAction->setCheckable(true);
     receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
     tabGroup->addAction(receiveCoinsAction);
 
-    sendCoinsAction = new QAction(QIcon(":/icons/send"), tr("&Send"), this);
+    sendCoinsAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/send" : ":/icons/send"), tr("&Send"), this);
     sendCoinsAction->setToolTip(tr("Send coins to a GalaxyCash address"));
     sendCoinsAction->setCheckable(true);
     sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
     tabGroup->addAction(sendCoinsAction);
 
-    historyAction = new QAction(QIcon(":/icons/history"), tr("&Transactions"), this);
+    historyAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/history" : ":/icons/history"), tr("&Transactions"), this);
     historyAction->setToolTip(tr("Browse transaction history"));
     historyAction->setCheckable(true);
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    addressBookAction = new QAction(QIcon(":/icons/address-book"), tr("&Address Book"), this);
+    addressBookAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/address-book" : ":/icons/address-book"), tr("&Address Book"), this);
     addressBookAction->setToolTip(tr("Edit the list of stored addresses and labels"));
     addressBookAction->setCheckable(true);
     addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
@@ -286,39 +286,39 @@ void GalaxyCashGUI::createActions()
     connect(addressBookAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(addressBookAction, SIGNAL(triggered()), this, SLOT(gotoAddressBookPage()));
 
-    quitAction = new QAction(QIcon(":/icons/quit"), tr("E&xit"), this);
+    quitAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/quit" : ":/icons/quit"), tr("E&xit"), this);
     quitAction->setToolTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
     quitAction->setMenuRole(QAction::QuitRole);
-    aboutAction = new QAction(QIcon(":/icons/galaxycash"), tr("&About GalaxyCash"), this);
+    aboutAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/galaxycash" : ":/icons/galaxycash"), tr("&About GalaxyCash"), this);
     aboutAction->setToolTip(tr("Show information about GalaxyCash"));
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutQtAction = new QAction(QIcon(":/trolltech/qmessagebox/images/qtlogo-64.png"), tr("About &Qt"), this);
     aboutQtAction->setToolTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
-    optionsAction = new QAction(QIcon(":/icons/options"), tr("&Options..."), this);
+    optionsAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/options" : ":/icons/options"), tr("&Options..."), this);
     optionsAction->setToolTip(tr("Modify configuration options for GalaxyCash"));
     optionsAction->setMenuRole(QAction::PreferencesRole);
-    toggleHideAction = new QAction(QIcon(":/icons/galaxycash"), tr("&Show / Hide"), this);
-    encryptWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Encrypt Wallet..."), this);
+    toggleHideAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/galaxycash" : ":/icons/galaxycash"), tr("&Show / Hide"), this);
+    encryptWalletAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_closed" : ":/icons/lock_closed"), tr("&Encrypt Wallet..."), this);
     encryptWalletAction->setToolTip(tr("Encrypt or decrypt wallet"));
-    backupWalletAction = new QAction(QIcon(":/icons/filesave"), tr("&Backup Wallet..."), this);
+    backupWalletAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/filesave" : ":/icons/filesave"), tr("&Backup Wallet..."), this);
     backupWalletAction->setToolTip(tr("Backup wallet to another location"));
-    changePassphraseAction = new QAction(QIcon(":/icons/key"), tr("&Change Passphrase..."), this);
+    changePassphraseAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/key" : ":/icons/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setToolTip(tr("Change the passphrase used for wallet encryption"));
-    unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Wallet..."), this);
+    unlockWalletAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_open" : ":/icons/lock_open"), tr("&Unlock Wallet..."), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
-    lockWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Lock Wallet"), this);
+    lockWalletAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_closed" : ":/icons/lock_closed"), tr("&Lock Wallet"), this);
     lockWalletAction->setToolTip(tr("Lock wallet"));
-    signMessageAction = new QAction(QIcon(":/icons/edit"), tr("Sign &message..."), this);
-    verifyMessageAction = new QAction(QIcon(":/icons/transaction_0"), tr("&Verify message..."), this);
+    signMessageAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/edit" : ":/icons/edit"), tr("Sign &message..."), this);
+    verifyMessageAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/transaction_0" : ":/icons/transaction_0"), tr("&Verify message..."), this);
 
-    exportAction = new QAction(QIcon(":/icons/export"), tr("&Export..."), this);
+    exportAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/export" : ":/icons/export"), tr("&Export..."), this);
     exportAction->setToolTip(tr("Export the data in the current tab to a file"));
-    openRPCConsoleAction = new QAction(QIcon(":/icons/debugwindow"), tr("&Debug window"), this);
+    openRPCConsoleAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/debugwindow" : ":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
 
-    blockAction = new QAction(QIcon(":/icons/blockbrowser"), tr("&Block Browser"), this);
+    blockAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/blockbrowser" : ":/icons/blockbrowser"), tr("&Block Browser"), this);
     blockAction->setToolTip(tr("Explore the BlockChain"));
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
@@ -441,8 +441,8 @@ void GalaxyCashGUI::setClientModel(ClientModel *clientModel)
             if(trayIcon)
             {
                 trayIcon->setToolTip(tr("GalaxyCash client") + QString(" ") + tr("[testnet]"));
-                trayIcon->setIcon(QIcon(":/icons/toolbar_testnet"));
-                toggleHideAction->setIcon(QIcon(":/icons/toolbar_testnet"));
+                trayIcon->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar_testnet" : ":/icons/toolbar_testnet"));
+                toggleHideAction->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar_testnet" : ":/icons/toolbar_testnet"));
             }
         }
 
@@ -499,7 +499,7 @@ void GalaxyCashGUI::createTrayIcon()
     trayIconMenu = new QMenu(this);
     trayIcon->setContextMenu(trayIconMenu);
     trayIcon->setToolTip(tr("GalaxyCash client"));
-    trayIcon->setIcon(QIcon(":/icons/toolbar"));
+    trayIcon->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar" : ":/icons/toolbar"));
     connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
             this, SLOT(trayIconActivated(QSystemTrayIcon::ActivationReason)));
     trayIcon->show();
@@ -561,11 +561,11 @@ void GalaxyCashGUI::setNumConnections(int count)
     QString icon;
     switch(count)
     {
-    case 0: icon = ":/icons/connect_0"; break;
-    case 1: case 2: case 3: icon = ":/icons/connect_1"; break;
-    case 4: case 5: case 6: icon = ":/icons/connect_2"; break;
-    case 7: case 8: case 9: icon = ":/icons/connect_3"; break;
-    default: icon = ":/icons/connect_4"; break;
+    case 0: icon = GetBoolArg("-black", false) ? ":/icons/black/connect_0" : ":/icons/connect_0"; break;
+    case 1: case 2: case 3: icon = GetBoolArg("-black", false) ? ":/icons/black/connect_1" : ":/icons/connect_1"; break;
+    case 4: case 5: case 6: icon = GetBoolArg("-black", false) ? ":/icons/black/connect_2" : ":/icons/connect_2"; break;
+    case 7: case 8: case 9: icon = GetBoolArg("-black", false) ? ":/icons/black/connect_3" : ":/icons/connect_3"; break;
+    default: icon = GetBoolArg("-black", false) ? ":/icons/black/connect_4" : ":/icons/connect_4"; break;
     }
     labelConnectionsIcon->setPixmap(QIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
     labelConnectionsIcon->setToolTip(tr("%n active connection(s) to GalaxyCash network", "", count));
@@ -595,7 +595,7 @@ void GalaxyCashGUI::setNumBlocks(int count)
     if(secs < 90*60)
     {
         tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-        labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelBlocksIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/synced" : ":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
 
         overviewPage->showOutOfSyncWarning(false);
 
@@ -913,7 +913,7 @@ void GalaxyCashGUI::setEncryptionStatus(int status)
     switch(status)
     {
     case WalletModel::Unencrypted:
-        labelEncryptionIcon->setPixmap(QIcon(":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelEncryptionIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_open" : ":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelEncryptionIcon->setToolTip(tr("Wallet is <b>not encrypted</b>"));
         changePassphraseAction->setEnabled(false);
         unlockWalletAction->setVisible(false);
@@ -921,7 +921,7 @@ void GalaxyCashGUI::setEncryptionStatus(int status)
         encryptWalletAction->setEnabled(true);
         break;
     case WalletModel::Unlocked:
-        labelEncryptionIcon->setPixmap(QIcon(":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelEncryptionIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_open" : ":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>unlocked</b>"));
         changePassphraseAction->setEnabled(true);
         unlockWalletAction->setVisible(false);
@@ -929,7 +929,7 @@ void GalaxyCashGUI::setEncryptionStatus(int status)
         encryptWalletAction->setEnabled(false); // TODO: decrypt currently not supported
         break;
     case WalletModel::Locked:
-        labelEncryptionIcon->setPixmap(QIcon(":/icons/lock_closed").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelEncryptionIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/lock_closed" : ":/icons/lock_closed").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>locked</b>"));
         changePassphraseAction->setEnabled(true);
         unlockWalletAction->setVisible(true);
@@ -1071,12 +1071,12 @@ void GalaxyCashGUI::updateStakingIcon()
         nWeight /= COIN;
         nNetworkWeight /= COIN;
 
-        labelStakingIcon->setPixmap(QIcon(":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelStakingIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/staking_on" : ":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelStakingIcon->setToolTip(tr("Staking.<br>Your weight is %1<br>Network weight is %2<br>Expected time to earn reward is %3").arg(nWeight).arg(nNetworkWeight).arg(text));
     }
     else
     {
-        labelStakingIcon->setPixmap(QIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelStakingIcon->setPixmap(QIcon(GetBoolArg("-black", false) ? ":/icons/black/staking_off" : ":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         if (pwalletMain && pwalletMain->IsLocked())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
         else if (vNodes.empty())
