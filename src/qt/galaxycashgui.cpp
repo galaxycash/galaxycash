@@ -776,7 +776,7 @@ void GalaxyCashGUI::incomingTransaction(const QModelIndex & parent, int start, i
                             TransactionTableModel::ToAddress, parent)
                         .data(Qt::DecorationRole));
 
-        if (!GetBoolArg("nonotify", false))
+        if (!GetBoolArg("-nonotify", false))
         {
             notificator->notify(Notificator::Information,
                             (amount)<0 ? tr("Sent transaction") :

@@ -11,12 +11,16 @@
 #include <QApplication>
 #include <QClipboard>
 
+#include <qrencode.h>
+
+
 SendCoinsEntry::SendCoinsEntry(QWidget *parent) :
     QFrame(parent),
     ui(new Ui::SendCoinsEntry),
     model(0)
 {
     ui->setupUi(this);
+
 
 #ifdef Q_OS_MAC
     ui->payToLayout->setSpacing(4);

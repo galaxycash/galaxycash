@@ -40,7 +40,7 @@ set<pair<COutPoint, unsigned int> > setStakeSeen;
 
 
 int nCoinbaseMaturity = 6;
-int nStakeMinConfirmations = (nCoinbaseMaturity + 1) * 2;
+int nStakeMinConfirmations = 50;
 unsigned int nStakeMinAge = 6 * 60 * 60; // 6 hours
 unsigned int nModifierInterval = 5 * 60; // time to elapse before new modifier is computed
 int64_t nLastCoinStakeSearchInterval = 0;
@@ -2240,8 +2240,12 @@ bool CBlock::AcceptBlock()
     {
         LOCK(cs_vNodes);
         BOOST_FOREACH(CNode* pnode, vNodes)
+        {
             if (nBestHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
+            {
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
+            }
+        }
     }
     return true;
 }
@@ -2421,12 +2425,17 @@ CBlockIndex *ReconstructFork(const uint256 hash)
     return NULL;*/
 }
 
+static uint256 lastMined = 0;
+
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
     // Check for duplicate
     uint256 hash = pblock->GetHash();
+    if (!pfrom && lastMined != 0 && !GetBoolArg("-master", false))
+        return error("ProcessBlock() : already mined block %s", hash.ToString());
+
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString());
     if (mapOrphanBlocks.count(hash))
@@ -2459,6 +2468,22 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
+
+    if (!pfrom && !GetBoolArg("-master", false))
+    {
+        {
+            {
+                LOCK(cs_vNodes);
+                BOOST_FOREACH(CNode* pnode, vNodes)
+                        pnode->PushMessage("newblock", *pblock);
+            }
+
+            lastMined = pblock->GetHash();
+            return true;
+        }
+    }
+    else
+        lastMined = 0;
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
@@ -2500,6 +2525,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
         return true;
     }
+
 
     if (pblock->hashPrevBlock != hashBestChain &&
             nBestHeight > 15800 &&
@@ -3506,6 +3532,25 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (tx.nDoS) pfrom->Misbehaving(tx.nDoS);
     }
 
+
+    else if (strCommand == "newblock") // Ignore blocks received while importing
+    {
+        if (GetBoolArg("-master", false))
+        {
+            CBlock block;
+            vRecv >> block;
+            uint256 hashBlock = block.GetHash();
+
+            LogPrint("net", "received new block %s\n", hashBlock.ToString());
+
+            LOCK(cs_main);
+
+            if (ProcessBlock(NULL, &block))
+                pfrom->PushMessage("block", block);
+
+            if (block.nDoS) pfrom->Misbehaving(block.nDoS);
+        }
+    }
 
     else if (strCommand == "block" && !fImporting && !fReindex) // Ignore blocks received while importing
     {
