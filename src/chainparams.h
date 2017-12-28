@@ -72,7 +72,9 @@ public:
     int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     int64_t LastBlock() const { return nLastBlock; }
-
+    int64_t PowWaveEnd() const { return 14868; }
+    int64_t PowWaveBegin() const { return 20000; }
+    bool    IsPowWave(const int nHeight) const { return nHeight >= PowWaveBegin(); }
 protected:
     CChainParams() {};
 

@@ -51,8 +51,8 @@ int nMiningAlgo = CBlock::ALGO_X12;
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
-uint256 nBestChainTrust = 0;
-uint256 nBestInvalidTrust = 0;
+arith_uint256 nBestChainTrust = 0;
+arith_uint256 nBestInvalidTrust = 0;
 
 uint256 hashBestChain = 0;
 uint256 hashCheckpoint = 0;
@@ -66,6 +66,8 @@ bool fUseDefaultKey = false;
 struct COrphanBlock {
     uint256 hashBlock;
     uint256 hashPrev;
+    unsigned int time;
+    arith_uint256 trust;
     std::pair<COutPoint, unsigned int> stake;
     vector<unsigned char> vchBlock;
 };
@@ -158,6 +160,59 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 {
     nodeSignals.ProcessMessages.disconnect(&ProcessMessages);
     nodeSignals.SendMessages.disconnect(&SendMessages);
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// block utils
+//
+int32_t GetBlockVersion()
+{
+    if (Params().IsPowWave(nBestHeight + 1))
+    {
+        mapArgs["-algo"] = "x12";
+        nMiningAlgo = CBlock::ALGO_X12;
+        return 9; // After start PoW wave mining only on X12
+    }
+    switch (nMiningAlgo)
+    {
+    case 1:
+        return 10;
+    case 2:
+        return 11;
+    default:
+        return 9;
+    }
+}
+
+std::string GetAlgorithmName(const int32_t nAlgo)
+{
+    switch (nAlgo)
+    {
+    case 1:
+        return "x11";
+    case 2:
+        return "x13";
+    default:
+        return "x12";
+    }
+}
+
+
+int32_t GetBlockAlgorithm(const int32_t nVersion)
+{
+    switch (nVersion)
+    {
+    case 10:
+        return 1;
+    case 11:
+        return 2;
+    default:
+        return 0;
+    }
 }
 
 
@@ -526,6 +581,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi == mapBlockIndex.end())
         return 0;
+
     CBlockIndex* pindex = (*mi).second;
     if (!pindex || !pindex->IsInMainChain())
         return 0;
@@ -862,6 +918,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock)
                 return true;
             }
         }
+
         CTxDB txdb("r");
         CTxIndex txindex;
         if (tx.ReadFromDisk(txdb, hash, txindex))
@@ -1131,8 +1188,8 @@ unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlg
     const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = fProofOfStake ? 7 : 24;
-    int64_t PastBlocksMax = 24;
+    int64_t PastBlocksMin = fProofOfStake ? (((pindexLast->nHeight + 1) >= Params().PowWaveBegin() || TestNet()) ? 24 : 7) : 24;
+    int64_t PastBlocksMax = ((pindexLast->nHeight + 1) >= Params().PowWaveBegin() || TestNet()) ? 32 : 24;
     int64_t CountBlocks = 0;
     arith_uint256 PowLimit = fProofOfStake ? UintToArith256(Params().ProofOfStakeLimit()) : UintToArith256(Params().ProofOfWorkLimit());
     arith_uint256 PastDifficultyAverage;
@@ -1244,19 +1301,19 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
     if (pindexNew->nChainTrust > nBestInvalidTrust)
     {
         nBestInvalidTrust = pindexNew->nChainTrust;
-        CTxDB().WriteBestInvalidTrust(CBigNum(nBestInvalidTrust));
+        CTxDB().WriteBestInvalidTrust(nBestInvalidTrust);
     }
 
-    uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
-    uint256 nBestBlockTrust = pindexBest->nHeight != 0 ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust) : pindexBest->nChainTrust;
+    arith_uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
+    arith_uint256 nBestBlockTrust = pindexBest->nHeight != 0 ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust) : pindexBest->nChainTrust;
 
     LogPrintf("InvalidChainFound: invalid block=%s  height=%d  trust=%s  blocktrust=%d  date=%s\n",
       pindexNew->GetBlockHash().ToString(), pindexNew->nHeight,
-      CBigNum(pindexNew->nChainTrust).ToString(), nBestInvalidBlockTrust.GetLow64(),
+      pindexNew->nChainTrust.ToString(), nBestInvalidBlockTrust.GetLow64(),
       DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()));
     LogPrintf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%d  date=%s\n",
       hashBestChain.ToString(), nBestHeight,
-      CBigNum(pindexBest->nChainTrust).ToString(),
+      pindexBest->nChainTrust.ToString(),
       nBestBlockTrust.GetLow64(),
       DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()));
 }
@@ -1915,11 +1972,11 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
     nTimeBestReceived = GetTime();
     mempool.AddTransactionsUpdated(1);
 
-    uint256 nBestBlockTrust = pindexBest->nHeight != 0 ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust) : pindexBest->nChainTrust;
+    arith_uint256 nBestBlockTrust = pindexBest->nHeight != 0 ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust) : pindexBest->nChainTrust;
 
     LogPrintf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%d  date=%s\n",
       hashBestChain.ToString(), nBestHeight,
-      CBigNum(nBestChainTrust).ToString(),
+      nBestChainTrust.ToString(),
       nBestBlockTrust.GetLow64(),
       DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()));
 
@@ -2018,7 +2075,7 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     }
 
     // ppcoin: compute chain trust score
-    pindexNew->nChainTrust = (pindexNew->pprev ? pindexNew->pprev->nChainTrust : 0) + pindexNew->GetBlockTrust();
+    pindexNew->nChainTrust = pindexNew->pprev ? (pindexNew->pprev->nChainTrust + pindexNew->GetBlockTrust()) : pindexNew->GetBlockTrust();
 
     // ppcoin: compute stake entropy bit for stake modifier
     if (!pindexNew->SetStakeEntropyBit(GetStakeEntropyBit()))
@@ -2173,9 +2230,13 @@ bool CBlock::AcceptBlock()
          return DoS(50, error("AcceptBlock() : coinbase timestamp is too early"));
 
     // Check last block
-    if (IsProofOfWork() && pindexBest->nHeight > Params().LastBlock())
-        return error("AcceptBlock() : No more PoW blocks!");
-
+    if (IsProofOfWork())
+    {
+        if (pindexBest->nHeight > Params().LastBlock())
+            return error("AcceptBlock() : No more PoW blocks!");
+        if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+            return error("AcceptBlock() : New pow wave not begin!");
+    }
     // Check coinstake timestamp
     if (IsProofOfStake() && !CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
         return DoS(50, error("AcceptBlock() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
@@ -2214,8 +2275,8 @@ bool CBlock::AcceptBlock()
     }
 
     // Check that the block satisfies synchronized checkpoint
-    if (!Checkpoints::CheckSync(nHeight))
-        return error("AcceptBlock() : rejected by synchronized checkpoint");
+    //if (!Checkpoints::CheckSync(nHeight))
+    //    return error("AcceptBlock() : rejected by synchronized checkpoint");
 
     // Enforce rule that the coinbase starts with serialized block height
     CScript expect = CScript() << nHeight;
@@ -2250,15 +2311,29 @@ bool CBlock::AcceptBlock()
     return true;
 }
 
-uint256 CBlockIndex::GetBlockTrust() const
+arith_uint256 CBlockIndex::GetChainTrust() const
 {
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
+    return nChainTrust;
+}
 
-    if (bnTarget <= 0)
+arith_uint256 GetBlockTrust(const unsigned int nBits)
+{
+    arith_uint256 bnTarget;
+    bool fNegative;
+    bool fOverflow;
+    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+    if (fNegative || fOverflow || bnTarget == 0)
         return 0;
+    // We need to compute 2**256 / (bnTarget+1), but we can't represent 2**256
+    // as it's too large for a arith_uint256. However, as 2**256 is at least as large
+    // as bnTarget+1, it is equal to ((2**256 - bnTarget - 1) / (bnTarget+1)) + 1,
+    // or ~bnTarget / (nTarget+1) + 1.
+    return (~bnTarget / (bnTarget + 1)) + 1;
+}
 
-    return ((CBigNum(1)<<256) / (bnTarget+1)).getuint256();
+arith_uint256 CBlockIndex::GetBlockTrust() const
+{
+    return ::GetBlockTrust(nBits);
 }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired, unsigned int nToCheck)
@@ -2294,44 +2369,44 @@ bool static IsCanonicalBlockSignature(CBlock* pblock, bool checkLowS)
     return checkLowS ? IsLowDERSignature(pblock->vchBlockSig, false) : IsDERSignature(pblock->vchBlockSig, false);
 }
 
-static CBlockIndex *InsertBlockIndex(uint256 hash, CBlock *block)
+static const int numForkBlocksCheck = 256;
+
+COrphanBlock *FindOrphanBlockTrusted(const uint256 hash)
 {
-    if (hash == 0)
-        return NULL;
-
-    // Return existing
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
-    if (mi != mapBlockIndex.end())
-        return (*mi).second;
-
-    // Create new
-    CBlockIndex* pindexNew = new CBlockIndex();
-    if (!pindexNew)
-        throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
-    mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = &((*mi).first);
-
-    return pindexNew;
+    for (std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.begin(); it != mapOrphanBlocks.end(); it++)
+    {
+        if ((*it).second->hashBlock == hash)
+        {
+            if (mapBlockIndex.count((*it).second->hashPrev))
+                return (*it).second;
+        }
+    }
+    return NULL;
 }
 
-static const int numForkBlocksCheck = 16;
-
-bool IsFork(const uint256 hash, int &nForkTime)
+bool IsFork(const uint256 hash, int &nForkTime, arith_uint256 &nForkTrust)
 {
     int numBlocksCheck = numForkBlocksCheck;
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
-        if (block->pprev->GetBlockHash() == hash)
+        if (block->pprev && block->pprev->GetBlockHash() == hash)
         {
             nForkTime = block->GetBlockTime();
+            nForkTrust = block->GetBlockTrust();
             return true;
         }
         block = block->pprev;
     }
+    COrphanBlock *orphan = FindOrphanBlockTrusted(hash);
+    if (orphan)
+    {
+        nForkTime = orphan->time;
+        nForkTrust = orphan->trust;
+        return true;
+    }
     return false;
 }
-
 
 CBlockIndex *GetForkBlock(const uint256 hash)
 {
@@ -2339,93 +2414,14 @@ CBlockIndex *GetForkBlock(const uint256 hash)
     CBlockIndex *block = pindexBest;
     while (block && numBlocksCheck-- >= 0)
     {
-        if (block->pprev->GetBlockHash() == hash)
-            return block;
+        if (block->pprev && block->pprev->GetBlockHash() == hash)
+            return block->pprev;
 
         block = block->pprev;
     }
-    return NULL;
+    COrphanBlock *orphan = FindOrphanBlockTrusted(hash);
+    return orphan ? mapBlockIndex[orphan->hashPrev] : NULL;
 }
-
-
-CBlockIndex *ReconstructFork(const uint256 hash)
-{
-    CBlockIndex *forkBlock = GetForkBlock(hash);
-    if (!forkBlock)
-        return NULL;
-
-    CBlockIndex *prevBlock = forkBlock->pprev;
-    if (!prevBlock)
-        return NULL;
-
-    CTxDB txdb;
-    if (!txdb.TxnBegin())
-    {
-        LogPrintf("Failed to begin txn");
-        return NULL;
-    }
-
-    CBlockIndex *remove = pindexBest;
-    while(remove && remove != prevBlock)
-    {
-        CBlockIndex *prev = remove->pprev;
-
-        CBlock oldBlock;
-        oldBlock.ReadFromDisk(remove, true);
-        oldBlock.DisconnectBlock(txdb, remove);
-
-        mapBlockIndex.erase(oldBlock.GetHash());
-        if (oldBlock.IsProofOfStake())
-            setStakeSeen.erase(oldBlock.GetProofOfStake());
-
-        for (int i = 0; i < oldBlock.vtx.size(); i++)
-            pwalletMain->EraseFromWallet(oldBlock.vtx[i].GetHash());
-
-        remove = prev;
-    }
-
-    txdb.TxnCommit();
-
-    if (!txdb.TxnBegin())
-    {
-        LogPrintf("Failed to begin txn");
-        return NULL;
-    }
-    txdb.WriteHashBestChain(prevBlock->GetBlockHash());
-
-    pindexBest = prevBlock;
-    pindexBest->pnext = NULL;
-    hashBestChain = pindexBest->GetBlockHash();
-    pblockindexFBBHLast = NULL;
-    nBestHeight = pindexBest->nHeight;
-    nBestChainTrust = pindexBest->nChainTrust;
-
-    CDiskBlockIndex disk(pindexBest);
-    disk.hashNext = 0;
-
-    txdb.WriteBlockIndex(disk);
-    txdb.TxnCommit();
-
-    pwalletMain->SetBestChain(CBlockLocator(pindexBest));
-
-    return pindexBest;
-
-    /*if(Reorganize(txdb, prevBlock))
-    {
-        mapBlockIndex.erase(forkHash);
-        pindexBest = prevBlock;
-        pindexBest->pnext = NULL;
-        hashBestChain = pindexBest->GetBlockHash();
-        pblockindexFBBHLast = NULL;
-        nBestHeight = pindexBest->nHeight;
-        nBestChainTrust = pindexBest->nChainTrust;
-        pwalletMain->SetBestChain(CBlockLocator(pindexBest));
-        return pindexBest;
-    }
-    return NULL;*/
-}
-
-static uint256 lastMined = 0;
 
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
@@ -2433,9 +2429,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
     // Check for duplicate
     uint256 hash = pblock->GetHash();
-    if (!pfrom && lastMined != 0 && !GetBoolArg("-master", false))
-        return error("ProcessBlock() : already mined block %s", hash.ToString());
-
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString());
     if (mapOrphanBlocks.count(hash))
@@ -2446,6 +2439,53 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Duplicate stake allowed only when there is orphan child block
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
+
+    if (pblock->hashPrevBlock != hashBestChain && !IsInitialBlockDownload())
+    {
+        arith_uint256 forkTrust = 0;
+        int forkTime = 0;
+        if (IsFork(pblock->hashPrevBlock, forkTime, forkTrust))
+        {
+
+            if (pblock->GetBlockTime() < forkTime || GetBlockTrust(pblock->nBits) < forkTrust)
+            {
+                CBlock block;
+                CBlockIndex* pblockindex = GetForkBlock(pblock->hashPrevBlock);
+                block.ReadFromDisk(pblockindex, true);
+
+                CTxDB txdb;
+                if (!block.SetBestChain(txdb, pblockindex))
+                    return error("ProcessBlock() : Failed to set best chain for fork!");
+
+                vector<uint256> vWorkQueue;
+                vWorkQueue.push_back(hash);
+                for (unsigned int i = 0; i < vWorkQueue.size(); i++)
+                {
+                    uint256 hashPrev = vWorkQueue[i];
+                    for (multimap<uint256, COrphanBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
+                         mi != mapOrphanBlocksByPrev.upper_bound(hashPrev);
+                         ++mi)
+                    {
+                        CBlock block;
+                        {
+                            CDataStream ss(mi->second->vchBlock, SER_DISK, CLIENT_VERSION);
+                            ss >> block;
+                        }
+                        block.BuildMerkleTree();
+                        if (block.AcceptBlock())
+                            vWorkQueue.push_back(mi->second->hashBlock);
+                        mapOrphanBlocks.erase(mi->second->hashBlock);
+                        setStakeSeenOrphan.erase(block.GetProofOfStake());
+                        nOrphanBlocksSize -= mi->second->vchBlock.size();
+                        delete mi->second;
+                    }
+                    mapOrphanBlocksByPrev.erase(hashPrev);
+                }
+
+                return ProcessBlock(pfrom, pblock);
+            }
+        }
+    }
 
     if (!IsCanonicalBlockSignature(pblock, false)) {
         if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION) {
@@ -2468,22 +2508,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
-
-    if (!pfrom && !GetBoolArg("-master", false))
-    {
-        {
-            {
-                LOCK(cs_vNodes);
-                BOOST_FOREACH(CNode* pnode, vNodes)
-                        pnode->PushMessage("newblock", *pblock);
-            }
-
-            lastMined = pblock->GetHash();
-            return true;
-        }
-    }
-    else
-        lastMined = 0;
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
@@ -2508,6 +2532,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 pblock2->vchBlock = std::vector<unsigned char>(ss.begin(), ss.end());
             }
             pblock2->hashBlock = hash;
+            pblock2->time = pblock->nTime;
+            pblock2->trust = GetBlockTrust(pblock->nBits);
             pblock2->hashPrev = pblock->hashPrevBlock;
             pblock2->stake = pblock->GetProofOfStake();
             nOrphanBlocksSize += pblock2->vchBlock.size();
@@ -2524,40 +2550,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
         }
         return true;
-    }
-
-
-    if (pblock->hashPrevBlock != hashBestChain &&
-            nBestHeight > 15800 &&
-            !IsInitialBlockDownload())
-    {
-        int forkTime = 0;
-        if (IsFork(pblock->hashPrevBlock, forkTime))
-        {
-
-            if (pblock->GetBlockTime() <= forkTime)
-            {
-                if (ReconstructFork(pblock->hashPrevBlock))
-                {
-                    LogPrintf("ProcessBlock: Fork reconstruction..\n");
-                    return ProcessBlock(pfrom, pblock);
-                }
-                else
-                {
-                    {
-                        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-                        const CBlockIndex* pcheckpoint = Checkpoints::AutoSelectSyncCheckpoint();
-                        int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
-                        if (deltaTime < 0)
-                        {
-                            if (pfrom)
-                                pfrom->Misbehaving(1);
-                            return error("ProcessBlock() : block with timestamp before last checkpoint");
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // Store to disk
@@ -2590,7 +2582,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    LogPrintf("ProcessBlock: ACCEPTED (%s, %s)\n", GetAlgorithmName(pblock->GetAlgorithm()).c_str(), pblock->IsProofOfStake() ? "PoS" : "PoW");
+    LogPrintf("ProcessBlock: ACCEPTED\n");
 
     return true;
 }
@@ -2711,7 +2703,7 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
 
 static filesystem::path BlockFilePath(unsigned int nFile)
 {
-    string strBlockFn = strprintf("blk%04u.dat", nFile);
+    string strBlockFn = strprintf("blocks/blk%04u.dat", nFile);
     return GetDataDir() / strBlockFn;
 }
 
@@ -3533,7 +3525,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
     }
 
 
-    else if (strCommand == "newblock") // Ignore blocks received while importing
+    else if (strCommand == "newblock")
     {
         if (GetBoolArg("-master", false))
         {

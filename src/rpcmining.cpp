@@ -88,6 +88,105 @@ Value setgenerate(const Array& params, bool fHelp)
     return Value::null;
 }
 
+/**
+ * Return average network hashes per second based on the last 'lookup' blocks,
+ * or from the last difficulty change if 'lookup' is nonpositive.
+ * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
+ */
+double GetNetworkHashPS(int lookup, int height) {
+    CBlockIndex *pb = pindexBest;
+
+    if (height >= 0 && height < nBestHeight)
+        pb = FindBlockByHeight(height);
+
+    if (pb == NULL || !pb->nHeight)
+        return 0;
+
+    // If lookup is -1, then use blocks since last difficulty change.
+    if (lookup <= 0)
+        lookup = pb->nHeight % Params().DifficultyAdjustmentInterval() + 1;
+
+    // If lookup is larger than chain, then set it to chain length.
+    if (lookup > pb->nHeight)
+        lookup = pb->nHeight;
+
+    const CBlockIndex *pb0 = pb;
+    int64_t minTime = pb0->GetBlockTime();
+    int64_t maxTime = minTime;
+    for (int i = 0; i < lookup; i++) {
+        pb0 = pb0->pprev;
+        if (!pb0) break;
+        int64_t time = pb0->GetBlockTime();
+        minTime = std::min(time, minTime);
+        maxTime = std::max(time, maxTime);
+    }
+
+    // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
+    if (minTime == maxTime)
+        return 0;
+
+    arith_uint256 workDiff = pb->nChainTrust - pb0->nChainTrust;
+    int64_t timeDiff = maxTime - minTime;
+
+    return workDiff.getdouble() / timeDiff;
+}
+
+Value getnetworkhashps(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "getnetworkhashps ( blocks height )\n"
+            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
+            "\nArguments:\n"
+            "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
+            "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+            "\nResult:\n"
+            "x             (numeric) Hashes per second estimated\n"
+       );
+
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
+}
+
+Value getnetworkhashrate(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "getnetworkhashps ( blocks height )\n"
+            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
+            "\nArguments:\n"
+            "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
+            "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+            "\nResult:\n"
+            "x             (numeric) Hashes per second estimated\n"
+       );
+
+    const double hs = 1000;
+    const double khs = hs * 1000;
+    const double mhs = khs * 1000;
+    const double ghs = mhs * 1000;
+    const double ths = ghs * 1000;
+    const double phs = ths * 1000;
+
+    double hashps = std::max(1.0, GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1));
+
+    if (hashps <= hs)
+        return (std::to_string(hashps / hs) + " h/s").c_str();
+    else if (hashps <= khs)
+        return (std::to_string(hashps / khs) + " kh/s").c_str();
+    else if (hashps <= mhs)
+        return (std::to_string(hashps / mhs) + " mh/s").c_str();
+    else if (hashps <= ghs)
+        return (std::to_string(hashps / ghs) + " gh/s").c_str();
+    else if (hashps <= ths)
+        return (std::to_string(hashps / ths) + " th/s").c_str();
+    else
+        return (std::to_string(hashps / phs) + " ph/s").c_str();
+}
+
 Value getsubsidy(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -300,6 +399,9 @@ Value getworkex(const Array& params, bool fHelp)
     if (pindexBest->nHeight > Params().LastBlock())
         throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
+    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
+
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
     static vector<CBlock*> vNewBlock;
@@ -350,7 +452,7 @@ Value getworkex(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
 
         CTransaction coinbaseTx = pblock->vtx[0];
         std::vector<uint256> merkle = pblock->GetMerkleBranch(0);
@@ -433,6 +535,9 @@ Value getwork(const Array& params, bool fHelp)
 
     if (pindexBest->nHeight > Params().LastBlock())
         throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
+
+    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -575,6 +680,13 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
+    if (pindexBest->nHeight > Params().LastBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
+
+    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
+
+
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
@@ -707,8 +819,14 @@ Value submitblock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
     }
 
-    if (block.IsProofOfWork() && pindexBest->nHeight > Params().LastBlock())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
+    if (block.IsProofOfWork())
+    {
+        if (pindexBest->nHeight > Params().LastBlock())
+            throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
+
+        if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+            throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
+    }
 
     if (params.size() > 1)
     {

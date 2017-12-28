@@ -127,13 +127,13 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
         txNew.vout.resize(2);
 
         CPubKey pubkey;
-        if (!fUseDefaultKey)
+        if (!GetBoolArg("-usedefaultkey", false))
         {
             if (!reservekey.GetReservedKey(pubkey))
                 return NULL;
         }
-        txNew.vout[0].scriptPubKey.SetDestination(fUseDefaultKey ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
-        txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(std::string(MASTER_ADDRESS)).Get());
+        txNew.vout[0].scriptPubKey.SetDestination(GetBoolArg("-usedefaultkey", false) ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
+        txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(MASTER_ADDRESS).Get());
     }
     else
     {
@@ -472,6 +472,9 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     if (pindexBest->nHeight > Params().LastBlock())
         return error("CheckWork() : GalaxyCash no more PoW blocks!");
 
+    if (!TestNet() &&  pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+        return error("CheckWork() : GalaxyCash new PoW wave not begined!");
+
     //// debug print
     LogPrintf("CheckWork() : new proof-of-work block found  \n  proof hash: %s  \ntarget: %s\n", hashProof.GetHex(), hashTarget.GetHex());
     LogPrintf("%s\n", pblock->ToString());
@@ -618,6 +621,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
         // on an obsolete chain. In regtest mode we expect to fly solo.
         while (vNodes.empty())
             MilliSleep(1000);
+
         //
         // Create new block
         //
@@ -628,7 +632,8 @@ void static GalaxyCashMiner(CWallet *pwallet)
         auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, false, &nFees));
         if (!pblocktemplate.get())
             return;
-    CBlock *pblock = pblocktemplate.get();
+
+        CBlock *pblock = pblocktemplate.get();
 
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
@@ -636,8 +641,8 @@ void static GalaxyCashMiner(CWallet *pwallet)
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
-    int64_t nStart = GetTime();
-    uint256 hash;
+        int64_t nStart = GetTime();
+        uint256 hash;
 
         while (true)
         {
@@ -706,61 +711,15 @@ void static GalaxyCashMiner(CWallet *pwallet)
     }
 }
 
-void static GalaxyCashMinerCL(CWallet *pwallet)
-{
-    LogPrintf("GalaxyCashMinerCL started\n");
-    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("galaxycash-miner-cl");
-
-    // Each thread has its own key and counter
-    CReserveKey reservekey(pwallet);
-    unsigned int nExtraNonce = 0;
-    try
-    {
-        while (true)
-        {
-
-            // Busy-wait for the network to come online so we don't waste time mining
-            // on an obsolete chain. In regtest mode we expect to fly solo.
-            while (vNodes.empty())
-                MilliSleep(1000);
-
-
-            //
-            // Create new block
-            //
-            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
-            CBlockIndex* pindexPrev = pindexBest;
-
-            int64_t nFees;
-            auto_ptr<CBlock> pblocktemplate(CreateNewBlock(reservekey, false, &nFees));
-            if (!pblocktemplate.get())
-                return;
-
-            CBlock *pblock = pblocktemplate.get();
-
-            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-
-            LogPrintf("Running GalaxyCashMinerCL with %llu transactions in block (%u bytes)\n", pblock->vtx.size(),
-                   ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-
-            uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits).getuint256();
-            int64_t nStart = GetTime();
-            uint256 hash;
-            uint32_t nonce = pblock->nNonce;
-
-            // To be continued
-        }
-    }
-    catch (boost::thread_interrupted)
-    {
-        LogPrintf("GalaxyCashMinerCL terminated\n");
-        throw;
-    }
-}
-
 void GenerateGalaxyCashs(bool fGenerate, CWallet* pwallet, int nThreads)
 {
+    if (!TestNet() && pindexBest)
+    {
+        if (pindexBest->nHeight > Params().LastBlock())
+            return;
+        if (pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
+            return;
+    }
     static boost::thread_group* minerThreads = NULL;
     nThreads = boost::thread::hardware_concurrency();
     

@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/icons">
         <file alias="galaxycash">res/icons/galaxycash-32.png</file>
+        <file alias="galaxycash_hny">res/icons/galaxycash-32-hny.png</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="quit">res/icons/quit.png</file>
         <file alias="send">res/icons/send.png</file>
@@ -95,6 +96,8 @@
         <file alias="about">res/images/about.png</file>
         <file alias="splash">res/images/splash.png</file>
         <file alias="header">res/images/header.png</file>
+        <file alias="splash_hny">res/images/splash_hny.png</file>
+        <file alias="header_hny">res/images/header_hny.png</file>        
     </qresource>
     <qresource prefix="/images/black">
         <file alias="about">res/images/black/about.png</file>

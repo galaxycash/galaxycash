@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     if(GetBoolArg("-testnet", false)) // Separate UI settings for testnet
         app.setApplicationName("GalaxyCash-Qt-testnet");
     else
-        app.setApplicationName("GalaxyCash-Qt");
+        app.setApplicationName(IsHNY() ? "GalaxyCash-Qt-HappyNewYearEdition" : "GalaxyCash-Qt");
 
     if (GetBoolArg("-black", false))
         GUIUtil::SetBlackThemeQSS(app);
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    QSplashScreen splash(QPixmap(GetBoolArg("-black", false) ? ":/images/black/splash" : ":/images/splash"), 0);
+    QSplashScreen splash(QPixmap(GetBoolArg("-black", false) ? ":/images/black/splash" : (IsHNY() ? ":/images/splash_hny" : ":/images/splash")), 0);
     if (GetBoolArg("-splash", true) && !GetBoolArg("-min", false))
     {
         splash.show();

@@ -159,7 +159,7 @@ static inline bool error(const char* format)
     return false;
 }
 
-
+bool IsHNY();
 void PrintException(const std::exception* pex, const char* pszThread);
 void PrintExceptionContinue(const std::exception* pex, const char* pszThread);
 void ParseString(const std::string& str, char c, std::vector<std::string>& v);

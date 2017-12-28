@@ -15,6 +15,7 @@ const CBlockIndex* getBlockIndex(qint64 height)
 {
     std::string hex = getBlockHash(height);
     uint256 hash(hex);
+
     return mapBlockIndex[hash];
 }
 

@@ -670,11 +670,6 @@ Value sendmany(const Array& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    // Check funds
-    int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
-    if (totalAmount > nBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
-
     // Send
     CReserveKey keyChange(pwalletMain);
     int64_t nFeeRequired = 0;

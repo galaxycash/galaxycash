@@ -816,6 +816,9 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (!strErrors.str().empty())
         return InitError(strErrors.str());
 
+    //if (mapArgs.count("-master"))
+    //    mapArgs["-master"] = "0"; // Only main node set it true
+
     RandAddSeedPerfmon();
 
     //// debug print

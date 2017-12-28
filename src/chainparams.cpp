@@ -57,7 +57,7 @@ public:
         pchMessageStart[3] = 0x4e;
 
         // Last block
-        nLastBlock = 14868;
+        nLastBlock = 700000; // 14868;
 
         // Ports
         nDefaultPort = 7604;
@@ -97,8 +97,7 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x43580fb123f142578ca6c1e6f4ce411b551279e1968a875e6b493ec3da51bdb9"));
 
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("195.133.201.213:7604", "195.133.201.213"));
-        vSeeds.push_back(CDNSSeedData("coinsmarkets.com:10003", "coinsmarkets.com:10003"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
@@ -122,6 +121,15 @@ protected:
     vector<CAddress> vFixedSeeds;
 };
 static CMainParams mainParams;
+
+
+//
+// GalaxyCash Classic chain
+//
+class CClassicParams : public CMainParams {
+public:
+};
+
 
 
 //
@@ -159,7 +167,8 @@ public:
         assert(hashGenesisBlock == uint256S("0x000805c5066f3fadac43ddb33819a07e360529d6345a5e60bdc14564cebca5ee"));
 
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("galaxycash.host", "127.0.0.1"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.local", "127.0.0.1"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);

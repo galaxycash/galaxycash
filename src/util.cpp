@@ -1252,6 +1252,18 @@ void RenameThread(const char* name)
 #endif
 }
 
+bool IsHNY()
+{
+    int64_t nTime = GetAdjustedTime();
+    boost::posix_time::ptime pTime = boost::posix_time::from_time_t(nTime);
+    boost::gregorian::date d = pTime.date();
+    if (d.month() == 12)
+        return ((d.day() == 31)) ? true : false;
+    if (d.month() == 1)
+        return (d.day() >= 1 && d.day() <= 7) ? true : false;
+    return false;
+}
+
 std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime)
 {
     // std::locale takes ownership of the pointer

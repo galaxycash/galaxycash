@@ -92,9 +92,10 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     //setAutoFillBackground(true);
     //setPalette(pal);
 
+
 #ifndef Q_OS_MAC
-    qApp->setWindowIcon(QIcon(":icons/galaxycash"));
-    setWindowIcon(QIcon(":icons/galaxycash"));
+    qApp->setWindowIcon(IsHNY() ? QIcon(":icons/galaxycash_hny") : QIcon(":icons/galaxycash"));
+    setWindowIcon(IsHNY() ? QIcon(":icons/galaxycash_hny") : QIcon(":icons/galaxycash"));
 #else
     //setUnifiedTitleAndToolBarOnMac(true);
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
@@ -384,7 +385,11 @@ void GalaxyCashGUI::createToolBars()
     QWidget* header = new QWidget();
     header->setMinimumSize(160, 116);
     header->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    header->setStyleSheet("QWidget { background-repeat: no-repeat; background-image: url(:/images/header); background-position: top center; }");
+    if (IsHNY())
+        header->setStyleSheet("QWidget { background-repeat: no-repeat; background-image: url(:/images/header_hny); background-position: top center; }");
+    else
+        header->setStyleSheet("QWidget { background-repeat: no-repeat; background-image: url(:/images/header); background-position: top center; }");
+
     toolbar->addWidget(header);
 //    toolbar->addWidget(makeToolBarSpacer());
 

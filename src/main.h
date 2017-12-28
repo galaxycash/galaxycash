@@ -54,7 +54,7 @@ inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MO
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Master address */
-static const char *MASTER_ADDRESS = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+static const char *MASTER_ADDRESS = "GN3dCAUh8vsFvtXdxZAGPumYjRrMjdnYsB";
 /** Master reward precent */
 static const int64_t MASTER_REWARD_PERCENT_OLD = 16, MASTER_REWARD_PERCENT_NEW = 1;
 
@@ -69,8 +69,8 @@ extern unsigned int nStakeMinAge;
 extern unsigned int nNodeLifespan;
 extern int nCoinbaseMaturity;
 extern int nBestHeight;
-extern uint256 nBestChainTrust;
-extern uint256 nBestInvalidTrust;
+extern arith_uint256 nBestChainTrust;
+extern arith_uint256 nBestInvalidTrust;
 extern uint256 hashBestChain;
 extern CBlockIndex* pindexBest;
 extern int64_t nLastCoinStakeSearchInterval;
@@ -564,44 +564,9 @@ public:
 
 
 // Get block version by algo
-inline int32_t GetBlockVersion()
-{
-    switch (nMiningAlgo)
-    {
-    case 1:
-        return 10;
-    case 2:
-        return 11;
-    default:
-        return 9;
-    }
-}
-inline std::string GetAlgorithmName(const int32_t nAlgo)
-{
-    switch (nAlgo)
-    {
-    case 1:
-        return "x11";
-    case 2:
-        return "x13";
-    default:
-        return "x12";
-    }
-}
-
-
-inline int32_t GetBlockAlgorithm(const int32_t nVersion)
-{
-    switch (nVersion)
-    {
-    case 10:
-        return 1;
-    case 11:
-        return 2;
-    default:
-        return 0;
-    }
-}
+int32_t GetBlockVersion();
+std::string GetAlgorithmName(const int32_t nAlgo);
+int32_t GetBlockAlgorithm(const int32_t nVersion);
 
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
@@ -655,6 +620,11 @@ public:
         SetNull();
     }
 
+    CBlock(CBlock *pblock)
+    {
+        Set(pblock);
+    }
+
     IMPLEMENT_SERIALIZE
     (
         READWRITE(this->nVersion);
@@ -690,6 +660,25 @@ public:
         vchBlockSig.clear();
         vMerkleTree.clear();
         nDoS = 0;
+    }
+
+    void Set(CBlock *pblock)
+    {
+        if (pblock)
+        {
+            nVersion = pblock->nVersion;
+            hashPrevBlock = pblock->hashPrevBlock;
+            hashMerkleRoot = pblock->hashMerkleRoot;
+            nTime = pblock->nTime;
+            nBits = pblock->nBits;
+            nNonce = pblock->nNonce;
+            vtx = pblock->vtx;
+            vchBlockSig = pblock->vchBlockSig;
+            vMerkleTree = pblock->vMerkleTree;
+            nDoS = pblock->nDoS;
+        }
+        else
+            SetNull();
     }
 
     bool IsNull() const
@@ -967,7 +956,7 @@ public:
     CBlockIndex* pnext;
     unsigned int nFile;
     unsigned int nBlockPos;
-    uint256 nChainTrust; // ppcoin: trust score of block chain
+    arith_uint256 nChainTrust; // ppcoin: trust score of block chain
     int nHeight;
 
     int64_t nMint;
@@ -1072,6 +1061,9 @@ public:
 
     uint256 GetBlockHash() const
     {
+        if (!phashBlock)
+            return GetBlockHeader().GetHash();
+
         return *phashBlock;
     }
 
@@ -1108,7 +1100,8 @@ public:
         return (int64_t)nTime;
     }
 
-    uint256 GetBlockTrust() const;
+    arith_uint256 GetChainTrust() const;
+    arith_uint256 GetBlockTrust() const;
 
     bool IsInMainChain() const
     {

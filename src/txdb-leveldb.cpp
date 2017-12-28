@@ -34,16 +34,16 @@ static leveldb::Options GetOptions() {
 
 static void init_blockindex(leveldb::Options& options, bool fRemoveOld = false, bool fCreateBootstrap = false) {
     // First time init.
-    filesystem::path directory = GetDataDir() / "txleveldb";
+    filesystem::path directory = GetDataDir();
 
     if (fRemoveOld) {
         filesystem::remove_all(directory); // remove directory
         unsigned int nFile = 1;
-        filesystem::path bootstrap = GetDataDir() / "bootstrap.dat";
+        filesystem::path bootstrap = GetDataDir() / "blocks" / "bootstrap.dat";
 
         while (true)
         {
-            filesystem::path strBlockFile = GetDataDir() / strprintf("blk%04u.dat", nFile);
+            filesystem::path strBlockFile = GetDataDir() / "blocks" / strprintf("blk%04u.dat", nFile);
 
             // Break if no such file
             if( !filesystem::exists( strBlockFile ) )
@@ -60,6 +60,11 @@ static void init_blockindex(leveldb::Options& options, bool fRemoveOld = false, 
     }
 
     filesystem::create_directory(directory);
+    directory = directory / "blocks";
+    filesystem::create_directory(directory);
+    directory = directory / "index";
+    filesystem::create_directory(directory);
+
     LogPrintf("Opening LevelDB in %s\n", directory.string());
     leveldb::Status status = leveldb::DB::Open(options, directory.string(), &txdb);
     if (!status.ok()) {
@@ -271,12 +276,12 @@ bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
     return Write(string("hashBestChain"), hashBestChain);
 }
 
-bool CTxDB::ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)
+bool CTxDB::ReadBestInvalidTrust(arith_uint256& bnBestInvalidTrust)
 {
     return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust);
 }
 
-bool CTxDB::WriteBestInvalidTrust(CBigNum bnBestInvalidTrust)
+bool CTxDB::WriteBestInvalidTrust(arith_uint256 bnBestInvalidTrust)
 {
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust);
 }
@@ -424,13 +429,12 @@ bool CTxDB::LoadBlockIndex()
     nBestChainTrust = pindexBest->nChainTrust;
 
     LogPrintf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
-      hashBestChain.ToString(), nBestHeight, CBigNum(nBestChainTrust).ToString(),
+      hashBestChain.ToString(), nBestHeight, nBestChainTrust.ToString(),
       DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()));
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
-    CBigNum bnBestInvalidTrust;
-    ReadBestInvalidTrust(bnBestInvalidTrust);
-    nBestInvalidTrust = bnBestInvalidTrust.getuint256();
+    ReadBestInvalidTrust(nBestInvalidTrust);
+
 
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
