@@ -399,9 +399,6 @@ Value getworkex(const Array& params, bool fHelp)
     if (pindexBest->nHeight > Params().LastBlock())
         throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
-    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
-
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
     static vector<CBlock*> vNewBlock;
@@ -535,9 +532,6 @@ Value getwork(const Array& params, bool fHelp)
 
     if (pindexBest->nHeight > Params().LastBlock())
         throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
-
-    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -683,10 +677,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (pindexBest->nHeight > Params().LastBlock())
         throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
-    if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
-
-
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
@@ -823,9 +813,6 @@ Value submitblock(const Array& params, bool fHelp)
     {
         if (pindexBest->nHeight > Params().LastBlock())
             throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
-
-        if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-            throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash new PoW wave not begin!");
     }
 
     if (params.size() > 1)

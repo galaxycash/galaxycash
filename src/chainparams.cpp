@@ -57,7 +57,7 @@ public:
         pchMessageStart[3] = 0x4e;
 
         // Last block
-        nLastBlock = 700000; // 14868;
+        nLastBlock = 14868;
 
         // Ports
         nDefaultPort = 7604;
@@ -128,8 +128,69 @@ static CMainParams mainParams;
 //
 class CClassicParams : public CMainParams {
 public:
-};
+    CClassicParams() {
+        strDataDir = "classic";
 
+        // The message start string is designed to be unlikely to occur in normal data.
+        // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+        // a large 4-byte int at any alignment.
+        pchMessageStart[0] = 0x15;
+        pchMessageStart[1] = 0x2a;
+        pchMessageStart[2] = 0xe6;
+        pchMessageStart[3] = 0x4e;
+
+        // Ports
+        nDefaultPort = 16604;
+        nRPCPort = 13604;
+
+        // Last block
+        nLastBlock = 700000;
+
+        // Build the genesis block. Note that the output of the genesis coinbase cannot
+        // be spent as it did not originally exist in the database.
+        //
+        const char* pszTimestamp = "29/december/2017 The Galaxy Cash Classic network started.";
+
+        std::vector<CTxIn> vin;
+        vin.resize(1);
+        vin[0].scriptSig = CScript() << 0 << CBigNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+
+        std::vector<CTxOut> vout;
+        vout.resize(1);
+        vout[0].SetEmpty();
+
+        CTransaction txNew(1, 1511100000, vin, vout, 0);
+        genesis.vtx.push_back(txNew);
+        genesis.hashPrevBlock = 0;
+        genesis.hashMerkleRoot = genesis.BuildMerkleTree();
+        genesis.nVersion = 9;
+        genesis.nTime    = 1514525339;
+        genesis.nBits    = UintToArith256(powLimit).GetCompact();
+        genesis.nNonce   = 1030199;
+
+        hashGenesisBlock = genesis.GetHash();
+
+        assert(hashGenesisBlock == uint256S("0x000007e0e59cc2e24dc640273dfe4e6e45ca02e40d32b3f8b5d85646b2485e99"));
+        assert(genesis.hashMerkleRoot == uint256S("0xfc93623033228bf475fe5ee0ab783898e4f7c8e7aa5264d839fc329152a075e6"));
+
+        vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.local", "127.0.0.1"));
+
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,89);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x21)(0x88)(0xB2)(0x23).convert_to_container<std::vector<unsigned char> >();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x21)(0x88)(0x1D)(0x56).convert_to_container<std::vector<unsigned char> >();
+
+
+        vFixedSeeds.clear();
+        convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
+    }
+    virtual Network NetworkID() const { return CChainParams::CLASSIC; }
+    virtual string NetworkIDString() const { return "classic"; }
+};
+static CClassicParams classicParams;
 
 
 //
@@ -144,7 +205,7 @@ public:
         // The message start string is designed to be unlikely to occur in normal data.
         // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
         // a large 4-byte int at any alignment.
-        pchMessageStart[0] = 0x14;
+        pchMessageStart[0] = 0x16;
         pchMessageStart[1] = 0x2a;
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
@@ -199,6 +260,9 @@ void SelectParams(CChainParams::Network network) {
         case CChainParams::MAIN:
             pCurrentParams = &mainParams;
             break;
+        case CChainParams::CLASSIC:
+            pCurrentParams = &classicParams;
+            break;
         case CChainParams::TESTNET:
             pCurrentParams = &testNetParams;
             break;
@@ -212,11 +276,14 @@ void SelectParams(CChainParams::Network network) {
 bool SelectParamsFromCommandLine() {
 
     bool fTestNet = GetBoolArg("-testnet", false);
+    bool fClassicNet = GetBoolArg("-classic", false);
 
 
 
     if (fTestNet) {
         SelectParams(CChainParams::TESTNET);
+    } else if (fClassicNet) {
+        SelectParams(CChainParams::CLASSIC);
     } else {
         SelectParams(CChainParams::MAIN);
     }

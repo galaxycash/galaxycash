@@ -124,7 +124,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
 
     if (!fProofOfStake)
     {
-        txNew.vout.resize(2);
+        txNew.vout.resize(1);
 
         CPubKey pubkey;
         if (!GetBoolArg("-usedefaultkey", false))
@@ -133,7 +133,6 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
                 return NULL;
         }
         txNew.vout[0].scriptPubKey.SetDestination(GetBoolArg("-usedefaultkey", false) ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
-        txNew.vout[1].scriptPubKey.SetDestination(CGalaxyCashAddress(MASTER_ADDRESS).Get());
     }
     else
     {
@@ -374,10 +373,8 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
             LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
         if (!fProofOfStake)
-        {
             pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
-            pblock->vtx[0].vout[1].nValue = GetMasterRewardNew(nFees, pindexPrev->nHeight + 1);
-        }
+
         if (pFees)
             *pFees = nFees;
 
@@ -471,9 +468,6 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     if (pindexBest->nHeight > Params().LastBlock())
         return error("CheckWork() : GalaxyCash no more PoW blocks!");
-
-    if (!TestNet() &&  pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-        return error("CheckWork() : GalaxyCash new PoW wave not begined!");
 
     //// debug print
     LogPrintf("CheckWork() : new proof-of-work block found  \n  proof hash: %s  \ntarget: %s\n", hashProof.GetHex(), hashTarget.GetHex());
@@ -716,8 +710,6 @@ void GenerateGalaxyCashs(bool fGenerate, CWallet* pwallet, int nThreads)
     if (!TestNet() && pindexBest)
     {
         if (pindexBest->nHeight > Params().LastBlock())
-            return;
-        if (pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
             return;
     }
     static boost::thread_group* minerThreads = NULL;

@@ -171,12 +171,6 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 //
 int32_t GetBlockVersion()
 {
-    if (Params().IsPowWave(nBestHeight + 1))
-    {
-        mapArgs["-algo"] = "x12";
-        nMiningAlgo = CBlock::ALGO_X12;
-        return 9; // After start PoW wave mining only on X12
-    }
     switch (nMiningAlgo)
     {
     case 1:
@@ -1029,15 +1023,26 @@ int64_t GetProofOfWorkReward(int nFees, int nHeight)
 
     if (pindexBest->nMoneySupply < MAX_MONEY)
     {
-        if (nHeight < 10000)
-            nSubsidy = (TestNet() ? 1000 : 6) * COIN;
-        else if (nHeight < 15000)
-            nSubsidy = (TestNet() ? 100 : 4) * COIN;
-        else if (nHeight < 100000)
-            nSubsidy = (TestNet() ? 100 : 2) * COIN;
-        else
-            nSubsidy = (TestNet() ? 10 : 1) * COIN;
+        if (Classic())
+        {
+            if (nHeight < 100000)
+                nSubsidy = 50 * COIN;
+            else if (nHeight < 150000)
+                nSubsidy = 25 * COIN;
+            else
+                nSubsidy = 12 * COIN;
+        } else {
+            if (nHeight < 10000)
+                nSubsidy = (TestNet() ? 1000 : 6) * COIN;
+            else if (nHeight < 15000)
+                nSubsidy = (TestNet() ? 100 : 4) * COIN;
+            else if (nHeight < 100000)
+                nSubsidy = (TestNet() ? 100 : 2) * COIN;
+            else
+                nSubsidy = (TestNet() ? 10 : 1) * COIN;
+        }
     }
+
 
     return (nSubsidy + nFees);
 }
@@ -1057,6 +1062,9 @@ int64_t GetMasterRewardNew(int nFees, int nHeight)
 // total coin base reward
 int64_t GetTotalReward(int nFees, int nHeight)
 {
+    if (Classic())
+        return GetProofOfWorkReward(nFees, nHeight);
+
     return GetProofOfWorkReward(nFees, nHeight) + GetMasterRewardOld(nFees, nHeight);
 }
 
@@ -1188,8 +1196,8 @@ unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlg
     const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = fProofOfStake ? (((pindexLast->nHeight + 1) >= Params().PowWaveBegin() || TestNet()) ? 24 : 7) : 24;
-    int64_t PastBlocksMax = ((pindexLast->nHeight + 1) >= Params().PowWaveBegin() || TestNet()) ? 32 : 24;
+    int64_t PastBlocksMin = 7;
+    int64_t PastBlocksMax = 24;
     int64_t CountBlocks = 0;
     arith_uint256 PowLimit = fProofOfStake ? UintToArith256(Params().ProofOfStakeLimit()) : UintToArith256(Params().ProofOfWorkLimit());
     arith_uint256 PastDifficultyAverage;
@@ -1250,7 +1258,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t 
     //if (pindexLast->nHeight < 5042 && !TestNet())
     //    return DarkGravityWaveOneAlgo(pindexLast);
 
-    if (pindexLast->nHeight < 12234 && !TestNet())
+    if (pindexLast->nHeight < 12234 && !TestNet() && !Classic())
         return DarkGravityWave(pindexLast, nAlgo, fProofOfStake); // old version with multialgo difficulty bug
 
     return DarkGravityWaveV2(pindexLast, fProofOfStake ? CBlock::ALGO_X12 : nAlgo, fProofOfStake);
@@ -2234,8 +2242,6 @@ bool CBlock::AcceptBlock()
     {
         if (pindexBest->nHeight > Params().LastBlock())
             return error("AcceptBlock() : No more PoW blocks!");
-        if (!TestNet() && pindexBest->nHeight > Params().PowWaveEnd() && pindexBest->nHeight < Params().PowWaveBegin())
-            return error("AcceptBlock() : New pow wave not begin!");
     }
     // Check coinstake timestamp
     if (IsProofOfStake() && !CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
@@ -2447,7 +2453,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (IsFork(pblock->hashPrevBlock, forkTime, forkTrust))
         {
 
-            if (pblock->GetBlockTime() < forkTime || GetBlockTrust(pblock->nBits) < forkTrust)
+            if (pblock->GetBlockTime() < forkTime || GetBlockTrust(pblock->nBits) > forkTrust)
             {
                 CBlock block;
                 CBlockIndex* pblockindex = GetForkBlock(pblock->hashPrevBlock);

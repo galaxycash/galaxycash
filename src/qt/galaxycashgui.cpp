@@ -85,7 +85,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     blockBrowser(0)
 {
     resize(710, 540);
-    setWindowTitle(tr("GalaxyCash Core") + " - " + tr("Wallet"));
+    setWindowTitle(Classic() ? (tr("GalaxyCash Core") + " Classic " + " - " + tr("Wallet")) : (tr("GalaxyCash Core") + " - " + tr("Wallet")));
 
     //QPalette pal = palette();
     //pal.setColor(QPalette::Background, Qt::gray);

@@ -172,8 +172,10 @@ int main(int argc, char *argv[])
     //XXX app.setOrganizationDomain("");
     if(GetBoolArg("-testnet", false)) // Separate UI settings for testnet
         app.setApplicationName("GalaxyCash-Qt-testnet");
+    else if(GetBoolArg("-classic", false)) // Separate UI settings for classic
+        app.setApplicationName("GalaxyCash-Qt-Classic");
     else
-        app.setApplicationName(IsHNY() ? "GalaxyCash-Qt-HappyNewYearEdition" : "GalaxyCash-Qt");
+        app.setApplicationName("GalaxyCash-Qt");
 
     if (GetBoolArg("-black", false))
         GUIUtil::SetBlackThemeQSS(app);

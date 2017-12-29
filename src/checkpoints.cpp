@@ -74,7 +74,14 @@ namespace Checkpoints
          ( 16500, uint256S("0x281ec8926cfda0ea15fa1e41b9ef525e8d0e4889633857b86a1e28d4b5f3e06b") )
          ( 17000, uint256S("0xdd01c14374043eb9e0b33cf40f2d6f556eefc7f880de63e2c8109ef10e6d89ba") )
          ( 17500, uint256S("0xb9ca11266ee750a34c8e7e644386cfda5e4b817f6a230126831aa65391469ff7") )
+         ( 18000, uint256S("0x4d14974f326cfd89bfac3428054669795b4b08c8f44417536168f0afd0a96654") )
+         ( 18500, uint256S("0x24254a4c95cd1f85dcb3b6231e224b8b4ff5cec78b62850c396fd223f853c564") )
     ;
+
+    static MapCheckpoints mapCheckpointsClassic =
+            boost::assign::map_list_of
+             ( 0,    uint256S("0x000007e0e59cc2e24dc640273dfe4e6e45ca02e40d32b3f8b5d85646b2485e99") )
+        ;
 
 
     // TestNet has no checkpoints
@@ -87,7 +94,7 @@ namespace Checkpoints
 
     bool CheckHardened(int nHeight, const uint256& hash)
     {
-        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : mapCheckpoints);
+        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : (Classic() ? mapCheckpointsClassic : mapCheckpoints));
 
         MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
         if (i == checkpoints.end()) return true;
@@ -96,7 +103,7 @@ namespace Checkpoints
 
     int GetTotalBlocksEstimate()
     {
-        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : mapCheckpoints);
+        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : (Classic() ? mapCheckpointsClassic : mapCheckpoints));
 
         if (checkpoints.empty())
             return 0;
@@ -105,7 +112,7 @@ namespace Checkpoints
 
     CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex)
     {
-        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : mapCheckpoints);
+        MapCheckpoints& checkpoints = (TestNet() ? mapCheckpointsTestnet : (Classic() ? mapCheckpointsClassic : mapCheckpoints));
 
         BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, checkpoints)
         {

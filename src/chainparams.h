@@ -38,7 +38,7 @@ public:
     enum Network {
         MAIN,
         TESTNET,
-        REGTEST,
+        CLASSIC,
 
         MAX_NETWORK_TYPES
     };
@@ -72,9 +72,6 @@ public:
     int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     int64_t LastBlock() const { return nLastBlock; }
-    int64_t PowWaveEnd() const { return 14868; }
-    int64_t PowWaveBegin() const { return 20000; }
-    bool    IsPowWave(const int nHeight) const { return nHeight >= PowWaveBegin(); }
 protected:
     CChainParams() {};
 
@@ -111,6 +108,11 @@ bool SelectParamsFromCommandLine();
 inline bool TestNet() {
     // Note: it's deliberate that this returns "false" for regression test mode.
     return Params().NetworkID() == CChainParams::TESTNET;
+}
+
+inline bool Classic() {
+    // Note: it's deliberate that this returns "false" for regression test mode.
+    return Params().NetworkID() == CChainParams::CLASSIC;
 }
 
 #endif

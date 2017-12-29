@@ -57,13 +57,14 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    obj.push_back(Pair("algorithm", GetAlgorithmName(nMiningAlgo)));
+    obj.push_back(Pair("algorithm",     GetAlgorithmName(nMiningAlgo)));
 
     diff.push_back(Pair("proof-of-work",  GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits)));
     diff.push_back(Pair("proof-of-stake", GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
     obj.push_back(Pair("difficulty",    diff));
 
-    obj.push_back(Pair("testnet",       TestNet()));
+    obj.push_back(Pair("testnet",       TestNet()));    
+    obj.push_back(Pair("classic",       Classic()));
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
         obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
