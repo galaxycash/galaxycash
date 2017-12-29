@@ -17,11 +17,11 @@ Block time:                                 3 Minutes
 
 PoW Block reward:                           6 GCH, 4 GCH after 10k block
 
-GalaxyCash Classic PoW Block reward:        50 GCHC, 25 GCHC after 100k block, 12 GCHC after 150k block
+Classic PoW Block reward:                   50 GCHC, 25 GCHC after 100k block, 12 GCHC after 150k block
 
 PoW Last Block:                             14868
 
-GalaxyCash Classic PoW Last Block:          14868
+Classic PoW Last Block:                     700000
 
 PoS Block reward:                           3 GCH, 2 GCH after 10k block, 1 GCH after 15k block, 0.5 GCH after 50k block, 0.25 after 100k block
 
