@@ -1196,7 +1196,7 @@ unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlg
     const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = 7;
+    int64_t PastBlocksMin = fProofOfStake ? 7 : 24;
     int64_t PastBlocksMax = 24;
     int64_t CountBlocks = 0;
     arith_uint256 PowLimit = fProofOfStake ? UintToArith256(Params().ProofOfStakeLimit()) : UintToArith256(Params().ProofOfWorkLimit());
@@ -1605,9 +1605,10 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
 {
     // Disconnect in reverse order
     for (int i = vtx.size()-1; i >= 0; i--)
+    {
         if (!vtx[i].DisconnectInputs(txdb))
             return false;
-
+    }
 
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
@@ -1813,6 +1814,12 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
             return error("Reorganize() : ReadFromDisk for disconnect failed");
         if (!block.DisconnectBlock(txdb, pindex))
             return error("Reorganize() : DisconnectBlock %s failed", pindex->GetBlockHash().ToString());
+
+        if (mapBlockIndex.count(pindex->GetBlockHash()))
+            mapBlockIndex.erase(pindex->GetBlockHash());
+
+        if (setStakeSeen.count(block.GetProofOfStake()))
+            setStakeSeen.erase(block.GetProofOfStake());
 
         // Queue memory transactions to resurrect.
         // We only do this for blocks after the last checkpoint (reorganisation before that
@@ -2281,8 +2288,8 @@ bool CBlock::AcceptBlock()
     }
 
     // Check that the block satisfies synchronized checkpoint
-    //if (!Checkpoints::CheckSync(nHeight))
-    //    return error("AcceptBlock() : rejected by synchronized checkpoint");
+    if (!Checkpoints::CheckSync(nHeight))
+        return error("AcceptBlock() : rejected by synchronized checkpoint");
 
     // Enforce rule that the coinbase starts with serialized block height
     CScript expect = CScript() << nHeight;
@@ -2375,7 +2382,7 @@ bool static IsCanonicalBlockSignature(CBlock* pblock, bool checkLowS)
     return checkLowS ? IsLowDERSignature(pblock->vchBlockSig, false) : IsDERSignature(pblock->vchBlockSig, false);
 }
 
-static const int numForkBlocksCheck = 256;
+static const int numForkBlocksCheck = 12;
 
 COrphanBlock *FindOrphanBlockTrusted(const uint256 hash)
 {
@@ -2390,6 +2397,33 @@ COrphanBlock *FindOrphanBlockTrusted(const uint256 hash)
     return NULL;
 }
 
+COrphanBlock *FindOrphanBlock(const uint256 hash)
+{
+    for (std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.begin(); it != mapOrphanBlocks.end(); it++)
+    {
+        if ((*it).second->hashBlock == hash)
+            return (*it).second;
+    }
+    return NULL;
+}
+
+arith_uint256 GetOrphanTrust(const COrphanBlock *pblock)
+{
+    if (mapBlockIndex.count(pblock->hashPrev))
+    {
+        const CBlockIndex *pindex = mapBlockIndex[pblock->hashPrev];
+        return pblock->trust + pindex->nChainTrust;
+    }
+    else
+    {
+        COrphanBlock *pprev = FindOrphanBlock(pblock->hashPrev);
+        if (pprev)
+            return pblock->trust + GetOrphanTrust(pprev);
+        else
+            return 0;
+    }
+}
+
 bool IsFork(const uint256 hash, int &nForkTime, arith_uint256 &nForkTrust)
 {
     int numBlocksCheck = numForkBlocksCheck;
@@ -2399,7 +2433,7 @@ bool IsFork(const uint256 hash, int &nForkTime, arith_uint256 &nForkTrust)
         if (block->pprev && block->pprev->GetBlockHash() == hash)
         {
             nForkTime = block->GetBlockTime();
-            nForkTrust = block->GetBlockTrust();
+            nForkTrust = block->GetBlockTrust() + block->pprev->nChainTrust;
             return true;
         }
         block = block->pprev;
@@ -2408,7 +2442,7 @@ bool IsFork(const uint256 hash, int &nForkTime, arith_uint256 &nForkTrust)
     if (orphan)
     {
         nForkTime = orphan->time;
-        nForkTrust = orphan->trust;
+        nForkTrust = GetOrphanTrust(orphan);
         return true;
     }
     return false;
@@ -2446,14 +2480,57 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
 
-    if (pblock->hashPrevBlock != hashBestChain && !IsInitialBlockDownload())
+    if ((pindexBest && pindexBest->pprev) && pindexBest->pprev->GetBlockHash() == pblock->hashPrevBlock)
+    {
+        const arith_uint256 blockChainTrust = pindexBest->pprev->nChainTrust + GetBlockTrust(pblock->nBits);
+        const arith_uint256 chainTrust = pindexBest->nChainTrust;
+
+        if (chainTrust < blockChainTrust)
+        {
+            CBlock block;
+            CBlockIndex* pblockindex = pindexBest->pprev;
+            block.ReadFromDisk(pblockindex, true);
+
+            CTxDB txdb;
+            if (!block.SetBestChain(txdb, pblockindex))
+                return error("ProcessBlock() : Failed to set best chain for fork!");
+
+            return ProcessBlock(pfrom, pblock);
+        }
+    }
+
+    if (pblock->hashPrevBlock != hashBestChain && mapBlockIndex.count(pblock->hashPrevBlock))
+    {
+        CBlockIndex *pPrevIndex = mapBlockIndex[pblock->hashPrevBlock];
+
+        if (pPrevIndex->pnext)
+        {
+            const arith_uint256 blockChainTrust = pPrevIndex->nChainTrust + GetBlockTrust(pblock->nBits);
+            const arith_uint256 chainTrust = pPrevIndex->pnext->nChainTrust;
+
+            if (blockChainTrust > chainTrust)
+            {
+                CBlock block;
+                CBlockIndex* pblockindex = pPrevIndex;
+                block.ReadFromDisk(pblockindex, true);
+
+                CTxDB txdb;
+                if (!block.SetBestChain(txdb, pblockindex))
+                    return error("ProcessBlock() : Failed to set best chain for fork!");
+
+                return ProcessBlock(pfrom, pblock);
+            }
+        }
+    }
+
+    /*if (pblock->hashPrevBlock != hashBestChain && !IsInitialBlockDownload())
     {
         arith_uint256 forkTrust = 0;
         int forkTime = 0;
         if (IsFork(pblock->hashPrevBlock, forkTime, forkTrust))
         {
 
-            if (pblock->GetBlockTime() < forkTime || GetBlockTrust(pblock->nBits) > forkTrust)
+            if (GetBlockTrust(pblock->nBits) > forkTrust)
             {
                 CBlock block;
                 CBlockIndex* pblockindex = GetForkBlock(pblock->hashPrevBlock);
@@ -2491,7 +2568,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 return ProcessBlock(pfrom, pblock);
             }
         }
-    }
+    }*/
 
     if (!IsCanonicalBlockSignature(pblock, false)) {
         if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION) {
@@ -2588,7 +2665,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    LogPrintf("ProcessBlock: ACCEPTED\n");
+    LogPrintf("ProcessBlock: ACCEPTED (%s, %s)\n", pblock->IsProofOfStake() ? "PoS" : "PoW", GetAlgorithmName(pblock->GetAlgorithm()));
 
     return true;
 }
