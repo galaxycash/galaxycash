@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     if(GetBoolArg("-testnet", false)) // Separate UI settings for testnet
         app.setApplicationName("GalaxyCash-Qt-testnet");
     else if(GetBoolArg("-classic", false)) // Separate UI settings for classic
-        app.setApplicationName("GalaxyCash-Qt-Classic");
+        app.setApplicationName("GalaxyCash-Classic-Qt");
     else
         app.setApplicationName("GalaxyCash-Qt");
 
