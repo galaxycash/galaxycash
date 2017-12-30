@@ -2255,8 +2255,19 @@ bool CBlock::AcceptBlock()
         return DoS(50, error("AcceptBlock() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
 
     // Check proof-of-work or proof-of-stake
-    if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()))
-        return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
+    if (!Classic())
+    {
+        if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()))
+            return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
+    }
+    else
+    {
+        if (pindexBest->nHeight >= 1250) // Old blockchain correction corrupt PoW blocks
+        {
+            if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()))
+                return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
+        }
+    }
 
     // Check timestamp against prev
     if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
@@ -2589,7 +2600,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     }
 
     // Preliminary checks
-    if (!pblock->CheckBlock())
+    if (!pblock->CheckBlock(Classic() ? (pindexBest->nHeight >= 1250) : true))
         return error("ProcessBlock() : CheckBlock FAILED");
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
