@@ -248,8 +248,11 @@ static CTestNetParams testNetParams;
 
 
 
-
+#if defined(CLASSIC_ONLY)
+static CChainParams *pCurrentParams = &classicParams;
+#else
 static CChainParams *pCurrentParams = &mainParams;
+#endif
 
 const CChainParams &Params() {
     return *pCurrentParams;
@@ -257,9 +260,15 @@ const CChainParams &Params() {
 
 void SelectParams(CChainParams::Network network) {
     switch (network) {
+#if defined(CLASSIC_ONLY)
+        case CChainParams::MAIN:
+            pCurrentParams = &classicParams;
+            break;
+#else
         case CChainParams::MAIN:
             pCurrentParams = &mainParams;
             break;
+#endif
         case CChainParams::CLASSIC:
             pCurrentParams = &classicParams;
             break;
@@ -276,8 +285,11 @@ void SelectParams(CChainParams::Network network) {
 bool SelectParamsFromCommandLine() {
 
     bool fTestNet = GetBoolArg("-testnet", false);
+#if defined(CLASSIC_ONLY)
+    bool fClassicNet = !fTestNet;
+#else
     bool fClassicNet = GetBoolArg("-classic", false);
-
+#endif
 
 
     if (fTestNet) {

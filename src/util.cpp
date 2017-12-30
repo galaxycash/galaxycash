@@ -1051,7 +1051,7 @@ void ClearDatadirCache()
 
 boost::filesystem::path GetConfigFile()
 {
-    boost::filesystem::path pathConfigFile(GetArg("-conf", "galaxycash.conf"));
+    boost::filesystem::path pathConfigFile(GetArg("-conf", Classic() ? "galaxycash-classic.conf" : "galaxycash.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
     return pathConfigFile;
 }
