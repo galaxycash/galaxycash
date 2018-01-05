@@ -101,49 +101,6 @@ public:
 
         hashGenesisBlock = genesis.GetHash();
 
-        // If genesis block hash does not match, then generate new genesis hash.
-        if (true)
-        {
-
-            std::cout << "Searching for genesis block" << std::endl;
-
-            arith_uint256 target = arith_uint256().SetCompact(genesis.nBits);
-            uint256 hash;
-            arith_uint256 hashProof;
-            uint32_t counter = 0;
-            uint32_t last = time(NULL);
-            while (true)
-            {
-
-                hash = genesis.GetHash();
-                hashProof = UintToArith256(hash);
-                counter++;
-
-                if (hashProof <= target)
-                    break;
-
-
-                if ((genesis.nNonce & 0xFFF) == 0)
-                    cout << "Nonce: " << genesis.nNonce << " Hash: " << hash.ToString() << " Target: " << target.ToString() << " Hashrate: " << counter << endl;
-
-                uint32_t current = time(NULL);
-                if (current - last > 1)
-                {
-                    counter = 0;
-                    last = current;
-                }
-
-                ++genesis.nNonce;
-
-                if (genesis.nNonce == 0)
-                    ++genesis.nTime;
-            }
-        }
-
-        std::cout << "Hash: " << genesis.GetHash().ToString() << std::endl;
-        std::cout << "Merkle: " << genesis.hashMerkleRoot.ToString() << std::endl;
-        std::cout << "Nonce: " << genesis.nNonce << std::endl;
-
         assert(hashGenesisBlock == uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468"));
         assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
