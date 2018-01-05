@@ -2051,47 +2051,13 @@ bool CBlock::CheckBlockHeader(bool fCheckPOW, bool fCheckSig) const
     if (GetBlockTime() > (GetAdjustedTime() + 2 * 60 * 60))
         return error("CheckBlockHeader() : block timestamp too far in the future");
 
-
-    // Get prev block index
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
-    if (mi == mapBlockIndex.end())
-        return DoS(10, error("CheckBlockHeader() : prev block not found"));
-    CBlockIndex* pindexPrev = (*mi).second;
-    int nHeight = pindexPrev->nHeight+1;
-
-    // Check timestamp against prev
-    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
-        return error("CheckBlockHeader() : block's timestamp is too early");
-
     // Check proof of work matches claimed amount
     if (IsProofOfWork() && !IsPOWChecked())
     {
         if (!CheckProofOfWork(GetPoWHash(), nBits))
             return DoS(50, error("CheckBlockHeader() : proof of work failed"));
 
-        if (GetNextTargetRequired(pindexPrev, GetAlgorithm(), false) != nBits)
-            return DoS(100, error("CheckBlockHeader() : incorrect proof-of-work"));
-
         nFlags |= BLOCK_POWCHECKED;
-    }
-
-    // Check coinstake timestamp
-    if (IsProofOfStake() && !IsPOSChecked())
-    {
-        if (!IsCanonicalBlockSignature(this, false))
-            return error("CheckBlockHeader(): bad block signature encoding");
-
-        if (GetNextTargetRequired(pindexPrev, CBlock::ALGO_X12, true) != nBits)
-            return DoS(100, error("CheckBlockHeader() : incorrect proof-of-stake"));
-
-        // Check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature())
-            return DoS(100, error("CheckBlockHeader() : bad proof-of-stake block signature"));
-
-        if (!CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
-            return DoS(50, error("CheckBlockHeader() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
-
-        nFlags |= BLOCK_POSCHECKED;
     }
 
     return true;
@@ -2192,6 +2158,30 @@ bool CBlock::AcceptBlock()
         return DoS(10, error("AcceptBlock() : prev block not found"));
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
+
+
+    // Check timestamp against prev
+    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
+        return error("CheckBlockHeader() : block's timestamp is too early");
+
+    if (GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()) != nBits)
+        return DoS(100, error("CheckBlockHeader() : incorrect %s", IsProofOfWork() ?  "proof-of-work" : "proof-of-stake"));
+
+    // Check coinstake timestamp
+    if (IsProofOfStake() && !IsPOSChecked())
+    {
+        if (!IsCanonicalBlockSignature(this, false))
+            return error("AcceptBlock(): bad block signature encoding");
+
+        // Check proof-of-stake block signature
+        if (!CheckBlockSignature())
+            return DoS(100, error("AcceptBlock() : bad proof-of-stake block signature"));
+
+        if (!CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
+            return DoS(50, error("AcceptBlock() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
+
+        nFlags |= BLOCK_POSCHECKED;
+    }
 
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, vtx)
@@ -2421,6 +2411,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
         return true;
     }
+
 
     // Store to disk
     if (!pblock->AcceptBlock())

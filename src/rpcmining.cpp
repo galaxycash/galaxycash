@@ -166,20 +166,20 @@ Value getnetworkhashrate(const Array& params, bool fHelp)
     const double ths = ghs * 1000;
     const double phs = ths * 1000;
 
-    double hashps = (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS()) * 1000.0;
+    double hashps = (GetPoWMHashPS() + GetPoSKernelPS()) * 1000.0 * 1000.0;
 
     if (hashps <= hs)
-        return (std::to_string(hashps / hs) + " h/s").c_str();
+        return (std::to_string(hashps) + " h/s").c_str();
     else if (hashps <= khs)
-        return (std::to_string(hashps / khs) + " kh/s").c_str();
+        return (std::to_string(hashps / hs) + " kh/s").c_str();
     else if (hashps <= mhs)
-        return (std::to_string(hashps / mhs) + " mh/s").c_str();
+        return (std::to_string(hashps / khs) + " mh/s").c_str();
     else if (hashps <= ghs)
-        return (std::to_string(hashps / ghs) + " gh/s").c_str();
+        return (std::to_string(hashps / mhs) + " gh/s").c_str();
     else if (hashps <= ths)
-        return (std::to_string(hashps / ths) + " th/s").c_str();
+        return (std::to_string(hashps / ghs) + " th/s").c_str();
     else
-        return (std::to_string(hashps / phs) + " ph/s").c_str();
+        return (std::to_string(hashps / ths) + " ph/s").c_str();
 }
 
 Value getsubsidy(const Array& params, bool fHelp)
