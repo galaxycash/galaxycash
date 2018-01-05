@@ -1,9 +1,7 @@
-GalaxyCash & GalaxyCash Classic
+GalaxyCash
 ======
 
 Block Explorer: https://galaxycash.info/
-
-Block Explorer(Classic): No
 
 Specifications
 --------------
@@ -15,17 +13,13 @@ Difficulty retarget:                        Every block
 
 Block time:                                 3 Minutes
 
-PoW Block reward:                           6 GCH, 4 GCH after 10k block
+PoW Block reward:                           50 GCH
 
-Classic PoW Block reward:                   50 GCHC, 25 GCHC after 100k block, 12 GCHC after 150k block
+PoS First Block:                            100000
 
-PoW Last Block:                             14868
+PoS Block reward:                           1 GCH
 
-Classic PoW Last Block:                     700000
-
-PoS Block reward:                           3 GCH, 2 GCH after 10k block, 1 GCH after 15k block, 0.5 GCH after 50k block, 0.25 after 100k block
-
-Coinbase maturity:                          6 blocks
+Coinbase maturity:                          11 blocks
 
 Minimum POS Age:                            6 Hours
 
@@ -35,9 +29,6 @@ Network info:
 
 P2P port:                                   7604
 RPC port:                                   4604
-
-GalaxyCash Classic P2P port:                16604
-GalaxyCash Classic RPC port:                13604
 
 Testnet P2P port:                           17604
 Testnet RPC port:                           14604

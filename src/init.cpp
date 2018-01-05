@@ -279,11 +279,13 @@ bool InitSanityCheck(void)
     return true;
 }
 
+
 /** Initialize galaxycash.
  *  @pre Parameters should be parsed and config file should be read.
  */
 bool AppInit2(boost::thread_group& threadGroup)
 {
+
     // ********************************************************* Step 1: setup
 #ifdef _MSC_VER
     // Turn off Microsoft heap dump noise

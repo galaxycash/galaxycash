@@ -37,9 +37,8 @@ class CChainParams
 public:
     enum Network {
         MAIN,
-        TESTNET,
-        CLASSIC,
-
+        EASY,
+        TEST,
         MAX_NETWORK_TYPES
     };
 
@@ -68,10 +67,13 @@ public:
     const std::vector<unsigned char> &Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     virtual const vector<CAddress>& FixedSeeds() const = 0;
     int RPCPort() const { return nRPCPort; }
+    bool POWNoRetargeting() const { return fPOWNoRetargeting; }
     int64_t PowTargetTimespan() const { return nPowTargetTimespan; }
     int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
-    int64_t LastBlock() const { return nLastBlock; }
+    int64_t POSStart() const { return nPOSFirstBlock; }
+    int64_t MergeStart() const { return nMergeFirstBlock; }
+    int64_t MergeEnd() const { return nMergeLastBlock; }
 protected:
     CChainParams() {};
 
@@ -79,9 +81,10 @@ protected:
     MessageStartChars pchMessageStart;
     int nDefaultPort;
     int nRPCPort;
-    int64_t nLastBlock;
+    int64_t nPOSFirstBlock, nMergeFirstBlock, nMergeLastBlock;
     int64_t nPowTargetTimespan;
     int64_t nPowTargetSpacing;
+    bool fPOWNoRetargeting;
     uint256 stakeLimit;
     uint256 powLimit;
     int nSubsidyHalvingInterval;
@@ -107,12 +110,12 @@ bool SelectParamsFromCommandLine();
 
 inline bool TestNet() {
     // Note: it's deliberate that this returns "false" for regression test mode.
-    return Params().NetworkID() == CChainParams::TESTNET;
+    return Params().NetworkID() == CChainParams::TEST;
 }
 
-inline bool Classic() {
+inline bool EasyNet() {
     // Note: it's deliberate that this returns "false" for regression test mode.
-    return Params().NetworkID() == CChainParams::CLASSIC;
+    return Params().NetworkID() == CChainParams::EASY;
 }
 
 #endif

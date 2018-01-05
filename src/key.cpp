@@ -416,12 +416,11 @@ const unsigned char vchHalfOrder[32] = {
 };
 
 bool EnsureLowS(std::vector<unsigned char>& vchSig) {
-    unsigned char *pos;
 
     if (vchSig.empty())
         return false;
 
-    pos = &vchSig[0];
+    unsigned char *pos = (&vchSig[0]);
     ECDSA_SIG *sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&pos, vchSig.size());
     if (sig == NULL)
         return false;
@@ -437,7 +436,7 @@ bool EnsureLowS(std::vector<unsigned char>& vchSig) {
     BN_free(halforder);
     BN_free(order);
 
-    pos = &vchSig[0];
+    pos = (&vchSig[0]);
     unsigned int nSize = i2d_ECDSA_SIG(sig, &pos);
     ECDSA_SIG_free(sig);
     vchSig.resize(nSize); // Shrink to fit actual size

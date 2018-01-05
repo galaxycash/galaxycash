@@ -39,7 +39,7 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 
 
-int nCoinbaseMaturity = 6;
+int nCoinbaseMaturity = 11;
 int nStakeMinConfirmations = 50;
 unsigned int nStakeMinAge = 6 * 60 * 60; // 6 hours
 unsigned int nModifierInterval = 5 * 60; // time to elapse before new modifier is computed
@@ -207,6 +207,14 @@ int32_t GetBlockAlgorithm(const int32_t nVersion)
     default:
         return 0;
     }
+}
+
+bool IsMergeBlock(const unsigned int nHeight)
+{
+    if (nHeight >= 1)
+        return nHeight >= Params().MergeStart() && nHeight <= Params().MergeEnd();
+    else
+        return false;
 }
 
 
@@ -1016,222 +1024,110 @@ void static PruneOrphanBlocks()
     }
 }
 
-// miner's coin base reward
-int64_t GetProofOfWorkReward(int nFees, int nHeight)
-{
-    int64_t nSubsidy = 0;
-
-    if (pindexBest->nMoneySupply < MAX_MONEY)
-    {
-        if (Classic())
-        {
-            if (nHeight < 100000)
-                nSubsidy = 50 * COIN;
-            else if (nHeight < 150000)
-                nSubsidy = 25 * COIN;
-            else
-                nSubsidy = 12 * COIN;
-        } else {
-            if (nHeight < 10000)
-                nSubsidy = (TestNet() ? 1000 : 6) * COIN;
-            else if (nHeight < 15000)
-                nSubsidy = (TestNet() ? 100 : 4) * COIN;
-            else if (nHeight < 100000)
-                nSubsidy = (TestNet() ? 100 : 2) * COIN;
-            else
-                nSubsidy = (TestNet() ? 10 : 1) * COIN;
-        }
-    }
-
-
-    return (nSubsidy + nFees);
-}
-
-// master coin base reward
-int64_t GetMasterRewardOld(int nFees, int nHeight)
-{
-    return (GetProofOfWorkReward(nFees, nHeight) / 100) * MASTER_REWARD_PERCENT_OLD;
-}
-
-// master coin base reward
-int64_t GetMasterRewardNew(int nFees, int nHeight)
-{
-    return (GetProofOfWorkReward(nFees, nHeight) / 100) * MASTER_REWARD_PERCENT_NEW;
-}
-
-// total coin base reward
-int64_t GetTotalReward(int nFees, int nHeight)
-{
-    if (Classic())
-        return GetProofOfWorkReward(nFees, nHeight);
-
-    return GetProofOfWorkReward(nFees, nHeight) + GetMasterRewardOld(nFees, nHeight);
-}
-
 // miner's coin stake reward
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
 {
-    int64_t nSubsidy = 0;
-
-    int nHeight = pindexPrev ? (pindexPrev->nHeight + 1) : 0;
-    if (pindexBest->nMoneySupply < MAX_MONEY)
-    {
-        if (nHeight < 10000)
-            nSubsidy = (TestNet() ? 1000 : 3) * COIN;
-        else if (nHeight < 15000)
-            nSubsidy = (TestNet() ? 100 : 2) * COIN;
-        else if (nHeight < 50000)
-            nSubsidy = (TestNet() ? 100 : 1) * COIN;
-        else if (nHeight < 100000)
-            nSubsidy = (TestNet() ? 100 : 0.5) * COIN;
-        else
-            nSubsidy = (TestNet() ? 10 : 0.25) * COIN;
-    }
+    int64_t nSubsidy = 1 * COIN;
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d nHeight=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
     return nSubsidy+ nFees;
 }
 
-// ppcoin: find last block index up to pindex
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
+// miner's coin base reward
+int64_t GetProofOfWorkReward(int nFees, int nHeight)
 {
-    while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake))
-        pindex = pindex->pprev;
-    return pindex;
-}
+    int nHalvings = nHeight / Params().SubsidyHalvingInterval();
+    // Force block reward to zero when right shift is undefined.
+    if (nHalvings >= 64)
+        return 0;
 
-const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t nAlgo, bool fProofOfStake)
-{
-    while (pindex && pindex->pprev && ((GetBlockAlgorithm(pindex->nVersion) != nAlgo) || (pindex->IsProofOfStake() != fProofOfStake)))
-        pindex = pindex->pprev;
-    return pindex;
-}
+    int64_t nSubsidy = 0;
 
-const CBlockIndex* GetPrevBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t nAlgo, const bool fProofOfStake)
-{
-    if (!pindex)
-        return NULL;
-
-    if (pindex->pprev)
+    if (pindexBest->nMoneySupply < MAX_MONEY)
     {
-        pindex = pindex->pprev;
-
-        if (pindex->GetBlockAlgorithm() == nAlgo && pindex->IsProofOfStake() == fProofOfStake)
-            return pindex;
+        if (nHeight == 1)
+        {
+            nSubsidy = 466025 * COIN; // Reward for merge chains
+        }
         else
-            return GetPrevBlockIndexForAlgo(pindex, nAlgo, fProofOfStake);
+        {
+            nSubsidy = 50 * COIN;
+            nSubsidy >>= nHalvings;
+        }
+
+
     }
-    return NULL;
+    return (nSubsidy + nFees);
 }
 
-unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo, bool fProofOfStake)
+// ppcoin: find last block index up to pindex
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t nAlgo, const bool fProofOfStake)
+{
+    while (pindex && pindex->pprev && (pindex->GetBlockAlgorithm() != nAlgo) && pindex->IsProofOfStake() != fProofOfStake)
+        pindex = pindex->pprev;
+    return pindex;
+}
+
+unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool fProofOfStake)
 {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
-    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = fProofOfStake ? 7 : 24;
+    int64_t PastBlocksMin = 24;
     int64_t PastBlocksMax = 24;
     int64_t CountBlocks = 0;
-    arith_uint256 PowLimit = fProofOfStake ? UintToArith256(Params().ProofOfStakeLimit()) : UintToArith256(Params().ProofOfWorkLimit());
+    arith_uint256 PowLimit = UintToArith256(Params().ProofOfWorkLimit());
     arith_uint256 PastDifficultyAverage;
     arith_uint256 PastDifficultyAveragePrev;
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+    if (IsMergeBlock(pindexLast->nHeight + 1))
         return PowLimit.GetCompact();
-    }
 
-    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
-        if (BlockReading->GetBlockAlgorithm() != nAlgo || BlockReading->IsProofOfStake() != fProofOfStake)
-        {
-            BlockReading = GetPrevBlockIndexForAlgo(BlockReading, nAlgo, fProofOfStake);
+    if (BlockLastSolved == NULL ||
+            BlockLastSolved->nHeight == 0 ||
+            BlockLastSolved->nHeight < PastBlocksMin)
+        return PowLimit.GetCompact();
+
+    while (BlockReading && BlockReading->nHeight > 0) {
+        if (PastBlocksMax > 0 && CountBlocks >= PastBlocksMax)
+            break;
+
+        // we only consider proof-of-work blocks for the configured mining algo here
+        if (BlockReading->GetBlockAlgorithm() != nAlgo || BlockReading->IsProofOfStake() != fProofOfStake) {
+            BlockReading = BlockReading->pprev;
             continue;
         }
-        CountBlocks++;;
 
-        if(CountBlocks <= PastBlocksMin) {
-            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
-            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
+        CountBlocks++;
+
+        if (CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1)
+                PastDifficultyAverage.SetCompact(BlockReading->nBits);
+            else
+                PastDifficultyAverage =
+                    ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1);
+
             PastDifficultyAveragePrev = PastDifficultyAverage;
         }
 
-        if(LastBlockTime > 0){
+        if (LastBlockTime > 0){
             int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
             nActualTimespan += Diff;
         }
         LastBlockTime = BlockReading->GetBlockTime();
 
-        const CBlockIndex *pprev = BlockReading->pprev;
-        if (pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = pprev;
+        if (BlockReading->pprev == NULL) {
+            assert(BlockReading);
+            break;
+        }
+        BlockReading = BlockReading->pprev;
     }
 
-    arith_uint256 bnNew(PastDifficultyAverage);
-
-    int64_t _nTargetTimespan = CountBlocks * Params().PowTargetSpacing();
-
-    if (nActualTimespan < _nTargetTimespan/3)
-        nActualTimespan = _nTargetTimespan/3;
-    if (nActualTimespan > _nTargetTimespan*3)
-        nActualTimespan = _nTargetTimespan*3;
-
-    // Retarget
-    bnNew *= nActualTimespan;
-    bnNew /= _nTargetTimespan;
-
-    if (bnNew > PowLimit){
-        bnNew = PowLimit;
-    }
-
-    return bnNew.GetCompact();
-}
-
-unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlgo, bool fProofOfStake)
-{
-    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
-    const CBlockIndex *BlockLastSolved = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
-    const CBlockIndex *BlockReading = GetLastBlockIndexForAlgo(pindexLast, nAlgo, fProofOfStake);
-    int64_t nActualTimespan = 0;
-    int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = fProofOfStake ? 7 : 24;
-    int64_t PastBlocksMax = 24;
-    int64_t CountBlocks = 0;
-    arith_uint256 PowLimit = fProofOfStake ? UintToArith256(Params().ProofOfStakeLimit()) : UintToArith256(Params().ProofOfWorkLimit());
-    arith_uint256 PastDifficultyAverage;
-    arith_uint256 PastDifficultyAveragePrev;
-
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+    if (!CountBlocks)
         return PowLimit.GetCompact();
-    }
-
-    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0;) {
-        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
-        if (BlockReading->GetBlockAlgorithm() != nAlgo || BlockReading->IsProofOfStake() != fProofOfStake)
-        {
-            BlockReading = GetPrevBlockIndexForAlgo(BlockReading, nAlgo, fProofOfStake);
-            continue;
-        }
-        CountBlocks++; i++;
-
-        if(CountBlocks <= PastBlocksMin) {
-            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
-            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
-            PastDifficultyAveragePrev = PastDifficultyAverage;
-        }
-
-        if(LastBlockTime > 0){
-            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
-            nActualTimespan += Diff;
-        }
-        LastBlockTime = BlockReading->GetBlockTime();
-
-        const CBlockIndex *pprev = BlockReading->pprev;
-        if (pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = pprev;
-    }
 
     arith_uint256 bnNew(PastDifficultyAverage);
 
@@ -1254,14 +1150,15 @@ unsigned int DarkGravityWaveV2(const CBlockIndex* pindexLast, const int32_t nAlg
 }
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool fProofOfStake)
-{    
-    //if (pindexLast->nHeight < 5042 && !TestNet())
-    //    return DarkGravityWaveOneAlgo(pindexLast);
-
-    if (pindexLast->nHeight < 12234 && !TestNet() && !Classic())
-        return DarkGravityWave(pindexLast, nAlgo, fProofOfStake); // old version with multialgo difficulty bug
-
-    return DarkGravityWaveV2(pindexLast, fProofOfStake ? CBlock::ALGO_X12 : nAlgo, fProofOfStake);
+{
+    if (Params().POWNoRetargeting())
+    {
+        if (fProofOfStake)
+            return UintToArith256(Params().ProofOfStakeLimit()).GetCompact();
+        else
+            return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
+    }
+    return DarkGravityWave(pindexLast, nAlgo, fProofOfStake);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
@@ -1287,6 +1184,9 @@ bool IsInitialBlockDownload()
 {
     LOCK(cs_main);
     if (pindexBest == NULL || nBestHeight < Checkpoints::GetTotalBlocksEstimate())
+        return true;
+
+    if (fReindex || fImporting)
         return true;
 
     if (pindexBest != pindexLastBest)
@@ -1721,7 +1621,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     if (IsProofOfWork())
     {
-        int64_t nReward = GetTotalReward(nFees, pindex->nHeight);
+        int64_t nReward = GetProofOfWorkReward(nFees, pindex->nHeight);
         // Check coinbase reward
         if (vtx[0].GetValueOut() > nReward)
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%d vs calculated=%d)",
@@ -2137,8 +2037,65 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     return true;
 }
 
+bool static IsCanonicalBlockSignature(const CBlock* pblock, bool checkLowS)
+{
+    if (pblock->IsProofOfWork())
+        return pblock->vchBlockSig.empty();
+
+    return checkLowS ? IsLowDERSignature(pblock->vchBlockSig, false) : IsDERSignature(pblock->vchBlockSig, false);
+}
+
+bool CBlock::CheckBlockHeader(bool fCheckPOW, bool fCheckSig) const
+{
+    // Check timestamp
+    if (GetBlockTime() > (GetAdjustedTime() + 2 * 60 * 60))
+        return error("CheckBlockHeader() : block timestamp too far in the future");
 
 
+    // Get prev block index
+    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
+    if (mi == mapBlockIndex.end())
+        return DoS(10, error("CheckBlockHeader() : prev block not found"));
+    CBlockIndex* pindexPrev = (*mi).second;
+    int nHeight = pindexPrev->nHeight+1;
+
+    // Check timestamp against prev
+    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
+        return error("CheckBlockHeader() : block's timestamp is too early");
+
+    // Check proof of work matches claimed amount
+    if (IsProofOfWork() && !IsPOWChecked())
+    {
+        if (!CheckProofOfWork(GetPoWHash(), nBits))
+            return DoS(50, error("CheckBlockHeader() : proof of work failed"));
+
+        if (GetNextTargetRequired(pindexPrev, GetAlgorithm(), false) != nBits)
+            return DoS(100, error("CheckBlockHeader() : incorrect proof-of-work"));
+
+        nFlags |= BLOCK_POWCHECKED;
+    }
+
+    // Check coinstake timestamp
+    if (IsProofOfStake() && !IsPOSChecked())
+    {
+        if (!IsCanonicalBlockSignature(this, false))
+            return error("CheckBlockHeader(): bad block signature encoding");
+
+        if (GetNextTargetRequired(pindexPrev, CBlock::ALGO_X12, true) != nBits)
+            return DoS(100, error("CheckBlockHeader() : incorrect proof-of-stake"));
+
+        // Check proof-of-stake block signature
+        if (fCheckSig && !CheckBlockSignature())
+            return DoS(100, error("CheckBlockHeader() : bad proof-of-stake block signature"));
+
+        if (!CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
+            return DoS(50, error("CheckBlockHeader() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
+
+        nFlags |= BLOCK_POSCHECKED;
+    }
+
+    return true;
+}
 
 bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
@@ -2149,13 +2106,9 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return DoS(100, error("CheckBlock() : size limits failed"));
 
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
-        return DoS(50, error("CheckBlock() : proof of work failed"));
-
-    // Check timestamp
-    if (GetBlockTime() > (GetAdjustedTime() + 2 * 60 * 60))
-        return error("CheckBlock() : block timestamp too far in the future");
+    // Header
+    if (!CheckBlockHeader(fCheckPOW, fCheckSig))
+        return false;
 
     // First transaction must be coinbase, the rest must not be
     if (vtx.empty() || !vtx[0].IsCoinBase())
@@ -2177,10 +2130,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
             if (vtx[i].IsCoinStake())
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
     }
-
-    // Check proof-of-stake block signature
-    if (fCheckSig && !CheckBlockSignature())
-        return DoS(100, error("CheckBlock() : bad proof-of-stake block signature"));
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, vtx)
@@ -2212,10 +2161,14 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         return DoS(100, error("CheckBlock() : out-of-bounds SigOpCount"));
 
     // Check merkle root
-    if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree())
-        return DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
-
-
+    if (!IsMerkleChecked())
+    {
+        if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree())
+        {
+            nFlags |= BLOCK_MRKCHECKED;
+            return DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
+        }
+    }
     return true;
 }
 
@@ -2240,39 +2193,6 @@ bool CBlock::AcceptBlock()
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
 
-    // Check coinbase timestamp
-    if (GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
-         return DoS(50, error("AcceptBlock() : coinbase timestamp is too early"));
-
-    // Check last block
-    if (IsProofOfWork())
-    {
-        if (pindexBest->nHeight > Params().LastBlock())
-            return error("AcceptBlock() : No more PoW blocks!");
-    }
-    // Check coinstake timestamp
-    if (IsProofOfStake() && !CheckCoinStakeTimestamp(nHeight, GetBlockTime(), (int64_t)vtx[1].nTime))
-        return DoS(50, error("AcceptBlock() : coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
-
-    // Check proof-of-work or proof-of-stake
-    if (!Classic())
-    {
-        if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()))
-            return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
-    }
-    else
-    {
-        if (pindexBest->nHeight >= 1250) // Old blockchain correction corrupt PoW blocks
-        {
-            if (nBits != GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()))
-                return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
-        }
-    }
-
-    // Check timestamp against prev
-    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
-        return error("AcceptBlock() : block's timestamp is too early");
-
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, vtx)
         if (!IsFinalTx(tx, nHeight, GetBlockTime()))
@@ -2294,9 +2214,7 @@ bool CBlock::AcceptBlock()
     }
     // PoW is checked in CheckBlock()
     if (IsProofOfWork())
-    {
         hashProof = GetPoWHash();
-    }
 
     // Check that the block satisfies synchronized checkpoint
     if (!Checkpoints::CheckSync(nHeight))
@@ -2384,99 +2302,13 @@ void PushGetBlocks(CNode* pnode, CBlockIndex* pindexBegin, uint256 hashEnd)
 }
 
 
-bool static IsCanonicalBlockSignature(CBlock* pblock, bool checkLowS)
-{
-    if (pblock->IsProofOfWork()) {
-        return pblock->vchBlockSig.empty();
-    }
-
-    return checkLowS ? IsLowDERSignature(pblock->vchBlockSig, false) : IsDERSignature(pblock->vchBlockSig, false);
-}
-
-static const int numForkBlocksCheck = 12;
-
-COrphanBlock *FindOrphanBlockTrusted(const uint256 hash)
-{
-    for (std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.begin(); it != mapOrphanBlocks.end(); it++)
-    {
-        if ((*it).second->hashBlock == hash)
-        {
-            if (mapBlockIndex.count((*it).second->hashPrev))
-                return (*it).second;
-        }
-    }
-    return NULL;
-}
-
-COrphanBlock *FindOrphanBlock(const uint256 hash)
-{
-    for (std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.begin(); it != mapOrphanBlocks.end(); it++)
-    {
-        if ((*it).second->hashBlock == hash)
-            return (*it).second;
-    }
-    return NULL;
-}
-
-arith_uint256 GetOrphanTrust(const COrphanBlock *pblock)
-{
-    if (mapBlockIndex.count(pblock->hashPrev))
-    {
-        const CBlockIndex *pindex = mapBlockIndex[pblock->hashPrev];
-        return pblock->trust + pindex->nChainTrust;
-    }
-    else
-    {
-        COrphanBlock *pprev = FindOrphanBlock(pblock->hashPrev);
-        if (pprev)
-            return pblock->trust + GetOrphanTrust(pprev);
-        else
-            return 0;
-    }
-}
-
-bool IsFork(const uint256 hash, int &nForkTime, arith_uint256 &nForkTrust)
-{
-    int numBlocksCheck = numForkBlocksCheck;
-    CBlockIndex *block = pindexBest;
-    while (block && numBlocksCheck-- >= 0)
-    {
-        if (block->pprev && block->pprev->GetBlockHash() == hash)
-        {
-            nForkTime = block->GetBlockTime();
-            nForkTrust = block->GetBlockTrust() + block->pprev->nChainTrust;
-            return true;
-        }
-        block = block->pprev;
-    }
-    COrphanBlock *orphan = FindOrphanBlockTrusted(hash);
-    if (orphan)
-    {
-        nForkTime = orphan->time;
-        nForkTrust = GetOrphanTrust(orphan);
-        return true;
-    }
-    return false;
-}
-
-CBlockIndex *GetForkBlock(const uint256 hash)
-{
-    int numBlocksCheck = numForkBlocksCheck;
-    CBlockIndex *block = pindexBest;
-    while (block && numBlocksCheck-- >= 0)
-    {
-        if (block->pprev && block->pprev->GetBlockHash() == hash)
-            return block->pprev;
-
-        block = block->pprev;
-    }
-    COrphanBlock *orphan = FindOrphanBlockTrusted(hash);
-    return orphan ? mapBlockIndex[orphan->hashPrev] : NULL;
-}
-
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
+
+    // Check PoS
+    if (pblock->IsProofOfStake() && nBestHeight < Params().POSStart())
+        return error("ProcessBlock() : POS Wave not started!");
 
     // Check for duplicate
     uint256 hash = pblock->GetHash();
@@ -2490,6 +2322,16 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Duplicate stake allowed only when there is orphan child block
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
+
+    // Preliminary checks
+    if (!pblock->CheckBlock())
+        return error("ProcessBlock() : CheckBlock FAILED");
+
+    if (!IsCanonicalBlockSignature(pblock, true))
+    {
+        if (!EnsureLowS(pblock->vchBlockSig))
+            return error("CheckBlockHeader(): EnsureLowS failed");
+    }
 
     if ((pindexBest && pindexBest->pprev) && pindexBest->pprev->GetBlockHash() == pblock->hashPrevBlock)
     {
@@ -2514,7 +2356,10 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     {
         CBlockIndex *pPrevIndex = mapBlockIndex[pblock->hashPrevBlock];
 
-        if (pPrevIndex->pnext)
+        const int nMaxReorganize = 32;
+        const int nNumReorganize = pindexBest->nHeight - pPrevIndex->nHeight;
+
+        if (pPrevIndex->pnext && nNumReorganize <= nMaxReorganize)
         {
             const arith_uint256 blockChainTrust = pPrevIndex->nChainTrust + GetBlockTrust(pblock->nBits);
             const arith_uint256 chainTrust = pPrevIndex->pnext->nChainTrust;
@@ -2533,75 +2378,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             }
         }
     }
-
-    /*if (pblock->hashPrevBlock != hashBestChain && !IsInitialBlockDownload())
-    {
-        arith_uint256 forkTrust = 0;
-        int forkTime = 0;
-        if (IsFork(pblock->hashPrevBlock, forkTime, forkTrust))
-        {
-
-            if (GetBlockTrust(pblock->nBits) > forkTrust)
-            {
-                CBlock block;
-                CBlockIndex* pblockindex = GetForkBlock(pblock->hashPrevBlock);
-                block.ReadFromDisk(pblockindex, true);
-
-                CTxDB txdb;
-                if (!block.SetBestChain(txdb, pblockindex))
-                    return error("ProcessBlock() : Failed to set best chain for fork!");
-
-                vector<uint256> vWorkQueue;
-                vWorkQueue.push_back(hash);
-                for (unsigned int i = 0; i < vWorkQueue.size(); i++)
-                {
-                    uint256 hashPrev = vWorkQueue[i];
-                    for (multimap<uint256, COrphanBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
-                         mi != mapOrphanBlocksByPrev.upper_bound(hashPrev);
-                         ++mi)
-                    {
-                        CBlock block;
-                        {
-                            CDataStream ss(mi->second->vchBlock, SER_DISK, CLIENT_VERSION);
-                            ss >> block;
-                        }
-                        block.BuildMerkleTree();
-                        if (block.AcceptBlock())
-                            vWorkQueue.push_back(mi->second->hashBlock);
-                        mapOrphanBlocks.erase(mi->second->hashBlock);
-                        setStakeSeenOrphan.erase(block.GetProofOfStake());
-                        nOrphanBlocksSize -= mi->second->vchBlock.size();
-                        delete mi->second;
-                    }
-                    mapOrphanBlocksByPrev.erase(hashPrev);
-                }
-
-                return ProcessBlock(pfrom, pblock);
-            }
-        }
-    }*/
-
-    if (!IsCanonicalBlockSignature(pblock, false)) {
-        if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION) {
-            pfrom->Misbehaving(100);
-        }
-
-        return error("ProcessBlock(): bad block signature encoding");
-    }
-
-    if (!IsCanonicalBlockSignature(pblock, true)) {
-        if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_LOW_S_VERSION) {
-            pfrom->Misbehaving(100);
-            return error("ProcessBlock(): bad block signature encoding (low-s)");
-        }
-
-        if (!EnsureLowS(pblock->vchBlockSig))
-            return error("ProcessBlock(): EnsureLowS failed");
-    }
-
-    // Preliminary checks
-    if (!pblock->CheckBlock(Classic() ? (pindexBest->nHeight >= 1250) : true))
-        return error("ProcessBlock() : CheckBlock FAILED");
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))

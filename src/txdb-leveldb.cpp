@@ -18,6 +18,8 @@
 #include "util.h"
 #include "main.h"
 #include "chainparams.h"
+#include "key.h"
+#include "base58.h"
 
 using namespace std;
 using namespace boost;
@@ -325,6 +327,7 @@ static CBlockIndex *InsertBlockIndex(uint256 hash)
 
     return pindexNew;
 }
+
 
 bool CTxDB::LoadBlockIndex()
 {

@@ -103,9 +103,12 @@ public:
     }
 };
 
+
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
 CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFees)
 {
+
+
     // Create new block
     auto_ptr<CBlock> pblock(new CBlock());
     if (!pblock.get())
@@ -457,17 +460,14 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     uint256 hashBlock = pblock->GetHash();
-    uint256 hashProof = pblock->GetPoWHash();
+    arith_uint256 hashProof = UintToArith256(pblock->GetPoWHash());
     arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
-    if (UintToArith256(hashProof) > hashTarget)
+    if (hashProof > hashTarget)
         return error("CheckWork() : proof-of-work not meeting target");
 
     if(!pblock->IsProofOfWork())
         return error("CheckWork() : %s is not a proof-of-work block", hashBlock.GetHex());
-
-    if (pindexBest->nHeight > Params().LastBlock())
-        return error("CheckWork() : GalaxyCash no more PoW blocks!");
 
     //// debug print
     LogPrintf("CheckWork() : new proof-of-work block found  \n  proof hash: %s  \ntarget: %s\n", hashProof.GetHex(), hashTarget.GetHex());
@@ -707,11 +707,6 @@ void static GalaxyCashMiner(CWallet *pwallet)
 
 void GenerateGalaxyCashs(bool fGenerate, CWallet* pwallet, int nThreads)
 {
-    if (!TestNet() && pindexBest)
-    {
-        if (pindexBest->nHeight > Params().LastBlock())
-            return;
-    }
     static boost::thread_group* minerThreads = NULL;
     nThreads = boost::thread::hardware_concurrency();
     

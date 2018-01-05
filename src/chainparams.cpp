@@ -51,13 +51,21 @@ public:
         // The message start string is designed to be unlikely to occur in normal data.
         // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
         // a large 4-byte int at any alignment.
-        pchMessageStart[0] = 0x13;
-        pchMessageStart[1] = 0x2a;
+        pchMessageStart[0] = 0x4e;
+        pchMessageStart[1] = 0xe6;
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
 
-        // Last block
-        nLastBlock = 14868;
+        // Subsidy halvings
+        nSubsidyHalvingInterval = 210000;
+
+        // POS
+        stakeLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
+        nPOSFirstBlock = 100000;
+
+        // Merge
+        nMergeFirstBlock = nCoinbaseMaturity + 2;
+        nMergeLastBlock = 95;
 
         // Ports
         nDefaultPort = 7604;
@@ -65,9 +73,9 @@ public:
 
         // POW params
         powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
-        stakeLimit = ~uint256(0) >> 20;
         nPowTargetSpacing = 3 * 60; // 3 minutes
         nPowTargetTimespan = 6 * 60 * 60; // 6 hours
+        fPOWNoRetargeting = false;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot
         // be spent as it did not originally exist in the database.
@@ -82,19 +90,62 @@ public:
         vout.resize(1);
         vout[0].SetEmpty();
 
-        CTransaction txNew(1, 1511100000, vin, vout, 0);
+        CTransaction txNew(1, 1515086697, vin, vout, 0);
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 9;
-        genesis.nTime    = 1511208000;
+        genesis.nTime    = 1515086697;
         genesis.nBits    = UintToArith256(powLimit).GetCompact();
-        genesis.nNonce   = 1986208;
+        genesis.nNonce   = 1303736;
 
         hashGenesisBlock = genesis.GetHash();
 
-        assert(hashGenesisBlock == uint256S("0x0000023a0c024e3de098954961530f0491c1b78f1c4fba9e9601673d7bd85b7c"));
-        assert(genesis.hashMerkleRoot == uint256S("0x43580fb123f142578ca6c1e6f4ce411b551279e1968a875e6b493ec3da51bdb9"));
+        // If genesis block hash does not match, then generate new genesis hash.
+        if (true)
+        {
+
+            std::cout << "Searching for genesis block" << std::endl;
+
+            arith_uint256 target = arith_uint256().SetCompact(genesis.nBits);
+            uint256 hash;
+            arith_uint256 hashProof;
+            uint32_t counter = 0;
+            uint32_t last = time(NULL);
+            while (true)
+            {
+
+                hash = genesis.GetHash();
+                hashProof = UintToArith256(hash);
+                counter++;
+
+                if (hashProof <= target)
+                    break;
+
+
+                if ((genesis.nNonce & 0xFFF) == 0)
+                    cout << "Nonce: " << genesis.nNonce << " Hash: " << hash.ToString() << " Target: " << target.ToString() << " Hashrate: " << counter << endl;
+
+                uint32_t current = time(NULL);
+                if (current - last > 1)
+                {
+                    counter = 0;
+                    last = current;
+                }
+
+                ++genesis.nNonce;
+
+                if (genesis.nNonce == 0)
+                    ++genesis.nTime;
+            }
+        }
+
+        std::cout << "Hash: " << genesis.GetHash().ToString() << std::endl;
+        std::cout << "Merkle: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        std::cout << "Nonce: " << genesis.nNonce << std::endl;
+
+        assert(hashGenesisBlock == uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468"));
+        assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
@@ -124,135 +175,85 @@ static CMainParams mainParams;
 
 
 //
-// GalaxyCash Classic chain
-//
-class CClassicParams : public CMainParams {
-public:
-    CClassicParams() {
-        strDataDir = "classic";
-
-        // The message start string is designed to be unlikely to occur in normal data.
-        // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
-        // a large 4-byte int at any alignment.
-        pchMessageStart[0] = 0x15;
-        pchMessageStart[1] = 0x2a;
-        pchMessageStart[2] = 0xe6;
-        pchMessageStart[3] = 0x4e;
-
-        // Ports
-        nDefaultPort = 16604;
-        nRPCPort = 13604;
-
-        // Last block
-        nLastBlock = 700000;
-
-        // Build the genesis block. Note that the output of the genesis coinbase cannot
-        // be spent as it did not originally exist in the database.
-        //
-        const char* pszTimestamp = "29/december/2017 The Galaxy Cash Classic network started.";
-
-        std::vector<CTxIn> vin;
-        vin.resize(1);
-        vin[0].scriptSig = CScript() << 0 << CBigNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-
-        std::vector<CTxOut> vout;
-        vout.resize(1);
-        vout[0].SetEmpty();
-
-        CTransaction txNew(1, 1511100000, vin, vout, 0);
-        genesis.vtx.push_back(txNew);
-        genesis.hashPrevBlock = 0;
-        genesis.hashMerkleRoot = genesis.BuildMerkleTree();
-        genesis.nVersion = 9;
-        genesis.nTime    = 1514525339;
-        genesis.nBits    = UintToArith256(powLimit).GetCompact();
-        genesis.nNonce   = 1030199;
-
-        hashGenesisBlock = genesis.GetHash();
-
-        assert(hashGenesisBlock == uint256S("0x000007e0e59cc2e24dc640273dfe4e6e45ca02e40d32b3f8b5d85646b2485e99"));
-        assert(genesis.hashMerkleRoot == uint256S("0xfc93623033228bf475fe5ee0ab783898e4f7c8e7aa5264d839fc329152a075e6"));
-
-        vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.local", "127.0.0.1"));
-
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,89);
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x21)(0x88)(0xB2)(0x23).convert_to_container<std::vector<unsigned char> >();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x21)(0x88)(0x1D)(0x56).convert_to_container<std::vector<unsigned char> >();
-
-
-        vFixedSeeds.clear();
-        convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
-    }
-    virtual Network NetworkID() const { return CChainParams::CLASSIC; }
-    virtual string NetworkIDString() const { return "classic"; }
-};
-static CClassicParams classicParams;
-
-
-//
 // Testnet
 //
 
-class CTestNetParams : public CMainParams {
+class CTestParams : public CMainParams {
 public:
-    CTestNetParams() {
-        strDataDir = "testnet";
+    CTestParams() {
+        strDataDir = "test";
 
         // The message start string is designed to be unlikely to occur in normal data.
         // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
         // a large 4-byte int at any alignment.
-        pchMessageStart[0] = 0x16;
+        pchMessageStart[0] = 0xe6;
         pchMessageStart[1] = 0x2a;
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
 
-        // POW params
-        powLimit = uint256S("000fffff00000000000000000000000000000000000000000000000000000000");
+        // Merge params
+        nMergeFirstBlock = nMergeLastBlock = 0;
+
+        // POS params
+        nPOSFirstBlock = 0;
 
         // Ports
         nDefaultPort = 17604;
         nRPCPort = 14604;
 
-
-        // Modify the testnet genesis block so the timestamp is valid for a later start.
-        genesis.nBits  = UintToArith256(powLimit).GetCompact();
-        genesis.nTime  = 1511208000;
-        genesis.nNonce = 4500;
-
-        hashGenesisBlock = genesis.GetHash();
-
-        assert(hashGenesisBlock == uint256S("0x000805c5066f3fadac43ddb33819a07e360529d6345a5e60bdc14564cebca5ee"));
-
-        vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.local", "127.0.0.1"));
-
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,89);
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x21)(0x88)(0xB2)(0x23).convert_to_container<std::vector<unsigned char> >();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x21)(0x88)(0x1D)(0x56).convert_to_container<std::vector<unsigned char> >();
-
-
-        vFixedSeeds.clear();
-        convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,41);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,51);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,61);
     }
-    virtual Network NetworkID() const { return CChainParams::TESTNET; }
-    virtual string NetworkIDString() const { return "main"; }
+    virtual Network NetworkID() const { return CChainParams::TEST; }
+    virtual string NetworkIDString() const { return "test"; }
 };
-static CTestNetParams testNetParams;
+static CTestParams testParams;
+
+//
+// Testnet
+//
+
+class CEasyParams : public CMainParams {
+public:
+    CEasyParams() {
+        strDataDir = "easy";
+
+        // The message start string is designed to be unlikely to occur in normal data.
+        // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+        // a large 4-byte int at any alignment.
+        pchMessageStart[0] = 0x2a;
+        pchMessageStart[1] = 0x2a;
+        pchMessageStart[2] = 0xe6;
+        pchMessageStart[3] = 0x4e;
+
+        // Merge params
+        nMergeFirstBlock = nMergeLastBlock = 0;
+
+        // Subsidy halvings
+        nSubsidyHalvingInterval = 1000;
+
+        // POS params
+        nPOSFirstBlock = 0;
+
+        // POW params
+        fPOWNoRetargeting = true;
+
+        // Ports
+        nDefaultPort = 18604;
+        nRPCPort = 15604;
+
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,40);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,50);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,60);
+    }
+    virtual Network NetworkID() const { return CChainParams::EASY; }
+    virtual string NetworkIDString() const { return "easy"; }
+};
+static CEasyParams easyParams;
 
 
-
-#if defined(CLASSIC_ONLY)
-static CChainParams *pCurrentParams = &classicParams;
-#else
 static CChainParams *pCurrentParams = &mainParams;
-#endif
 
 const CChainParams &Params() {
     return *pCurrentParams;
@@ -260,20 +261,14 @@ const CChainParams &Params() {
 
 void SelectParams(CChainParams::Network network) {
     switch (network) {
-#if defined(CLASSIC_ONLY)
-        case CChainParams::MAIN:
-            pCurrentParams = &classicParams;
-            break;
-#else
         case CChainParams::MAIN:
             pCurrentParams = &mainParams;
             break;
-#endif
-        case CChainParams::CLASSIC:
-            pCurrentParams = &classicParams;
-            break;
-        case CChainParams::TESTNET:
-            pCurrentParams = &testNetParams;
+        case CChainParams::EASY:
+            pCurrentParams = &easyParams;
+        break;
+        case CChainParams::TEST:
+            pCurrentParams = &testParams;
             break;
 
         default:
@@ -285,19 +280,15 @@ void SelectParams(CChainParams::Network network) {
 bool SelectParamsFromCommandLine() {
 
     bool fTestNet = GetBoolArg("-testnet", false);
-#if defined(CLASSIC_ONLY)
-    bool fClassicNet = !fTestNet;
-#else
-    bool fClassicNet = GetBoolArg("-classic", false);
-#endif
+    bool fEasyNet = GetBoolArg("-easynet", false);
 
 
-    if (fTestNet) {
-        SelectParams(CChainParams::TESTNET);
-    } else if (fClassicNet) {
-        SelectParams(CChainParams::CLASSIC);
-    } else {
+    if (fTestNet)
+        SelectParams(CChainParams::TEST);
+    else if (fEasyNet)
+        SelectParams(CChainParams::EASY);
+    else
         SelectParams(CChainParams::MAIN);
-    }
+
     return true;
 }

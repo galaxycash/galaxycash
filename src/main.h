@@ -53,10 +53,6 @@ static const int64_t MAX_MONEY = 30000000 * COIN;
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
-/** Master address */
-static const char *MASTER_ADDRESS = "GN3dCAUh8vsFvtXdxZAGPumYjRrMjdnYsB";
-/** Master reward precent */
-static const int64_t MASTER_REWARD_PERCENT_OLD = 16, MASTER_REWARD_PERCENT_NEW = 1;
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
@@ -127,20 +123,17 @@ bool ProcessMessages(CNode* pfrom);
 bool SendMessages(CNode* pto, bool fSendTrickle);
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
 
+bool IsMergeBlock(const unsigned int nHeight);
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool ProofOfStake);
 int64_t GetProofOfWorkReward(int nFees, int nHeight);
-int64_t GetMasterRewardOld(int nFees, int nHeight);
-int64_t GetMasterRewardNew(int nFees, int nHeight);
-int64_t GetTotalReward(int nFees, int nHeight);
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees);
 bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
 std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 uint256 WantedByOrphan(const CBlock* pblockOrphan);
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool ProofOfStake = false);
-const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const int32_t algo, bool ProofOfStake = false);
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t algo, bool ProofOfStake = false);
 void ThreadStakeMiner(CWallet *pwallet);
 
 /** (try to) add transaction to memory pool **/
@@ -615,6 +608,15 @@ public:
     mutable int nDoS;
     bool DoS(int nDoSIn, bool fIn) const { nDoS += nDoSIn; return fIn; }
 
+    // memory only
+    enum
+    {
+        BLOCK_POWCHECKED = 1 << 0,
+        BLOCK_POSCHECKED = 1 << 1,
+        BLOCK_MRKCHECKED = 1 << 2,
+    };
+    mutable bool nFlags;
+
     CBlock()
     {
         SetNull();
@@ -660,6 +662,7 @@ public:
         vchBlockSig.clear();
         vMerkleTree.clear();
         nDoS = 0;
+        nFlags = 0;
     }
 
     void Set(CBlock *pblock)
@@ -676,6 +679,7 @@ public:
             vchBlockSig = pblock->vchBlockSig;
             vMerkleTree = pblock->vMerkleTree;
             nDoS = pblock->nDoS;
+            nFlags = pblock->nFlags;
         }
         else
             SetNull();
@@ -684,6 +688,21 @@ public:
     bool IsNull() const
     {
         return (nBits == 0);
+    }
+
+    bool IsPOWChecked() const
+    {
+        return (nFlags & BLOCK_POWCHECKED);
+    }
+
+    bool IsPOSChecked() const
+    {
+        return (nFlags & BLOCK_POSCHECKED);
+    }
+
+    bool IsMerkleChecked() const
+    {
+        return (nFlags & BLOCK_MRKCHECKED);
     }
 
     int32_t GetVersion() const
@@ -740,18 +759,7 @@ public:
 
     uint256 GetPoWHash() const
     {
-        if (IsProofOfStake())
-            return HashX12(BEGIN(nVersion), END(nNonce));
-
-        switch (nVersion)
-        {
-        case X11_VERSION:
-            return HashX11(BEGIN(nVersion), END(nNonce));
-        case X13_VERSION:
-            return HashX13(BEGIN(nVersion), END(nNonce));
-        default:
-            return HashX12(BEGIN(nVersion), END(nNonce));
-        }
+        return GetHash();
     }
 
     int64_t GetBlockTime() const
@@ -927,6 +935,7 @@ public:
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
     bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProof);
+    bool CheckBlockHeader(bool fCheckPOW=true, bool fCheckSig=true) const;
     bool CheckBlock(bool fCheckPOW=true, bool fCheckMerkleRoot=true, bool fCheckSig=true) const;
     bool AcceptBlock();
     bool SignBlock(CWallet& keystore, int64_t nFees);

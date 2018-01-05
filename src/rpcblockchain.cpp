@@ -40,14 +40,14 @@ double GetDifficulty(const CBlockIndex* blockindex, const int nAlgo)
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
     if (blockindex == NULL)
-        blockindex = GetLastBlockIndexForAlgo(pindexBest, nAlgo, false);
+        blockindex = GetLastBlockIndex(pindexBest, nAlgo, false);
 
     return blockindex ? GetDifficultyFromBits(blockindex->nBits) : 1.0;
 }
 
-double GetPoWMHashPS()
+double GetPoWMHashPSForAlgo(int nAlgo)
 {
-    int nPoWInterval = 72;
+    int nPoWInterval = Params().DifficultyAdjustmentInterval();
     int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
 
     CBlockIndex* pindex = pindexGenesisBlock;
@@ -55,7 +55,7 @@ double GetPoWMHashPS()
 
     while (pindex)
     {
-        if (pindex->IsProofOfWork())
+        if (pindex->IsProofOfWork() && pindex->GetBlockAlgorithm() == nAlgo)
         {
             int64_t nActualSpacingWork = pindex->GetBlockTime() - pindexPrevWork->GetBlockTime();
             nTargetSpacingWork = ((nPoWInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) / (nPoWInterval + 1);
@@ -66,7 +66,31 @@ double GetPoWMHashPS()
         pindex = pindex->pnext;
     }
 
-    return GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits) * 4294.967296 / nTargetSpacingWork;
+    return GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nAlgo, false)->nBits) * 4294.967296 / nTargetSpacingWork;
+}
+
+double GetPoWMHashPS()
+{
+    int nPoWInterval = Params().DifficultyAdjustmentInterval();
+    int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
+
+    CBlockIndex* pindex = pindexGenesisBlock;
+    CBlockIndex* pindexPrevWork = pindexGenesisBlock;
+
+    while (pindex)
+    {
+        if (pindex->IsProofOfWork() && pindex->GetBlockAlgorithm() == nMiningAlgo)
+        {
+            int64_t nActualSpacingWork = pindex->GetBlockTime() - pindexPrevWork->GetBlockTime();
+            nTargetSpacingWork = ((nPoWInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) / (nPoWInterval + 1);
+            nTargetSpacingWork = max(nTargetSpacingWork, nTargetSpacingWorkMin);
+            pindexPrevWork = pindex;
+        }
+
+        pindex = pindex->pnext;
+    }
+
+    return GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nMiningAlgo, false)->nBits) * 4294.967296 / nTargetSpacingWork;
 }
 
 double GetPoSKernelPS()
@@ -183,8 +207,8 @@ Value getdifficulty(const Array& params, bool fHelp)
             "Returns the difficulty as a multiple of the minimum difficulty.");
 
     Object obj;
-    obj.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits)));
-    obj.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nMiningAlgo, false)->nBits)));
+    obj.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
     return obj;
 }
 

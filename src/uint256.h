@@ -603,6 +603,13 @@ public:
         else
             *this = 0;
     }
+
+    uint160 trim160() const
+    {
+        uint160 trim;
+        memcpy((void *) &trim, pn, sizeof(uint160));
+        return trim;
+    }
 };
 
 inline bool operator==(const uint256& a, uint64_t b)                         { return (base_uint256)a == b; }

@@ -85,7 +85,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     blockBrowser(0)
 {
     resize(710, 540);
-    setWindowTitle(Classic() ? (tr("GalaxyCash Classic Core")  + " - " + tr("Wallet")) : (tr("GalaxyCash Core") + " - " + tr("Wallet")));
+    setWindowTitle((tr("GalaxyCash Core") + " - " + tr("Wallet")));
 
     //QPalette pal = palette();
     //pal.setColor(QPalette::Background, Qt::gray);
@@ -445,7 +445,7 @@ void GalaxyCashGUI::setClientModel(ClientModel *clientModel)
 #endif
             if(trayIcon)
             {
-                trayIcon->setToolTip((Classic() ? tr("GalaxyCash Classic client") : tr("GalaxyCash client")) + QString(" ") + tr("[testnet]"));
+                trayIcon->setToolTip((tr("GalaxyCash client")) + QString(" ") + tr("[testnet]"));
                 trayIcon->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar_testnet" : ":/icons/toolbar_testnet"));
                 toggleHideAction->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar_testnet" : ":/icons/toolbar_testnet"));
             }
@@ -503,7 +503,7 @@ void GalaxyCashGUI::createTrayIcon()
     trayIcon = new QSystemTrayIcon(this);
     trayIconMenu = new QMenu(this);
     trayIcon->setContextMenu(trayIconMenu);
-    trayIcon->setToolTip(Classic() ? tr("GalaxyCash Classic client") : tr("GalaxyCash client"));
+    trayIcon->setToolTip(tr("GalaxyCash client"));
     trayIcon->setIcon(QIcon(GetBoolArg("-black", false) ? ":/icons/black/toolbar" : ":/icons/toolbar"));
     connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
             this, SLOT(trayIconActivated(QSystemTrayIcon::ActivationReason)));
@@ -668,7 +668,7 @@ void GalaxyCashGUI::setNumBlocks(int count)
 
 void GalaxyCashGUI::message(const QString &title, const QString &message, bool modal, unsigned int style)
 {
-    QString strTitle = (Classic() ? tr("GalaxyCash Classic") : tr("GalaxyCash")) + " - ";
+    QString strTitle = (tr("GalaxyCash")) + " - ";
     // Default to information icon
     int nMBoxIcon = QMessageBox::Information;
     int nNotifyIcon = Notificator::Information;

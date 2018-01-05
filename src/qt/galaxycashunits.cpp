@@ -34,9 +34,9 @@ QString GalaxyCashUnits::name(int unit)
 {
     switch(unit)
     {
-    case GCH: return Classic() ? QString("GCHC") : QString("GCH");
-    case mGCH: return Classic() ? QString("mGCHC") : QString("mGCH");
-    case uGCH: return Classic() ? QString::fromUtf8("μGCHC") : QString::fromUtf8("μGCH");
+    case GCH: return QString("GCH");
+    case mGCH: return QString("mGCH");
+    case uGCH: return QString::fromUtf8("μGCH");
     default: return QString("???");
     }
 }
@@ -45,9 +45,9 @@ QString GalaxyCashUnits::description(int unit)
 {
     switch(unit)
     {
-    case GCH: return Classic() ? QString("GalaxyCashs Classic") : QString("GalaxyCashs");
-    case mGCH: return Classic() ? QString("Milli-GalaxyCashs Classic (1 / 1,000)") : QString("Milli-GalaxyCashs (1 / 1,000)");
-    case uGCH: return Classic() ? QString("Micro-GalaxyCashs Classic (1 / 1,000,000)") : QString("Micro-GalaxyCashs (1 / 1,000,000)");
+    case GCH: return QString("GalaxyCashs");
+    case mGCH: return QString("Milli-GalaxyCashs (1 / 1,000)");
+    case uGCH: return QString("Micro-GalaxyCashs (1 / 1,000,000)");
     default: return QString("???");
     }
 }

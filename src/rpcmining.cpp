@@ -131,22 +131,17 @@ double GetNetworkHashPS(int lookup, int height) {
     return workDiff.getdouble() / timeDiff;
 }
 
+extern double GetPoWMHashPSForAlgo(int nAlgo);
+
 Value getnetworkhashps(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp)
         throw runtime_error(
-            "getnetworkhashps ( blocks height )\n"
-            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
-            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
-            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
-            "\nArguments:\n"
-            "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
-            "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
-            "\nResult:\n"
+            "getnetworkhashps\n"
             "x             (numeric) Hashes per second estimated\n"
        );
 
-    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
+    return (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS());
 }
 
 Value getnetworkhashrate(const Array& params, bool fHelp)
@@ -171,7 +166,7 @@ Value getnetworkhashrate(const Array& params, bool fHelp)
     const double ths = ghs * 1000;
     const double phs = ths * 1000;
 
-    double hashps = std::max(1.0, GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1));
+    double hashps = (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS()) * 1000.0;
 
     if (hashps <= hs)
         return (std::to_string(hashps / hs) + " h/s").c_str();
@@ -240,8 +235,8 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
 
-    diff.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, nMiningAlgo, false)->nBits)));
-    diff.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    diff.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nMiningAlgo, false)->nBits)));
+    diff.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
     diff.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
     obj.push_back(Pair("difficulty",    diff));
 
@@ -285,7 +280,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
-    obj.push_back(Pair("difficulty", GetDifficultyFromBits(GetLastBlockIndexForAlgo(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("difficulty", GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
     obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));
@@ -395,9 +390,6 @@ Value getworkex(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "GalaxyCash is downloading blocks...");
-
-    if (pindexBest->nHeight > Params().LastBlock())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;
@@ -529,9 +521,6 @@ Value getwork(const Array& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
-
-    if (pindexBest->nHeight > Params().LastBlock())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
@@ -674,9 +663,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
-    if (pindexBest->nHeight > Params().LastBlock())
-        throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
-
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
@@ -807,12 +793,6 @@ Value submitblock(const Array& params, bool fHelp)
     }
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-    }
-
-    if (block.IsProofOfWork())
-    {
-        if (pindexBest->nHeight > Params().LastBlock())
-            throw JSONRPCError(RPC_POW_LAST_BLOCK, "GalaxyCash no more PoW blocks!");
     }
 
     if (params.size() > 1)
