@@ -7,6 +7,8 @@ Specifications
 --------------
 Type:                                       PoW/PoS Hybrid
 
+Ticker:                                     GCH
+
 Algorithm:                                  X12 (GalaxyCash), X11 (DarkCoin), X13 (MaruCoin)
 
 Difficulty retarget:                        Every block

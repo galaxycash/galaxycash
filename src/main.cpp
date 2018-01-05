@@ -1715,12 +1715,6 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
         if (!block.DisconnectBlock(txdb, pindex))
             return error("Reorganize() : DisconnectBlock %s failed", pindex->GetBlockHash().ToString());
 
-        if (mapBlockIndex.count(pindex->GetBlockHash()))
-            mapBlockIndex.erase(pindex->GetBlockHash());
-
-        if (setStakeSeen.count(block.GetProofOfStake()))
-            setStakeSeen.erase(block.GetProofOfStake());
-
         // Queue memory transactions to resurrect.
         // We only do this for blocks after the last checkpoint (reorganisation before that
         // point should only happen with -reindex/-loadblock, or a misbehaving peer.
