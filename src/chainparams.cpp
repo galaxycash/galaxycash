@@ -231,7 +231,7 @@ public:
         nMergeFirstBlock = nMergeLastBlock = 0;
 
         // Subsidy halvings
-        nSubsidyHalvingInterval = 1000;
+        nSubsidyHalvingInterval = 380;
 
         // POS params
         nPOSFirstBlock = 0;
