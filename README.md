@@ -19,7 +19,7 @@ PoW Block reward:                           50 GCH
 
 PoS First Block:                            100000
 
-PoS Block reward:                           1 GCH
+PoS Block reward:                           50% per year
 
 Coinbase maturity:                          11 blocks
 
