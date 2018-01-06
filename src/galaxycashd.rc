@@ -22,7 +22,7 @@ BEGIN
             VALUE "FileDescription",    "galaxycashd (GalaxyCash node with a JSON-RPC server)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "galaxycashd"
-            VALUE "LegalCopyright",     "Copyright (C) 2017 The GalaxyCash developers"
+            VALUE "LegalCopyright",     "Copyright (C) 2017-2018 The GalaxyCash developers"
             VALUE "LegalTrademarks1",   "Distributed under the MIT software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php."
             VALUE "OriginalFilename",   "galaxycashd.exe"
             VALUE "ProductName",        "galaxycashd"

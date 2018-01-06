@@ -15,10 +15,10 @@
         <location line="+41"/>
         <source>Copyright © 2009-2014 The Bitcoin developers
 Copyright © 2012-2014 The NovaCoin developers
-Copyright © 2014 The Bitcoin developers</source>
-        <translation>Copyright © 2009-2014 Los Desarrolladores GalaxyCash
+Copyright © 2017-2018 The GalaxyCash developers</source>
+        <translation>Copyright © 2009-2014 Los Desarrolladores Bitcoin
 Copyright © 2012-2014 Los Desarrolladores NovaCoin
-Copyright © 2014 Los Desarrolladores GalaxyCash</translation>
+Copyright © 2017-2018 Los Desarrolladores GalaxyCash</translation>
     </message>
     <message>
         <location line="+15"/>

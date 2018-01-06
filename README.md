@@ -36,6 +36,9 @@ Testnet P2P port:                           17604
 Testnet RPC port:                           14604
 
 
+Copyright (C) 2017-2018 The GalaxyCash developers
+
+
 Donate for development
 --------------
 BTC:                                        1J5c4E22EUWMZ7EGibbV291HUf3TiKeaRz

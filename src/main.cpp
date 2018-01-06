@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2017-2018 The GalaxyCash developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1024,10 +1025,12 @@ void static PruneOrphanBlocks()
     }
 }
 
+static const int64_t COIN_YEAR_REWARD = 50 * CENT; // 50% per year
+
 // miner's coin stake reward
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
 {
-    int64_t nSubsidy = 1 * COIN;
+    int64_t nSubsidy = (pindexPrev->nMoneySupply / COIN) * COIN_YEAR_REWARD / (365 * 24 * (60 * 60 / 64));
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d nHeight=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
@@ -1038,18 +1041,17 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
 int64_t GetProofOfWorkReward(int nFees, int nHeight)
 {
     int nHalvings = nHeight / Params().SubsidyHalvingInterval();
+
     // Force block reward to zero when right shift is undefined.
     if (nHalvings >= 64)
-        return 0;
+        return nFees;
 
     int64_t nSubsidy = 0;
 
     if (pindexBest->nMoneySupply < MAX_MONEY)
     {
         if (nHeight == 1)
-        {
             nSubsidy = 466025 * COIN; // Reward for merge chains
-        }
         else
         {
             nSubsidy = 50 * COIN;
@@ -2285,6 +2287,78 @@ void PushGetBlocks(CNode* pnode, CBlockIndex* pindexBegin, uint256 hashEnd)
     pnode->PushMessage("getblocks", CBlockLocator(pindexBegin), hashEnd);
 }
 
+class CSuperBlock
+{
+public:
+    CBlockIndex *           pindex;
+    CBlock *                pblock;
+
+    CSuperBlock() :
+        pindex(NULL),
+        pblock(NULL)
+    {}
+    CSuperBlock(CBlock *pblock, CBlockIndex *pindex) :
+        pindex(pindex),
+        pblock(pblock)
+    {}
+    CSuperBlock(const CSuperBlock &block) :
+        pindex(const_cast<CBlockIndex*>(block.pindex)),
+        pblock(const_cast<CBlock*>(block.pblock))
+    {}
+
+
+    bool IsNull() const
+    {
+        return (pindex == NULL);
+    }
+
+    void SetNull()
+    {
+        pindex = NULL;
+        pblock = NULL;
+    }
+
+    CSuperBlock &operator = (const CSuperBlock &block)
+    {
+        pindex = const_cast<CBlockIndex*>(block.pindex);
+        pblock = const_cast<CBlock*>(block.pblock);
+        return *this;
+    }
+};
+
+class CSuperChain
+{
+public:
+    std::vector <CSuperBlock> blocks;
+
+    CSuperChain()
+    {}
+
+    CSuperChain(const CSuperChain &chain) :
+        blocks(chain.blocks)
+    {}
+
+    CSuperBlock Tip()
+    {
+        if (blocks.size() == 0)
+            return CSuperBlock();
+
+        return blocks[blocks.size() - 1];
+    }
+
+
+    bool Constains(const uint256 &hash) const
+    {
+        for (vector<CSuperBlock>::const_iterator it = blocks.begin(); it != blocks.end(); it++)
+        {
+            if ((*it).pblock->GetHash() == hash)
+                return true;
+        }
+
+        return false;
+    }
+};
+
 
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
@@ -2335,8 +2409,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             return ProcessBlock(pfrom, pblock);
         }
     }
-
-    if (pblock->hashPrevBlock != hashBestChain && mapBlockIndex.count(pblock->hashPrevBlock))
+    else if (pblock->hashPrevBlock != hashBestChain && mapBlockIndex.count(pblock->hashPrevBlock))
     {
         CBlockIndex *pPrevIndex = mapBlockIndex[pblock->hashPrevBlock];
 

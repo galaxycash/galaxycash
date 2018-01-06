@@ -22,7 +22,7 @@ BEGIN
             VALUE "FileDescription",    "galaxycash-cli (JSON-RPC client for GalaxyCash Core)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "galaxycash-cli"
-            VALUE "LegalCopyright",     "Copyright (C) 2017 The GalaxyCash developers"
+            VALUE "LegalCopyright",     "Copyright (C) 2017-2018 The GalaxyCash developers"
             VALUE "LegalTrademarks1",   "Distributed under the MIT software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php."
             VALUE "OriginalFilename",   "galaxycash-cli.exe"
             VALUE "ProductName",        "galaxycash-cli"
