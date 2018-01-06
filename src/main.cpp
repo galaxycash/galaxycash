@@ -67,8 +67,6 @@ bool fUseDefaultKey = false;
 struct COrphanBlock {
     uint256 hashBlock;
     uint256 hashPrev;
-    unsigned int time;
-    arith_uint256 trust;
     std::pair<COutPoint, unsigned int> stake;
     vector<unsigned char> vchBlock;
 };
@@ -2414,7 +2412,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         CBlockIndex *pPrevIndex = mapBlockIndex[pblock->hashPrevBlock];
 
         const int nMaxReorganize = 32;
-        const int nNumReorganize = pindexBest->nHeight - pPrevIndex->nHeight;
+        const int nNumReorganize = (pindexBest->nHeight - pPrevIndex->nHeight);
 
         if (pPrevIndex->pnext && nNumReorganize <= nMaxReorganize)
         {
@@ -2435,9 +2433,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             }
         }
     }
-
     // If we don't already have its previous block, shunt it off to holding area until we get it
-    if (!mapBlockIndex.count(pblock->hashPrevBlock))
+    else if (!mapBlockIndex.count(pblock->hashPrevBlock))
     {
         LogPrintf("ProcessBlock: ORPHAN BLOCK %lu, prev=%s\n", (unsigned long)mapOrphanBlocks.size(), pblock->hashPrevBlock.ToString());
 
@@ -2459,8 +2456,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 pblock2->vchBlock = std::vector<unsigned char>(ss.begin(), ss.end());
             }
             pblock2->hashBlock = hash;
-            pblock2->time = pblock->nTime;
-            pblock2->trust = GetBlockTrust(pblock->nBits);
             pblock2->hashPrev = pblock->hashPrevBlock;
             pblock2->stake = pblock->GetProofOfStake();
             nOrphanBlocksSize += pblock2->vchBlock.size();
