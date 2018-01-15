@@ -2,7 +2,8 @@ GalaxyCash
 ======
 
 Block Explorer: https://galaxycash.info/
-Telegram channel: t.me/galaxycash
+
+Telegram channel: http://t.me/galaxycash
 
 Specifications
 --------------
