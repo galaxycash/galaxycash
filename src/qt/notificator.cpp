@@ -42,7 +42,7 @@ Notificator::Notificator(const QString &programName, QSystemTrayIcon *trayicon, 
         mode = QSystemTray;
     }
 #ifdef GALAXYCASH_NOTIFICATION_SOUND
-    player = new QMediaPlayer(this)
+    player = new QMediaPlayer(this);
     player->setMedia(QUrl("qrc:/sounds/notification"));
 #endif
 #ifdef USE_DBUS
