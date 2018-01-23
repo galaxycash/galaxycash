@@ -108,6 +108,11 @@ public:
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node1", "128.69.4.143"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node2", "210.211.124.162"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node3", "37.21.134.25"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node4", "73.213.209.183"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node5", "74.103.154.124"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
