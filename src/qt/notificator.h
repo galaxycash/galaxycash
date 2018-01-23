@@ -3,12 +3,14 @@
 
 #include <QObject>
 #include <QIcon>
+#ifdef GALAXYCASH_NOTIFICATION_SOUND
 #include <QMediaPlayer>
 #include <QMediaService>
 #include <QMediaPlaylist>
 #include <QVideoProbe>
 #include <QAudioProbe>
 #include <QMediaMetaData>
+#endif
 
 QT_BEGIN_NAMESPACE
 class QSystemTrayIcon;
@@ -58,7 +60,9 @@ private:
         Growl12,        /**< Use the Growl 1.2 notification system (Mac only) */
         Growl13        /**< Use the Growl 1.3 notification system (Mac only) */
     };
+#ifdef GALAXYCASH_NOTIFICATION_SOUND
     QMediaPlayer *player;
+#endif
     QString programName;
     Mode mode;
     QSystemTrayIcon *trayIcon;

@@ -32,8 +32,7 @@ Notificator::Notificator(const QString &programName, QSystemTrayIcon *trayicon, 
     parent(parent),
     programName(programName),
     mode(None),
-    trayIcon(trayicon),
-    player(new QMediaPlayer(this))
+    trayIcon(trayicon)
 #ifdef USE_DBUS
     ,interface(0)
 #endif
@@ -42,8 +41,10 @@ Notificator::Notificator(const QString &programName, QSystemTrayIcon *trayicon, 
     {
         mode = QSystemTray;
     }
-
+#ifdef GALAXYCASH_NOTIFICATION_SOUND
+    player = new QMediaPlayer(this)
     player->setMedia(QUrl("qrc:/sounds/notification"));
+#endif
 #ifdef USE_DBUS
     interface = new QDBusInterface("org.freedesktop.Notifications",
           "/org/freedesktop/Notifications", "org.freedesktop.Notifications");
@@ -234,8 +235,10 @@ void Notificator::notifySystray(Class cls, const QString &title, const QString &
     }
     trayIcon->showMessage(title, text, sicon, millisTimeout);
 
+#ifdef GALAXYCASH_NOTIFICATION_SOUND
     player->stop();
     player->play();
+#endif
 }
 
 // Based on Qt's tray icon implementation
