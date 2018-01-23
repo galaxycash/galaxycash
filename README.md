@@ -27,6 +27,8 @@ PoS Block reward:                           10% per year
 
 Max supply:                                 30000000
 
+Fees:                                       Standart 1 sat * kb + 0.01% of total outs
+
 Coinbase maturity:                          11 blocks
 
 Minimum POS Age:                            6 Hours
