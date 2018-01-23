@@ -5,6 +5,8 @@ Block Explorer: https://galaxycash.info/
 
 Telegram channel: http://t.me/galaxycash
 
+Reddit: https://www.reddit.com/user/galaxycash
+
 Specifications
 --------------
 Type:                                       PoW/PoS Hybrid
