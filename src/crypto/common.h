@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CRYPTO_COMMON_H
-#define BITCOIN_CRYPTO_COMMON_H
+#ifndef GALAXYCASH_CRYPTO_COMMON_H
+#define GALAXYCASH_CRYPTO_COMMON_H
 
 #include <stdint.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__) || defined(__MACH__)
 #include "endian.h"
 #else
 #include <endian.h>
