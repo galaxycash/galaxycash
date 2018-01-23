@@ -218,8 +218,6 @@ void Notificator::notifyDBus(Class cls, const QString &title, const QString &tex
 }
 #endif
 
-#include "qsound.h"
-
 void Notificator::notifySystray(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout)
 {
     if (GetBoolArg("-nonotify", false))
