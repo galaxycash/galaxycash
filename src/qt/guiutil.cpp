@@ -462,6 +462,12 @@ void HelpMessageBox::showOrPrint()
 #endif
 }
 
+void SetWhiteThemeQSS(QApplication& app)
+{
+    app.setStyleSheet("QWidget        { background: rgb(255,255,255); }"
+                      "QMenu::item:selected { background-color: rgb(220,220,220); }");
+}
+
 void SetBlackThemeQSS(QApplication& app)
 {
     app.setStyleSheet("QWidget        { background: rgb(41,44,48); }"

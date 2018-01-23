@@ -68,12 +68,14 @@ public:
     virtual const vector<CAddress>& FixedSeeds() const = 0;
     int RPCPort() const { return nRPCPort; }
     bool POWNoRetargeting() const { return fPOWNoRetargeting; }
-    int64_t PowTargetTimespan() const { return nPowTargetTimespan; }
-    int64_t PowTargetSpacing() const { return nPowTargetSpacing; }
-    int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
+    bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight >= 35000 : true; }
+    int64_t PowTargetTimespan(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
+    int64_t PowTargetSpacing(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
+    int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { return IsProtocolV2(nHeight) ? (nPowTargetTimespan2 / nPowTargetSpacing2) : (nPowTargetTimespan / nPowTargetSpacing); }
     int64_t POSStart() const { return nPOSFirstBlock; }
     int64_t MergeStart() const { return nMergeFirstBlock; }
     int64_t MergeEnd() const { return nMergeLastBlock; }
+
 protected:
     CChainParams() {};
 
@@ -82,8 +84,8 @@ protected:
     int nDefaultPort;
     int nRPCPort;
     int64_t nPOSFirstBlock, nMergeFirstBlock, nMergeLastBlock;
-    int64_t nPowTargetTimespan;
-    int64_t nPowTargetSpacing;
+    int64_t nPowTargetTimespan, nPowTargetTimespan2;
+    int64_t nPowTargetSpacing, nPowTargetSpacing2;
     bool fPOWNoRetargeting;
     uint256 stakeLimit;
     uint256 powLimit;

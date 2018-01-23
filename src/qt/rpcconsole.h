@@ -49,6 +49,8 @@ public slots:
     void message(int category, const QString &message, bool html = false);
     /** Set number of connections shown in the UI */
     void setNumConnections(int count);
+    /** Set number of masternodes shown in the UI */
+    void setNumMasternodes(int count);
     /** Set number of blocks shown in the UI */
     void setNumBlocks(int count);
     /** Go forward or back in history */

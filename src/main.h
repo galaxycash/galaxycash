@@ -7,7 +7,7 @@
 #define GALAXYCASH_MAIN_H
 
 #include "core.h"
-#include "bignum.h"
+#include "arith_uint256.h"
 #include "sync.h"
 #include "txmempool.h"
 #include "net.h"
@@ -25,6 +25,9 @@ class CKeyItem;
 class CNode;
 class CReserveKey;
 class CWallet;
+
+#define START_MASTERNODE_PAYMENTS_TESTNET 1515086697
+#define START_MASTERNODE_PAYMENTS 1515086697
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 4000000;
@@ -48,8 +51,20 @@ static const unsigned int MAX_INV_SZ = 50000;
 static const int64_t MIN_TX_FEE = 100;
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
+/** PoS Reward Fixed */
+static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
+/** PoS Superblock Reward */
+static const int64_t COIN_SPRB_REWARD_FIXED = 15 * CENT; // 15%
+/** MN Reward Fixed */
+static const int64_t MN_REWARD = 50 * CENT;
+/** Anonsend collateral */
+static const int64_t ANONSEND_COLLATERAL = (0.01*COIN);
+/** Anonsend pool values */
+static const int64_t ANONSEND_POOL_MAX = (4999.99*COIN);
+/** MasterNode required collateral */
+inline int64_t MasternodeCollateral(int nHeight) { return 5000; }
 /** No amount larger than this (in satoshi) is valid */
-static const int64_t MAX_MONEY = 30000000 * COIN;
+static const int64_t MAX_MONEY = 30000000 * COIN; // 30M COINS
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
@@ -81,6 +96,18 @@ extern std::map<uint256, COrphanBlock*> mapOrphanBlocks;
 extern bool fHaveGUI;
 extern int nMiningAlgo;
 extern bool fUseDefaultKey;
+extern bool fMasterNode;
+extern bool fLiteMode;
+extern int nAnonsendRounds;
+extern int nAnonymizeAmount;
+extern int nLiquidityProvider;
+extern bool fEnableDarksend;
+extern int64_t enforceMasternodePaymentsTime;
+extern std::string strMasterNodeAddr;
+extern int nMasternodeMinProtocol;
+extern int keysLoaded;
+extern bool fSucessfullyLoaded;
+extern std::vector<int64_t> darkSendDenominations;
 
 // Settings
 extern bool fUseFastIndex;
@@ -135,6 +162,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t algo, bool ProofOfStake = false);
 void ThreadStakeMiner(CWallet *pwallet);
+int64_t GetMasternodePayment(int nHeight, int64_t blockValue);
 
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
@@ -204,7 +232,7 @@ enum GetMinFee_mode
 
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction> > MapPrevTx;
 
-int64_t GetMinFee(const CTransaction& tx, unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0);
+int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0);
 
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
@@ -557,8 +585,9 @@ public:
 
 
 // Get block version by algo
-int32_t GetBlockVersion();
+int32_t GetBlockVersion(int32_t nHeight);
 std::string GetAlgorithmName(const int32_t nAlgo);
+int32_t GetAlgorithm(const std::string &sAlgo);
 int32_t GetBlockAlgorithm(const int32_t nVersion);
 
 
@@ -580,12 +609,17 @@ public:
     static const int X11_VERSION = 10;
     static const int X12_VERSION = 9;
     static const int X13_VERSION = 11;
+    static const int SHA256D_VERSION = 12;
+    static const int BLAKE2S_VERSION = 13;
+    static const int LAST_VERSION = BLAKE2S_VERSION;
 
     enum
     {
         ALGO_X12 = 0,
-        ALGO_X11 = 1,
-        ALGO_X13 = 2
+        ALGO_X11,
+        ALGO_X13,
+        ALGO_SHA256D,
+        ALGO_BLAKE2S
     };
 
     int nVersion;
@@ -652,7 +686,7 @@ public:
 
     void SetNull()
     {
-        nVersion = GetBlockVersion();
+        nVersion = X12_VERSION;
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -718,9 +752,14 @@ public:
             nVersion = X11_VERSION;
         case ALGO_X13:
             nVersion = X13_VERSION;
+        case ALGO_SHA256D:
+            nVersion = SHA256D_VERSION;
+        case ALGO_BLAKE2S:
+            nVersion = BLAKE2S_VERSION;
         default:
             nVersion = X12_VERSION;
         }
+
         if (IsProofOfStake())
             nVersion = X12_VERSION;
     }
@@ -736,6 +775,10 @@ public:
             return ALGO_X11;
         case X13_VERSION:
             return ALGO_X13;
+        case SHA256D_VERSION:
+            return ALGO_SHA256D;
+        case BLAKE2S_VERSION:
+            return ALGO_BLAKE2S;
         default:
             return ALGO_X12;
         }
@@ -752,6 +795,10 @@ public:
             return HashX11(BEGIN(nVersion), END(nNonce));
         case X13_VERSION:
             return HashX13(BEGIN(nVersion), END(nNonce));
+        case SHA256D_VERSION:
+            return Hash(BEGIN(nVersion), END(nNonce));
+        case BLAKE2S_VERSION:
+            return HashBlake2s(BEGIN(nVersion), END(nNonce));
         default:
             return HashX12(BEGIN(nVersion), END(nNonce));
         }
@@ -1094,6 +1141,10 @@ public:
             return CBlock::ALGO_X11;
         case CBlock::X13_VERSION:
             return CBlock::ALGO_X13;
+        case CBlock::SHA256D_VERSION:
+            return CBlock::ALGO_SHA256D;
+        case CBlock::BLAKE2S_VERSION:
+            return CBlock::ALGO_BLAKE2S;
         default:
             return CBlock::ALGO_X12;
         }

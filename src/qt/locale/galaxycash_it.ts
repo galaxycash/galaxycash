@@ -1454,6 +1454,11 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <translation>Nome del client</translation>
     </message>
     <message>
+        <location filename="../forms/rpcconsole.ui" line="+46"/>
+        <source>Client codename</source>
+        <translation>Nome in codice del client</translation>
+    </message>    
+    <message>
         <location line="+10"/>
         <location line="+23"/>
         <location line="+26"/>

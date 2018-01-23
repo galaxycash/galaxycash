@@ -27,16 +27,20 @@ namespace Checkpoints
     //
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of
-         ( 0,    uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468") )
-         ( 95,   uint256S("0x00000068c53527393133ecff50618a5f148b84ba445a022575194286b51b46a5") )
-         ( 200,  uint256S("0x0000000a1269edde5420ab128c39d392721e1ea8efae8749d83e6fc6162fb2b0") )
+         ( 0,       uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468") )
+         ( 95,      uint256S("0x00000068c53527393133ecff50618a5f148b84ba445a022575194286b51b46a5") )
+         ( 200,     uint256S("0x0000000a1269edde5420ab128c39d392721e1ea8efae8749d83e6fc6162fb2b0") )
+         ( 19000,   uint256S("0x000000000129c4ea27ef6cdb884d84dd6533e711157590d4d92b896f07e5c572"))
     ;
-
+    static MapCheckpoints mapTestCheckpoints =
+        boost::assign::map_list_of
+         ( 0,    uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468") )
+    ;
 
 
     bool CheckHardened(int nHeight, const uint256& hash)
     {
-        MapCheckpoints& checkpoints = mapCheckpoints;
+        MapCheckpoints& checkpoints = TestNet() ? mapTestCheckpoints : mapCheckpoints;
 
         MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
         if (i == checkpoints.end()) return true;
@@ -45,7 +49,7 @@ namespace Checkpoints
 
     int GetTotalBlocksEstimate()
     {
-        MapCheckpoints& checkpoints = mapCheckpoints;
+        MapCheckpoints& checkpoints = TestNet() ? mapTestCheckpoints : mapCheckpoints;
 
         if (checkpoints.empty())
             return 0;
@@ -54,7 +58,7 @@ namespace Checkpoints
 
     CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex)
     {
-        MapCheckpoints& checkpoints = mapCheckpoints;
+        MapCheckpoints& checkpoints = TestNet() ? mapTestCheckpoints : mapCheckpoints;
 
         BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, checkpoints)
         {
@@ -81,7 +85,7 @@ namespace Checkpoints
     {
         const CBlockIndex* pindexSync = AutoSelectSyncCheckpoint();
 
-        const int nSync = std::max(0, pindexSync->nHeight - 16);
+        const int nSync = std::max(0, pindexSync->nHeight - (int)(GetArg("-maxreorganize", int64_t(6))));
         if (nHeight < nSync)
             return false;
         return true;

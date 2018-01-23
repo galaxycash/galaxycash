@@ -2,10 +2,12 @@ TEMPLATE = app
 TARGET = galaxycash-qt
 VERSION = 2.0.0.0
 INCLUDEPATH += src src/json src/qt
-QT += network
+QT +=   network \
+        multimedia \
+        multimediawidgets
 DEFINES += QT_STATIC_BUILD
 DEFINES += ENABLE_WALLET
-DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
+DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
 CONFIG += c++11
 CONFIG += no_include_pwd
 CONFIG += thread static
@@ -167,7 +169,6 @@ HEADERS += src/qt/galaxycashgui.h \
     src/sync.h \
     src/util.h \
     src/hash.h \
-    src/bignum.h \
     src/uint256.h \
     src/arith_uint256.h \
     src/serialize.h \
@@ -252,7 +253,9 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_simd.h \
     src/crypto/sph_skein.h \
     src/crypto/sph_ripemd.h \
-    src/crypto/sph_types.h
+    src/crypto/sph_types.h \
+    src/crypto/blake2.h \
+    src/crypto/blake2-impl.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -346,7 +349,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/shavite.c \
     src/crypto/simd.c \
     src/crypto/ripemd.c \
-    src/crypto/skein.c
+    src/crypto/skein.c \
+    src/crypto/blake2s-ref.c
 
 RESOURCES += \
     src/qt/galaxycash.qrc
@@ -454,7 +458,7 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
+LIBS += -lssl -lcrypto -lsodium -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 

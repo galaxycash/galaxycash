@@ -11,17 +11,19 @@ Type:                                       PoW/PoS Hybrid
 
 Ticker:                                     GCH
 
-Algorithm:                                  X12 (GalaxyCash), X11 (DarkCoin), X13 (MaruCoin)
+Algorithm:                                  X12 (GalaxyCash), X11 (DarkCoin), X13 (MaruCoin), Sha256d (Bitcoin), Blake2s
 
 Difficulty retarget:                        Every block
 
-Block time:                                 3 Minutes
+Block time:                                 3 Minutes (10 Minutes after 35k block)
 
 PoW Block reward:                           50 GCH
 
 PoS First Block:                            100000
 
-PoS Block reward:                           50% per year
+PoS Block reward:                           10% per year
+
+Max supply:                                 30000000
 
 Coinbase maturity:                          11 blocks
 

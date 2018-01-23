@@ -43,6 +43,12 @@ int ClientModel::getNumBlocks() const
     return nBestHeight;
 }
 
+int ClientModel::getNumMasternodes() const
+{
+    LOCK(cs_main);
+    return 0; // TODO
+}
+
 int ClientModel::getNumBlocksAtStartup()
 {
     if (numBlocksAtStartup == -1) numBlocksAtStartup = getNumBlocks();
@@ -144,6 +150,11 @@ bool ClientModel::isReleaseVersion() const
 QString ClientModel::clientName() const
 {
     return QString::fromStdString(CLIENT_NAME);
+}
+
+QString ClientModel::clientCodename() const
+{
+    return QString::fromStdString(CLIENT_CODENAME);
 }
 
 QString ClientModel::formatClientStartupTime() const

@@ -1053,7 +1053,7 @@ void GalaxyCashGUI::updateStakingIcon()
     {
         uint64_t nWeight = this->nWeight;
         uint64_t nNetworkWeight = GetPoSKernelPS();
-        uint64_t nEstimateTime = Params().PowTargetSpacing() * nNetworkWeight / nWeight;
+        uint64_t nEstimateTime = Params().PowTargetSpacing(nBestHeight) * nNetworkWeight / nWeight;
 
         QString text;
         if (nEstimateTime < 60)

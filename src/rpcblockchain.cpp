@@ -47,8 +47,8 @@ double GetDifficulty(const CBlockIndex* blockindex, const int nAlgo)
 
 double GetPoWMHashPSForAlgo(int nAlgo)
 {
-    int nPoWInterval = Params().DifficultyAdjustmentInterval();
-    int64_t nTargetSpacingWorkMin = Params().PowTargetSpacing(), nTargetSpacingWork = 30;
+    int nPoWInterval = Params().DifficultyAdjustmentInterval(nBestHeight);
+    int64_t nTargetSpacingWorkMin = Params().PowTargetSpacing(nBestHeight), nTargetSpacingWork = 30;
 
     CBlockIndex* pindex = pindexGenesisBlock;
     CBlockIndex* pindexPrevWork = pindexGenesisBlock;
@@ -71,8 +71,8 @@ double GetPoWMHashPSForAlgo(int nAlgo)
 
 double GetPoWMHashPS()
 {
-    int nPoWInterval = Params().DifficultyAdjustmentInterval();
-    int64_t nTargetSpacingWorkMin = Params().PowTargetSpacing(), nTargetSpacingWork = 30;
+    int nPoWInterval = Params().DifficultyAdjustmentInterval(nBestHeight);
+    int64_t nTargetSpacingWorkMin = Params().PowTargetSpacing(nBestHeight), nTargetSpacingWork = 30;
 
     CBlockIndex* pindex = pindexGenesisBlock;
     CBlockIndex* pindexPrevWork = pindexGenesisBlock;
@@ -95,7 +95,7 @@ double GetPoWMHashPS()
 
 double GetPoSKernelPS()
 {
-    int nPoSInterval = Params().DifficultyAdjustmentInterval();
+    int nPoSInterval = Params().DifficultyAdjustmentInterval(nBestHeight);
     double dStakeKernelsTriedAvg = 0;
     int nStakesHandled = 0, nStakesTime = 0;
 

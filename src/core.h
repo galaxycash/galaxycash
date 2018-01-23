@@ -71,6 +71,7 @@ class CTxIn
 public:
     COutPoint prevout;
     CScript scriptSig;
+    CScript prevPubKey;
     unsigned int nSequence;
 
     CTxIn()
@@ -143,6 +144,7 @@ class CTxOut
 {
 public:
     int64_t nValue;
+    int nRounds;
     CScript scriptPubKey;
 
     CTxOut()
@@ -165,6 +167,7 @@ public:
     void SetNull()
     {
         nValue = -1;
+        nRounds = -10;
         scriptPubKey.clear();
     }
 

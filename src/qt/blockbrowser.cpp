@@ -53,6 +53,10 @@ std::string getBlockAlgorithm(qint64 Height)
         return "x11";
     case CBlock::ALGO_X13:
         return "x13";
+    case CBlock::ALGO_SHA256D:
+        return "sha256d";
+    case CBlock::ALGO_BLAKE2S:
+        return "blake2s";
     default:
         return "x12";
     }

@@ -25,6 +25,7 @@ public:
     OptionsModel *getOptionsModel();
 
     int getNumConnections() const;
+    int getNumMasternodes() const;
     int getNumBlocks() const;
     int getNumBlocksAtStartup();
 
@@ -46,6 +47,7 @@ public:
     QString formatBuildDate() const;
     bool isReleaseVersion() const;
     QString clientName() const;
+    QString clientCodename() const;
     QString formatClientStartupTime() const;
 
 private:

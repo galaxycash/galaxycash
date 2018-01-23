@@ -74,7 +74,9 @@ public:
         // POW params
         powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
         nPowTargetSpacing = 3 * 60; // 3 minutes
+        nPowTargetSpacing2 = 10 * 60; // 10 minutes
         nPowTargetTimespan = 6 * 60 * 60; // 6 hours
+        nPowTargetTimespan2 = 24 * 60 * 60; // 24 hours
         fPOWNoRetargeting = false;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot
@@ -84,7 +86,7 @@ public:
 
         std::vector<CTxIn> vin;
         vin.resize(1);
-        vin[0].scriptSig = CScript() << 0 << CBigNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+        vin[0].scriptSig = CScript() << 0 << CScriptNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
 
         std::vector<CTxOut> vout;
         vout.resize(1);
@@ -147,6 +149,9 @@ public:
         pchMessageStart[1] = 0x2a;
         pchMessageStart[2] = 0xe6;
         pchMessageStart[3] = 0x4e;
+
+        // POW
+        fPOWNoRetargeting = GetBoolArg("-pownoretargeting", false);
 
         // Merge params
         nMergeFirstBlock = nMergeLastBlock = 0;

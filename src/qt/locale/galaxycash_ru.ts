@@ -1455,6 +1455,11 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <translation>Имя клиента</translation>
     </message>
     <message>
+        <location filename="../forms/rpcconsole.ui" line="+46"/>
+        <source>Client codename</source>
+        <translation>Кодове имя клиента</translation>
+    </message>
+    <message>
         <location line="+10"/>
         <location line="+23"/>
         <location line="+26"/>
@@ -1495,6 +1500,11 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <location line="+7"/>
         <source>Number of connections</source>
         <translation>Число подключений</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Number of masternodes</source>
+        <translation>Число мастернод</translation>
     </message>
     <message>
         <location line="+23"/>

@@ -586,7 +586,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     fDiscover = GetBoolArg("-discover", true);
     fNameLookup = GetBoolArg("-dns", true);
     fUseDefaultKey = GetBoolArg("-usedefaultkey", false);
-    nMiningAlgo = GetArg("-algo", "x12") == "x13" ? CBlock::ALGO_X13 : (GetArg("-algo", "x12") == "x11" ? CBlock::ALGO_X11 : CBlock::ALGO_X12 );
+    nMiningAlgo = GetAlgorithm(GetArg("-algo", "x12"));
 
     bool fBound = false;
     if (!fNoListen)

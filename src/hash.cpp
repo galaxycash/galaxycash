@@ -1,4 +1,4 @@
-#include "hash.h"
+#include "main.h"
 
 
 CHmacSha256::CHmacSha256(const unsigned char* key, size_t keylen)

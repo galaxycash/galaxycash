@@ -1469,6 +1469,11 @@ Esto significa que se requiere una cuota de al menos %2.</translation>
         <translation>Nombre del cliente</translation>
     </message>
     <message>
+        <location filename="../forms/rpcconsole.ui" line="+46"/>
+        <source>Client codename</source>
+        <translation>Nombre clave del cliente</translation>
+    </message>    
+    <message>
         <location line="+10"/>
         <location line="+23"/>
         <location line="+26"/>

@@ -1,4 +1,7 @@
 <RCC>
+    <qresource prefix="/sounds">
+        <file alias="notification">res/sounds/notification.wav</file>
+    </qresource>
     <qresource prefix="/icons">
         <file alias="galaxycash">res/icons/galaxycash-32.png</file>
         <file alias="galaxycash_hny">res/icons/galaxycash-32-hny.png</file>

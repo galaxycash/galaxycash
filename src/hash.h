@@ -27,7 +27,7 @@
 #include "crypto/sph_fugue.h"
 #include "crypto/sph_panama.h"
 #include "crypto/sph_ripemd.h"
-
+#include "crypto/blake2.h"
 
 
 /* ----------- Sha0 Hash ------------------------------------------------- */
@@ -271,6 +271,19 @@ inline uint256 sha512trim_hash(const void *input, size_t inputLen)
     return hash.trim256();
 }
 
+
+/* ----------- Blake2s ------------------------------------------------ */
+template<typename T1>
+inline uint256 HashBlake2s(const T1 pbegin, const T1 pend)
+{
+    static unsigned char pblank[1];
+    uint256 hash1;
+    blake2s_state S[1];
+    blake2s_init( S, BLAKE2S_OUTBYTES );
+    blake2s_update( S, (pbegin == pend ? pblank : (unsigned char*)&pbegin[0]), (pend - pbegin) * sizeof(pbegin[0]) );
+    blake2s_final( S, (unsigned char*)&hash1, BLAKE2S_OUTBYTES );
+    return hash1;
+}
 
 /* ----------- X11 ------------------------------------------------ */
 template<typename T1>

@@ -275,11 +275,13 @@ void RPCConsole::setClientModel(ClientModel *model)
         // Provide initial values
         ui->clientVersion->setText(model->formatFullVersion());
         ui->clientName->setText(model->clientName());
+        ui->clientCodename->setText(model->clientCodename());
         ui->buildDate->setText(model->formatBuildDate());
         ui->startupTime->setText(model->formatClientStartupTime());
 
         setNumConnections(model->getNumConnections());
-        ui->isTestNet->setChecked(model->isTestNet());
+        setNumMasternodes(model->getNumMasternodes());
+        ui->isTestNet->setChecked(model->isTestNet()); 
     }
 }
 
@@ -346,6 +348,11 @@ void RPCConsole::message(int category, const QString &message, bool html)
 void RPCConsole::setNumConnections(int count)
 {
     ui->numberOfConnections->setText(QString::number(count));
+}
+
+void RPCConsole::setNumMasternodes(int count)
+{
+    ui->numberOfMasternodes->setText(QString::number(count));
 }
 
 void RPCConsole::setNumBlocks(int count)
