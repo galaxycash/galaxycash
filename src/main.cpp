@@ -49,6 +49,8 @@ int64_t nLastCoinStakeSearchInterval = 0;
 int nMiningAlgo = CBlock::ALGO_X12;
 
 
+
+
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -168,7 +170,7 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 //
 // block utils
 //
-int32_t GetBlockVersionV2()
+int32_t GetBlockVersion(int32_t nHeight)
 {
     switch (nMiningAlgo)
     {
@@ -180,22 +182,6 @@ int32_t GetBlockVersionV2()
         return CBlock::SHA256D_VERSION;
     case CBlock::ALGO_BLAKE2S:
         return CBlock::BLAKE2S_VERSION;
-    default:
-        return 9;
-    }
-}
-
-int32_t GetBlockVersion(int32_t nHeight)
-{
-    if (Params().IsProtocolV2(nHeight))
-        return GetBlockVersionV2();
-
-    switch (nMiningAlgo)
-    {
-    case CBlock::ALGO_X11:
-        return CBlock::X11_VERSION;
-    case CBlock::ALGO_X13:
-        return CBlock::X13_VERSION;
     default:
         return 9;
     }
@@ -688,11 +674,6 @@ bool CTransaction::CheckTransaction() const
     return true;
 }
 
-int64_t GetPercentFee(const CTransaction &tx)
-{
-    return tx.GetValueOut() / 100 * 0.01;
-}
-
 int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nBlockSize, enum GetMinFee_mode mode, unsigned int nBytes)
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
@@ -712,7 +693,7 @@ int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nB
     if (!MoneyRange(nMinFee))
         nMinFee = MAX_MONEY;
 
-    return Params().IsProtocolV2(nHeight) ? (nMinFee + GetPercentFee(tx)) : nMinFee;
+    return nMinFee;
 }
 
 
@@ -2638,7 +2619,6 @@ bool LoadBlockIndex(bool fAllowNew)
     CTxDB txdb("cr+");
     if (!txdb.LoadBlockIndex())
         return false;
-
 
 
     //

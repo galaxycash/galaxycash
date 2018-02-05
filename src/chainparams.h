@@ -68,7 +68,8 @@ public:
     virtual const vector<CAddress>& FixedSeeds() const = 0;
     int RPCPort() const { return nRPCPort; }
     bool POWNoRetargeting() const { return fPOWNoRetargeting; }
-    bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight >= 35000 : true; }
+    bool IsProtocolV1(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight <= 35000 : true; }
+    bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > 35000 : true; }
     int64_t PowTargetTimespan(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
     int64_t PowTargetSpacing(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { return IsProtocolV2(nHeight) ? (nPowTargetTimespan2 / nPowTargetSpacing2) : (nPowTargetTimespan / nPowTargetSpacing); }
