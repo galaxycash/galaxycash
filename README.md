@@ -1,7 +1,13 @@
 GalaxyCash
 ======
 
-Block Explorer: https://galaxycash.info/
+Site: https://galaxycash.info
+
+Pool: https://galaxypool.info
+
+Explorer: https://galaxypool.info/explorer/GCH
+
+Discord: https://discord.gg/NseejAk
 
 Telegram channel: http://t.me/galaxycash
 
