@@ -352,11 +352,6 @@ inline uint256 HashX11(const T1 pbegin, const T1 pend)
     return hash[10].trim256();
 }
 
-inline uint32_t IsOdd(const uint32_t n)
-{
-    return !((n % 2) == 0);
-}
-
 /* ----------- X12 ------------------------------------------------ */
 template<typename T1>
 inline uint256 HashX12(const T1 pbegin, const T1 pend)
