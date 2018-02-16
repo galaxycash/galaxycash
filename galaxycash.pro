@@ -3,18 +3,12 @@ TARGET = galaxycash-qt
 VERSION = 2.0.0.2
 INCLUDEPATH += src src/json src/qt
 
-win32:QT +=   network \
-        multimedia \
-        multimediawidgets
+win32:QT +=   network
 linux:QT += network
-macx:QT +=   network \
-        multimedia \
-        multimediawidgets
+macx:QT +=   network
 DEFINES += QT_STATIC_BUILD
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
-win32:DEFINES += GALAXYCASH_NOTIFICATION_SOUND
-macx:DEFINES += GALAXYCASH_NOTIFICATION_SOUND
 CONFIG += c++11
 CONFIG += no_include_pwd
 CONFIG += thread static
