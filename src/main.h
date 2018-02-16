@@ -641,6 +641,7 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
 
+
     // network and disk
     std::vector<CTransaction> vtx;
 
