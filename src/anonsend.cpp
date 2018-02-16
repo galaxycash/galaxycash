@@ -1573,7 +1573,7 @@ bool CAnonsendPool::DoAutomaticDenominating(bool fDryRun)
                 }
 
                 // connect to Masternode and submit the queue request
-                CNode* pnode = ConnectNode((CAddress)addr, NULL);
+                CNode* pnode = ConnectNode((CAddress)addr, NULL, true);
                 if(pnode != NULL)
                 {
                     CMasternode* pmn = mnodeman.Find(dsq.vin);
@@ -1625,7 +1625,7 @@ bool CAnonsendPool::DoAutomaticDenominating(bool fDryRun)
 
             lastTimeChanged = GetTimeMillis();
             LogPrintf("DoAutomaticDenominating -- attempt %d connection to Masternode %s\n", i, pmn->addr.ToString().c_str());
-            CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL);
+            CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, true);
             if(pnode != NULL){
                 pSubmittedToMasternode = pmn;
                 vecMasternodesUsed.push_back(pmn->vin);

@@ -582,7 +582,7 @@ Value masternode(const Array& params, bool fHelp)
 
         CService addr = CService(strAddress);
 
-        if(ConnectNode((CAddress)addr, NULL)){
+        if(ConnectNode((CAddress)addr, NULL, true)){
             return "successfully connected";
         } else {
             return "error connecting";
