@@ -779,13 +779,15 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     if (pblock->IsProofOfWork() && pblock->vtx[0].vout.size() == 2)
     {
+        Object votes;
+        result.push_back(Pair("votes", votes));
         CScript payee = pblock->vtx[0].vout[1].scriptPubKey;
         CTxDestination address1;
         ExtractDestination(payee, address1);
         CGalaxyCashAddress address2(address1);
 
         // Masternode reward like Dash
-        /*Object masternode;
+        Object masternode;
         masternode.push_back(Pair("payee", address2.ToString().c_str()));
         masternode.push_back(Pair("amount", (int64_t)pblock->vtx[0].vout[1].nValue));
         masternode.push_back(Pair("script", HexStr(payee.begin(), payee.end())));
@@ -793,26 +795,29 @@ Value getblocktemplate(const Array& params, bool fHelp)
         result.push_back(Pair("masternode", masternode));
         result.push_back(Pair("masternode_payments_started", true));
         result.push_back(Pair("masternode_payments_enforced", IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
-        */
+
 
         // Masternode reward like PIVX
         result.push_back(Pair("payee", address2.ToString().c_str()));
         result.push_back(Pair("payee_amount", (int64_t)pblock->vtx[0].vout[1].nValue));
-        /*result.push_back(Pair("payee_script", HexStr(payee.begin(), payee.end())));*/
-
+        result.push_back(Pair("payee_script", HexStr(payee.begin(), payee.end())));
+        result.push_back(Pair("masternode_payments", true));
+        result.push_back(Pair("enforce_masternode_payments", true));
     } else {
         result.push_back(Pair("payee", ""));
         result.push_back(Pair("payee_amount", ""));
-        /*result.push_back(Pair("payee_script", ""));*/
+        result.push_back(Pair("payee_script", ""));
 
-       /* Object masternode;
+        Object masternode;
         masternode.push_back(Pair("payee", ""));
         masternode.push_back(Pair("amount", ""));
         masternode.push_back(Pair("script", ""));
 
         result.push_back(Pair("masternode_payments_started", false));
         result.push_back(Pair("masternode_payments_enforced", false));
-        result.push_back(Pair("masternode", masternode));*/
+        result.push_back(Pair("masternode", masternode));
+        result.push_back(Pair("masternode_payments", false));
+        result.push_back(Pair("enforce_masternode_payments", false));
     }
 
     return result;
