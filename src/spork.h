@@ -39,13 +39,13 @@ using namespace boost;
 #define SPORK_12_RECONSIDER_BLOCKS                            10011
 #define SPORK_13_ENABLE_SUPERBLOCKS                           10012
 
-#define SPORK_1_MASTERNODE_PAYMENTS_ENFORCEMENT_DEFAULT       4070908800   // OFF
+#define SPORK_1_MASTERNODE_PAYMENTS_ENFORCEMENT_DEFAULT       0            // ON
 #define SPORK_2_FASTTX_DEFAULT                                0            // ON
 #define SPORK_3_FASTTX_BLOCK_FILTERING_DEFAULT                0            // ON
 #define SPORK_4_RECONVERGE_DEFAULT                            0            // ON - BUT NOT USED
 #define SPORK_5_MAX_VALUE_DEFAULT                             30000000     // 30,000,000 GCH
 #define SPORK_6_REPLAY_BLOCKS_DEFAULT                         0            // ON - BUT NOT USED
-#define SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT_DEFAULT        4070908800   // OFF
+#define SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT_DEFAULT        0            // ON
 #define SPORK_9_MASTERNODE_BUDGET_ENFORCEMENT_DEFAULT         4070908800   // OFF
 #define SPORK_10_MASTERNODE_PAY_UPDATED_NODES_DEFAULT         4070908800   // OFF
 #define SPORK_11_RESET_BUDGET_DEFAULT                         0            // ON
