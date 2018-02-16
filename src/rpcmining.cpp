@@ -11,6 +11,7 @@
 #include "init.h"
 #include "miner.h"
 #include "kernel.h"
+#include "base58.h"
 
 #include <boost/assign/list_of.hpp>
 
@@ -772,6 +773,18 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
     result.push_back(Pair("algorithm", GetAlgorithmName(pblock->GetAlgorithm())));
+
+    if (pblock->IsProofOfWork() && pblock->vtx[0].vout.size() == 2)
+    {
+        CTxDestination address1;
+        ExtractDestination(pblock->vtx[0].vout[1].scriptPubKey, address1);
+        CGalaxyCashAddress address2(address1);
+        result.push_back(Pair("payee", address2.ToString().c_str()));
+        result.push_back(Pair("payee_amount", (int64_t)pblock->vtx[0].vout[1].nValue));
+    } else {
+        result.push_back(Pair("payee", ""));
+        result.push_back(Pair("payee_amount", ""));
+    }
 
     return result;
 }
