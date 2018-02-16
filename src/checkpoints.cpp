@@ -85,9 +85,10 @@ namespace Checkpoints
     {
         const CBlockIndex* pindexSync = AutoSelectSyncCheckpoint();
 
-        const int nSync = std::max(0, pindexSync->nHeight - (int)(GetArg("-maxreorganize", int64_t(6))));
+        const int nSync = std::max(0, pindexSync->nHeight - (int)(GetArg("-maxreorganize", int64_t(4))));
         if (nHeight < nSync)
             return false;
         return true;
     }
 }
+

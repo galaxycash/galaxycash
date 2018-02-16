@@ -4,6 +4,7 @@
 #include "optionsmodel.h"
 #include "addresstablemodel.h"
 #include "transactiontablemodel.h"
+#include "masternodeman.h"
 
 #include "chainparams.h"
 #include "main.h"
@@ -46,7 +47,7 @@ int ClientModel::getNumBlocks() const
 int ClientModel::getNumMasternodes() const
 {
     LOCK(cs_main);
-    return 0; // TODO
+    return mnodeman.CountEnabled(); // TODO
 }
 
 int ClientModel::getNumBlocksAtStartup()
@@ -100,6 +101,11 @@ void ClientModel::updateTimer()
 void ClientModel::updateNumConnections(int numConnections)
 {
     emit numConnectionsChanged(numConnections);
+}
+
+void ClientModel::updateNumMasternodes(int numMasternodes)
+{
+    emit numConnectionsChanged(numMasternodes);
 }
 
 void ClientModel::updateAlert()

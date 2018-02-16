@@ -356,6 +356,20 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
     case TransactionRecord::Generated:
         return tr("Mined");
+    case TransactionRecord::MNReward:
+        return tr("MN Reward");
+    case TransactionRecord::RecvWithAnonsend:
+        return tr("Received with Anonsend");
+    case TransactionRecord::AnonsendDenominate:
+        return tr("Anonsend Denominate");
+    case TransactionRecord::AnonsendCollateralPayment:
+        return tr("Anonsend Collaterial Payment");
+    case TransactionRecord::AnonsendMakeCollaterals:
+        return tr("Anonsend Make Collaterals");
+    case TransactionRecord::AnonsendCreateDenominations:
+        return tr("Anonsend Create Denominations");
+    case TransactionRecord::Anonsent:
+        return tr("Anonsend");
     default:
         return QString();
     }

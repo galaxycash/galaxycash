@@ -15,7 +15,18 @@ static const char* ppszTypeName[] =
 {
     "ERROR",
     "tx",
+    "dstx",
     "block",
+    "filtered block",
+    "spork",
+    "dsee",
+    "masternode winner",
+    "unknown",
+    "unknown",
+    "unknown",
+    "unknown",
+    "unknown",
+    "unknown"
 };
 
 CMessageHeader::CMessageHeader()
@@ -139,3 +150,4 @@ std::string CInv::ToString() const
 {
     return strprintf("%s %s", GetCommand(), hash.ToString());
 }
+

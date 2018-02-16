@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GCH_TIMEDATA_H
-#define GCH_TIMEDATA_H
+#ifndef GALAXYCASH_TIMEDATA_H
+#define GALAXYCASH_TIMEDATA_H
 
 #include <stdint.h>
 
@@ -15,3 +15,4 @@ int64_t GetAdjustedTime();
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 
 #endif
+

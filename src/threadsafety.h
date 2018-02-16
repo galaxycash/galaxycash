@@ -51,4 +51,5 @@
 #define SHARED_LOCKS_REQUIRED(...)
 #define NO_THREAD_SAFETY_ANALYSIS
 #endif  // __GNUC__
-#endif  // GCH_THREADSAFETY_H
+#endif  // GALAXYCASH_THREADSAFETY_H
+

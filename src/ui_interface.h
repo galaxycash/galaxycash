@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GCH_UI_INTERFACE_H
-#define GCH_UI_INTERFACE_H
+#ifndef GALAXYCASH_UI_INTERFACE_H
+#define GALAXYCASH_UI_INTERFACE_H
 
 #include <boost/signals2/last_value.hpp>
 #include <boost/signals2/signal.hpp>
@@ -108,3 +108,4 @@ inline std::string _(const char* psz)
 }
 
 #endif
+

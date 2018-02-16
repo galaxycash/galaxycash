@@ -45,6 +45,38 @@ double GetDifficulty(const CBlockIndex* blockindex, const int nAlgo)
     return blockindex ? GetDifficultyFromBits(blockindex->nBits) : 1.0;
 }
 
+double GetDifficultyForAlgorithm(int nAlgo)
+{
+    CBlockIndex *pindex = pindexBest;
+    while (true)
+    {
+        pindex = pindex->pprev;
+        if (!pindex || pindex->GetBlockAlgorithm() == nAlgo)
+            break;
+    }
+
+    if (!pindex)
+        return UintToArith256(Params().ProofOfWorkLimit()).GetCompact();
+    else
+        return GetDifficultyFromBits(pindex->nBits);
+}
+
+double GetDifficultyForPOS()
+{
+    CBlockIndex *pindex = pindexBest;
+    while (true)
+    {
+        pindex = pindex->pprev;
+        if (!pindex || pindex->IsProofOfStake())
+            break;
+    }
+
+    if (!pindex)
+        return UintToArith256(Params().ProofOfStakeLimit()).GetCompact();
+    else
+        return GetDifficultyFromBits(pindex->nBits);
+}
+
 double GetPoWMHashPSForAlgo(int nAlgo)
 {
     int nPoWInterval = Params().DifficultyAdjustmentInterval(nBestHeight);
@@ -207,8 +239,8 @@ Value getdifficulty(const Array& params, bool fHelp)
             "Returns the difficulty as a multiple of the minimum difficulty.");
 
     Object obj;
-    obj.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nMiningAlgo, false)->nBits)));
-    obj.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("proof-of-work",        GetDifficultyForAlgorithm(nMiningAlgo)));
+    obj.push_back(Pair("proof-of-stake",       GetDifficultyForPOS()));
     return obj;
 }
 

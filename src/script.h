@@ -115,6 +115,17 @@ enum
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 6),
 };
 
+/** IsMine() return codes */
+enum isminetype
+{
+    ISMINE_NO = 0,
+    ISMINE_WATCH_ONLY = 1,
+    ISMINE_SPENDABLE = 2,
+    ISMINE_ALL = ISMINE_WATCH_ONLY | ISMINE_SPENDABLE
+};
+/** used for bitflags of isminetype */
+typedef uint8_t isminefilter;
+
 // Mandatory script verification flags that all new blocks must comply with for
 // them to be valid. (but old blocks may not comply with)
 //
@@ -811,6 +822,7 @@ public:
 
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
+    bool IsNormalPaymentScript() const;
 
     void SetDestination(const CTxDestination& address);
     void SetMultisig(int nRequired, const std::vector<CPubKey>& keys);
@@ -931,8 +943,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions);
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
-bool IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
-bool IsMine(const CKeyStore& keystore, const CTxDestination &dest);
+isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
+isminetype IsMine(const CKeyStore& keystore, const CTxDestination &dest);
 void ExtractAffectedKeys(const CKeyStore &keystore, const CScript& scriptPubKey, std::vector<CKeyID> &vKeys);
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
@@ -946,4 +958,11 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 // combine them intelligently and return the result.
 CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsigned int nIn, const CScript& scriptSig1, const CScript& scriptSig2);
 
+CScript GetScriptForDestination(const CTxDestination& dest);
+CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
+
+CScript GetScriptForDestination(const CTxDestination& dest);
+CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
+
 #endif
+

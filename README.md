@@ -35,7 +35,7 @@ PoS Block reward:                           10% per year
 
 Max supply:                                 30000000
 
-Fees:                                       0.00000001
+Fees:                                       0.00000100
 
 Coinbase maturity:                          11 blocks
 

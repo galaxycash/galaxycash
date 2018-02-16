@@ -574,19 +574,6 @@ bool CPubKey::Decompress() {
     return true;
 }
 
-void static BIP32Hash(const unsigned char chainCode[32], unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]) {
-    unsigned char num[4];
-    num[0] = (nChild >> 24) & 0xFF;
-    num[1] = (nChild >> 16) & 0xFF;
-    num[2] = (nChild >>  8) & 0xFF;
-    num[3] = (nChild >>  0) & 0xFF;
-    CHmacSha512 ctx(chainCode, 32);
-    ctx.Write(&header, 1);
-    ctx.Write(data, 32);
-    ctx.Write(num, 4);
-    ctx.Finalize(output);
-}
-
 bool CKey::Derive(CKey& keyChild, unsigned char ccChild[32], unsigned int nChild, const unsigned char cc[32]) const {
     assert(IsValid());
     assert(IsCompressed());
@@ -709,3 +696,4 @@ bool ECC_InitSanityCheck() {
     // TODO Is there more EC functionality that could be missing?
     return true;
 }
+

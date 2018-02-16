@@ -2,8 +2,8 @@
 // Copyright (c) 2009-2013 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef GCH_TXMEMPOOL_H
-#define GCH_TXMEMPOOL_H
+#ifndef GALAXYCASH_TXMEMPOOL_H
+#define GALAXYCASH_TXMEMPOOL_H
 
 #include "core.h"
 #include "sync.h"
@@ -53,4 +53,5 @@ public:
     bool lookup(uint256 hash, CTransaction& result) const;
 };
 
-#endif /* GCH_TXMEMPOOL_H */
+#endif /* GALAXYCASH_TXMEMPOOL_H */
+

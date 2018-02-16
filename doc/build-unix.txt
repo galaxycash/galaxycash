@@ -23,12 +23,10 @@ qmake -makefile galaxycashd.pro
 make
 
 or
+
 cd src
 make -f makefile.unix 
 
-CommandLine Interface
-qmake -makefile galaxycash-cli.pro
-make
 
 Versions used in this release:
  GCC           7.2.0

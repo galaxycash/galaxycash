@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 2.0.0.1
+VERSION = 2.0.0.2
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network \
@@ -107,8 +107,8 @@ contains(USE_DBUS, 1) {
     QT += dbus
 }
 
-contains(GCH_NEED_QT_PLUGINS, 1) {
-    DEFINES += GCH_NEED_QT_PLUGINS
+contains(GALAXYCASH_NEED_QT_PLUGINS, 1) {
+    DEFINES += GALAXYCASH_NEED_QT_PLUGINS
     QTPLUGIN += qcncodecs qjpcodecs qtwcodecs qkrcodecs qtaccessiblewidgets
 }
 
@@ -133,6 +133,7 @@ PRE_TARGETDEPS += $$PWD/src/leveldb/libleveldb.a
 QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
 QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; $$PWD/src/leveldb/libmemenv.a; cd $$PWD/src/leveldb ; $(MAKE) clean
+
 
 contains(USE_O3, 1) {
     message(Building O3 optimization flag)
@@ -262,7 +263,19 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/sph_ripemd.h \
     src/crypto/sph_types.h \
     src/crypto/blake2.h \
-    src/crypto/blake2-impl.h
+    src/crypto/blake2-impl.h \
+    src/masternode.h \
+    src/anonsend.h \
+    src/anonsend-relay.h \
+    src/activemasternode.h \
+    src/masternodeconfig.h \
+    src/masternodeman.h \
+    src/masternode-payments.h \
+    src/spork.h \
+    src/qt/anonsendconfig.h \
+    src/qt/masternodemanager.h \
+    src/qt/galaxynodeconfigdialog.h \
+    src/qt/addeditgalaxynode.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -276,6 +289,7 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/aboutdialog.cpp \
     src/qt/editaddressdialog.cpp \
     src/qt/galaxycashaddressvalidator.cpp \
+    src/base58.cpp \
     src/kernel.cpp \
     src/chainparams.cpp \
     src/version.cpp \
@@ -357,7 +371,20 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/simd.c \
     src/crypto/ripemd.c \
     src/crypto/skein.c \
-    src/crypto/blake2s-ref.c
+    src/crypto/blake2s-ref.c \
+    src/masternode.cpp \
+    src/anonsend.cpp \
+    src/anonsend-relay.cpp \
+    src/rpcanonsend.cpp \
+    src/activemasternode.cpp \
+    src/masternodeman.cpp \
+    src/masternode-payments.cpp \
+    src/spork.cpp \
+    src/masternodeconfig.cpp \
+    src/qt/anonsendconfig.cpp \
+    src/qt/masternodemanager.cpp \
+    src/qt/galaxynodeconfigdialog.cpp \
+    src/qt/addeditgalaxynode.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc
@@ -371,6 +398,10 @@ FORMS += \
     src/qt/forms/editaddressdialog.ui \
     src/qt/forms/transactiondescdialog.ui \
     src/qt/forms/overviewpage.ui \
+    src/qt/forms/addeditgalaxynode.ui \
+    src/qt/forms/galaxynodeconfigdialog.ui \
+    src/qt/forms/anonsendconfig.ui \
+    src/qt/forms/masternodemanager.ui \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \
     src/qt/forms/rpcconsole.ui \
@@ -467,7 +498,7 @@ INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
-windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
+windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lgmp
 
 LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
@@ -485,3 +516,4 @@ contains(RELEASE, 1) {
 }
 
 system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
+

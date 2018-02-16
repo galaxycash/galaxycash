@@ -254,14 +254,14 @@ double BlockBrowser::getTxFees(std::string txid)
 	CTxDB txdb("r");
 
     if (!GetTransaction(hash, tx, hashBlock))
-        return convertCoins(MIN_TX_FEE);
+        return convertCoins(GetMinTransactionFee());
 
     MapPrevTx mapInputs;
     map<uint256, CTxIndex> mapUnused;
 	bool fInvalid;
 
     if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
-	      return convertCoins(MIN_TX_FEE);
+          return convertCoins(GetMinTransactionFee(tx.nTime));
 
     qint64 nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
 

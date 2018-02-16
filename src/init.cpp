@@ -17,6 +17,13 @@
 #include "walletdb.h"
 #include "miner.h"
 #endif
+#include "anonsend-relay.h"
+#include "activemasternode.h"
+#include "masternode-payments.h"
+#include "masternode.h"
+#include "masternodeman.h"
+#include "masternodeconfig.h"
+#include "spork.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -107,6 +114,7 @@ void Shutdown()
             pwalletMain->SetBestChain(CBlockLocator(pindexBest));
 #endif
     }
+    DumpMasternodes();
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         bitdb.Flush(true);
@@ -578,6 +586,16 @@ bool AppInit2(boost::thread_group& threadGroup)
     fUseDefaultKey = GetBoolArg("-usedefaultkey", false);
     nMiningAlgo = GetAlgorithm(GetArg("-algo", "x12"));
 
+    // Allows user to set a soft lock on masternode collateral to prevent
+    // them from being used in transactions.
+    // This default behavior can be explicitly overriden using Coin control.
+    if (GetBoolArg("-masternodesoftlock", false)) {
+        fMasternodeSoftLock = true;
+        LogPrintf("Masternode soft lock is activated.\n");
+    }
+    // Process masternode config
+    masternodeConfig.read(GetMasternodeConfigFile());
+
     bool fBound = false;
     if (!fNoListen)
     {
@@ -809,8 +827,126 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (!strErrors.str().empty())
         return InitError(strErrors.str());
 
-    //if (mapArgs.count("-master"))
-    //    mapArgs["-master"] = "0"; // Only main node set it true
+
+    // ********************************************************* Step 11: start node
+
+    if (!CheckDiskSpace())
+        return false;
+
+    if (!strErrors.str().empty())
+        return InitError(strErrors.str());
+
+    uiInterface.InitMessage(_("Loading masternode cache..."));
+
+    CMasternodeDB mndb;
+    CMasternodeDB::ReadResult readResult = mndb.Read(mnodeman);
+    if (readResult == CMasternodeDB::FileError)
+        LogPrintf("Missing masternode cache file - mncache.dat, will try to recreate\n");
+    else if (readResult != CMasternodeDB::Ok)
+    {
+        LogPrintf("Error reading mncache.dat: ");
+        if(readResult == CMasternodeDB::IncorrectFormat)
+            LogPrintf("magic is ok but data has invalid format, will try to recreate\n");
+        else
+            LogPrintf("file format is unknown or invalid, please fix it manually\n");
+    }
+
+
+    fMasterNode = GetBoolArg("-masternode", false);
+    if(fMasterNode) {
+        LogPrintf("IS ANONSEND MASTER NODE\n");
+        strMasterNodeAddr = GetArg("-masternodeaddr", "");
+
+        LogPrintf(" addr %s\n", strMasterNodeAddr.c_str());
+
+        if(!strMasterNodeAddr.empty()){
+            CService addrTest = CService(strMasterNodeAddr, fNameLookup);
+            if (!addrTest.IsValid()) {
+                return InitError("Invalid -masternodeaddr address: " + strMasterNodeAddr);
+            }
+        }
+
+        strMasterNodePrivKey = GetArg("-masternodeprivkey", "");
+        if(!strMasterNodePrivKey.empty()){
+            std::string errorMessage;
+
+            CKey key;
+            CPubKey pubkey;
+
+            if(!anonSendSigner.SetKey(strMasterNodePrivKey, errorMessage, key, pubkey))
+            {
+                return InitError(_("Invalid masternodeprivkey. Please see documenation."));
+            }
+
+            activeMasternode.pubKeyMasternode = pubkey;
+
+        } else {
+            return InitError(_("You must specify a masternodeprivkey in the configuration. Please see documentation for help."));
+        }
+
+        activeMasternode.ManageStatus();
+    }
+
+    if(GetBoolArg("-mnconflock", false)) {
+        LogPrintf("Locking Masternodes:\n");
+        uint256 mnTxHash;
+        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+            LogPrintf("  %s %s\n", mne.getTxHash(), mne.getOutputIndex());
+            mnTxHash.SetHex(mne.getTxHash());
+            COutPoint outpoint = COutPoint(mnTxHash, boost::lexical_cast<unsigned int>(mne.getOutputIndex()));
+            pwalletMain->LockCoin(outpoint);
+        }
+    }
+
+    fEnableAnonsend = GetBoolArg("-enableanonsend", false);
+
+    nAnonsendRounds = GetArg("-anonsendrounds", 2);
+    if(nAnonsendRounds > 16) nAnonsendRounds = 16;
+    if(nAnonsendRounds < 1) nAnonsendRounds = 1;
+
+    nLiquidityProvider = GetArg("-liquidityprovider", 0); //0-100
+    if(nLiquidityProvider != 0) {
+        anonSendPool.SetMinBlockSpacing(std::min(nLiquidityProvider,100)*15);
+        fEnableAnonsend = true;
+        nAnonsendRounds = 99999;
+    }
+
+    nAnonymizeAmount = GetArg("-anonymizeamount", 2);
+    if(nAnonymizeAmount > 999999) nAnonymizeAmount = 999999;
+    if(nAnonymizeAmount < 2) nAnonymizeAmount = 2;
+
+    //lite mode disables all Masternode and Anonsend related functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    if(fMasterNode && fLiteMode){
+        return InitError("You can not start a masternode in litemode");
+    }
+
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+    LogPrintf("Anonsend rounds %d\n", nAnonsendRounds);
+    LogPrintf("Anonymize GalaxyCash Amount %d\n", nAnonymizeAmount);
+
+    /* Denominations
+       A note about convertability. Within Anonsend pools, each denomination
+       is convertable to another.
+       For example:
+       1TX+1000 == (.1TX+100)*10
+       10TX+10000 == (1TX+1000)*10
+    */
+    anonSendDenominations.push_back( (1000        * COIN)+1000000 );
+    anonSendDenominations.push_back( (100         * COIN)+100000 );
+    anonSendDenominations.push_back( (10          * COIN)+10000 );
+    anonSendDenominations.push_back( (1           * COIN)+1000 );
+    anonSendDenominations.push_back( (.1          * COIN)+100 );
+    /* Disabled till we need them
+    anonSendDenominations.push_back( (.01      * COIN)+10 );
+    anonSendDenominations.push_back( (.001     * COIN)+1 );
+    */
+
+    anonSendPool.InitCollateralAddress();
+
+    threadGroup.create_thread(boost::bind(&ThreadCheckAnonSendPool));
+
+
 
     RandAddSeedPerfmon();
 
@@ -857,3 +993,4 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     return !fRequestShutdown;
 }
+

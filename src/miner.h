@@ -31,3 +31,4 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 void SHA256Transform(void* pstate, void* pinput, const void* pinit);
 
 #endif // NOVACOIN_MINER_H
+

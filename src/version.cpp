@@ -9,7 +9,7 @@
 // for both galaxycashd and galaxycash-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
 const std::string CLIENT_NAME("GalaxyCash");
-const std::string CLIENT_CODENAME("DarkSide");
+const std::string CLIENT_CODENAME("AnonSide");
 
 // Client version number
 #define CLIENT_VERSION_SUFFIX   ""
@@ -65,3 +65,4 @@ const std::string CLIENT_CODENAME("DarkSide");
 
 const std::string CLIENT_BUILD(BUILD_DESC CLIENT_VERSION_SUFFIX);
 const std::string CLIENT_DATE(BUILD_DATE);
+

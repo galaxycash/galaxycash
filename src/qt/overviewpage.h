@@ -2,6 +2,8 @@
 #define OVERVIEWPAGE_H
 
 #include <QWidget>
+#include <QTimer>
+#include <QSettings>
 
 namespace Ui {
     class OverviewPage;
@@ -27,14 +29,16 @@ public:
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
-
+    void updateAnonsendProgress();
 public slots:
-    void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
+    void anonSendStatus();
+    void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 anonymizedBalanc);
 
 signals:
     void transactionClicked(const QModelIndex &index);
 
 private:
+    QTimer *timer;
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
@@ -42,11 +46,16 @@ private:
     qint64 currentStake;
     qint64 currentUnconfirmedBalance;
     qint64 currentImmatureBalance;
-
+    qint64 currentAnonymizedBalance;
     TxViewDelegate *txdelegate;
     TransactionFilterProxy *filter;
-
+    int nDisplayUnit;
 private slots:
+    void toggleAnonsend();
+    void anonsendAuto();
+    void anonsendReset();
+    void anonsendRoundsChanged();
+    void anonsendAmountChanged();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);

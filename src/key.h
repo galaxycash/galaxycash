@@ -314,3 +314,4 @@ bool ECC_InitSanityCheck(void);
 bool EnsureLowS(std::vector<unsigned char>& vchSig);
 
 #endif
+

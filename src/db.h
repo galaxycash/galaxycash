@@ -309,4 +309,5 @@ public:
     bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
 };
 
-#endif // GCH_DB_H
+#endif // GALAXYCASH_DB_H
+

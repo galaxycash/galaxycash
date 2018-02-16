@@ -10,6 +10,9 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QSettings>
+
+#include "main.h"
 
 OptionsDialog::OptionsDialog(QWidget *parent) :
     QDialog(parent),
@@ -26,6 +29,11 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
 #ifndef USE_UPNP
     ui->mapPortUpnp->setEnabled(false);
 #endif
+    QSettings settings;
+    ui->anonsendRounds->setValue(nAnonsendRounds);
+    ui->anonymize->setValue(nAnonymizeAmount);
+    settings.setValue("nAnonymizeAmoount", QVariant(nAnonymizeAmount));
+    settings.setValue("nAnonsendRounds", QVariant(nAnonsendRounds));
 
     ui->proxyIp->setEnabled(false);
     ui->proxyPort->setEnabled(false);
@@ -139,6 +147,10 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->lang, OptionsModel::Language);
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+
+    /* Anonsend Rounds */
+    mapper->addMapping(ui->anonsendRounds, OptionsModel::AnonsendRounds);
+    mapper->addMapping(ui->anonymize, OptionsModel::AnonymizeAmount);
 }
 
 void OptionsDialog::enableApplyButton()
@@ -171,6 +183,11 @@ void OptionsDialog::setSaveButtonState(bool fState)
 
 void OptionsDialog::on_okButton_clicked()
 {
+    QSettings settings;
+    nAnonymizeAmount = ui->anonymize->value();
+    settings.setValue("nAnonymizeAmoount", QVariant(nAnonymizeAmount));
+    nAnonsendRounds = ui->anonsendRounds->value();
+    settings.setValue("nAnonsendRounds", QVariant(nAnonsendRounds));
     mapper->submit();
     accept();
 }

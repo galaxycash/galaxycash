@@ -64,6 +64,7 @@ private:
 
 signals:
     void numConnectionsChanged(int count);
+    void numMasternodesChanged(int count);
     void numBlocksChanged(int count);
     void alertsChanged(const QString &warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
@@ -74,6 +75,7 @@ signals:
 public slots:
     void updateTimer();
     void updateNumConnections(int numConnections);
+    void updateNumMasternodes(int numMasternodes);
     void updateAlert();
 };
 

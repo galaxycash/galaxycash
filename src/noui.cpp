@@ -48,3 +48,4 @@ void noui_connect()
     uiInterface.ThreadSafeAskFee.connect(noui_ThreadSafeAskFee);
     uiInterface.InitMessage.connect(noui_InitMessage);
 }
+

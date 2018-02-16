@@ -31,13 +31,22 @@ static const int DATABASE_VERSION = 90909;
 // network protocol versioning
 //
 
-static const int PROTOCOL_VERSION = 90910;
+static const int PROTOCOL_VERSION = 90915;
 
 // intial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 70004;
 
 // disconnect from peers older than this proto version
 static const int MIN_PEER_PROTO_VERSION = 90000;
+
+// minimum peer version accepted by AnonSendPool
+static const int MIN_POOL_PEER_PROTO_VERSION = 90912;
+
+// minimum peer version that can receive masternode payments
+// V1 - Last protocol version before update
+// V2 - Newest protocol version
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = 90912;
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = 90912;
 
 // nTime field added to CAddress, starting with this version;
 // if possible, avoid requesting addresses nodes older than this
@@ -58,3 +67,4 @@ static const int CANONICAL_BLOCK_SIG_VERSION = 60013;
 static const int CANONICAL_BLOCK_SIG_LOW_S_VERSION = 60015;
 
 #endif
+

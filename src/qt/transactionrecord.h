@@ -71,7 +71,15 @@ public:
         SendToOther,
         RecvWithAddress,
         RecvFromOther,
-        SendToSelf
+        SendToSelf,
+        StakeMint,
+        MNReward,
+        RecvWithAnonsend,
+        AnonsendDenominate,
+        AnonsendCollateralPayment,
+        AnonsendMakeCollaterals,
+        AnonsendCreateDenominations,
+        Anonsent
     };
 
     /** Number of confirmation recommended for accepting a transaction */
@@ -119,6 +127,9 @@ public:
 
     /** Return the unique identifier for this transaction (part) */
     QString getTxID() const;
+
+    /** Return the output index of the subtransaction  */
+    int getOutputIndex() const;
 
     /** Format subtransaction id */
     static QString formatSubTxId(const uint256 &hash, int vout);

@@ -30,6 +30,8 @@ public:
         Language,          // QString
         CoinControlFeatures, // bool
         OptionIDRowCount,
+        AnonsendRounds,    // int
+        AnonymizeAmount, //int
     };
 
     void Init();
@@ -59,6 +61,8 @@ signals:
     void transactionFeeChanged(qint64);
     void reserveBalanceChanged(qint64);
     void coinControlFeaturesChanged(bool);
+    void anonsendRoundsChanged(int);
+    void anonymizeAmountChanged(int);
 };
 
 #endif // OPTIONSMODEL_H

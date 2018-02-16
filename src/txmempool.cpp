@@ -105,3 +105,4 @@ bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const
     result = i->second;
     return true;
 }
+

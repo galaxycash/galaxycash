@@ -266,3 +266,4 @@ uint256 arith_uint256::getuint256() const
 {
     return ArithToUint256(*this);
 }
+

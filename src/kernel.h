@@ -41,3 +41,4 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd);
 bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, const COutPoint& prevout, int64_t* pBlockTime = NULL);
 
 #endif // PPCOIN_KERNEL_H
+

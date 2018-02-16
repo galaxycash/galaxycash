@@ -783,6 +783,8 @@ public:
     static const size_t OUTPUT_SIZE = 32;
 
     CHmacSha256(const unsigned char* key, size_t keylen);
+    inline CHmacSha256(const char *key, size_t keylen) : CHmacSha256((const unsigned char *) key, keylen)
+    {}
 
     CHmacSha256& Init(const unsigned char* key, size_t keylen);
     CHmacSha256& Write(const unsigned char* data, size_t len)
@@ -803,6 +805,8 @@ public:
     static const size_t OUTPUT_SIZE = 64;
 
     CHmacSha512(const unsigned char* key, size_t keylen);
+    inline CHmacSha512(const char *key, size_t keylen) : CHmacSha512((const unsigned char *) key, keylen)
+    {}
 
     CHmacSha512& Init(const unsigned char* key, size_t keylen);
     CHmacSha512& Write(const unsigned char* data, size_t len)
@@ -813,4 +817,18 @@ public:
     void Finalize(unsigned char hash[OUTPUT_SIZE]);
 };
 
+inline void BIP32Hash(const unsigned char chainCode[32], unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]) {
+    unsigned char num[4];
+    num[0] = (nChild >> 24) & 0xFF;
+    num[1] = (nChild >> 16) & 0xFF;
+    num[2] = (nChild >>  8) & 0xFF;
+    num[3] = (nChild >>  0) & 0xFF;
+    CHmacSha512 ctx(chainCode, 32);
+    ctx.Write(&header, 1);
+    ctx.Write(data, 32);
+    ctx.Write(num, 4);
+    ctx.Finalize(output);
+}
+
 #endif
+

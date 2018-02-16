@@ -7,6 +7,10 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <boost/assign/list_of.hpp>
 
 #include "chainparams.h"
 #include "checkpoints.h"
@@ -16,6 +20,10 @@
 #include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
+#include "anonsend.h"
+#include "masternodeman.h"
+#include "masternode-payments.h"
+#include "spork.h"
 
 using namespace std;
 using namespace boost;
@@ -39,6 +47,7 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 
+std::set<uint256> setValidatedTx;
 
 int nCoinbaseMaturity = 11;
 int nStakeMinConfirmations = 50;
@@ -65,6 +74,19 @@ bool fImporting = false;
 bool fReindex = false;
 bool fHaveGUI = false;
 bool fUseDefaultKey = false;
+bool fMasterNode = false;
+string strMasterNodePrivKey = "";
+string strMasterNodeAddr = "";
+bool fLiteMode = false;
+int nAnonsendRounds = 2;
+int nAnonymizeAmount = 1000;
+int nLiquidityProvider = 0;
+int64_t enforceMasternodePaymentsTime = 4085657524;
+int nMasternodeMinProtocol = 0;
+bool fEnableAnonsend = false;
+std::vector<int64_t> anonSendDenominations;
+bool fMasternodeSoftLock = false;
+
 
 struct COrphanBlock {
     uint256 hashBlock;
@@ -93,7 +115,6 @@ const string strMessageMagic = "GalaxyCash Signed Message:\n";
 
 // These functions dispatch to one or all registered wallets
 
-namespace {
 struct CMainSignals {
     // Notifies listeners of updated transaction data (passing hash, transaction, and optionally the block it is found in.
     boost::signals2::signal<void (const CTransaction &, const CBlock *, bool)> SyncTransaction;
@@ -108,7 +129,7 @@ struct CMainSignals {
     // Tells listeners to broadcast their data.
     boost::signals2::signal<void (bool)> Broadcast;
 } g_signals;
-}
+
 
 void RegisterWallet(CWalletInterface* pwalletIn) {
     g_signals.SyncTransaction.connect(boost::bind(&CWalletInterface::SyncTransaction, pwalletIn, _1, _2, _3));
@@ -145,6 +166,15 @@ void ResendWalletTransactions(bool fForce) {
     g_signals.Broadcast(fForce);
 }
 
+bool AbortNode(const std::string &strMessage, const std::string &userMessage) {
+    strMiscWarning = strMessage;
+    LogPrintf("*** %s\n", strMessage);
+    uiInterface.ThreadSafeMessageBox(
+        userMessage.empty() ? _("Error: A fatal internal error occured, see debug.log for details") : userMessage,
+        "", CClientUIInterface::MSG_ERROR);
+    StartShutdown();
+    return false;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -677,7 +707,7 @@ bool CTransaction::CheckTransaction() const
 int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nBlockSize, enum GetMinFee_mode mode, unsigned int nBytes)
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
-    int64_t nBaseFee = (mode == GMF_RELAY) ? MIN_RELAY_TX_FEE : MIN_TX_FEE;
+    int64_t nBaseFee = (mode == GMF_RELAY) ? GetMinTransactionFee(tx.nTime) : GetMinTransactionFee(tx.nTime);
 
     unsigned int nNewBlockSize = nBlockSize + nBytes;
     int64_t nMinFee = (1 + (int64_t)nBytes / 1000) * nBaseFee;
@@ -698,7 +728,7 @@ int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nB
 
 
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
-                        bool* pfMissingInputs)
+                        bool* pfMissingInputs, bool ignoreFees)
 {
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
@@ -743,10 +773,21 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
     {
         CTxDB txdb("r");
 
+
         // do we already have it?
         if (txdb.ContainsTx(hash))
             return false;
 
+        // do all inputs exist?
+        // Note that this does not check for the presence of actual outputs (see the next check for that),
+        // only helps filling in pfMissingInputs (to determine missing vs spent).
+        BOOST_FOREACH(const CTxIn txin, tx.vin) {
+            if (!txdb.ContainsTx(txin.prevout.hash)) {
+                if (pfMissingInputs)
+                    *pfMissingInputs = true;
+                return false;
+            }
+        }
         MapPrevTx mapInputs;
         map<uint256, CTxIndex> mapUnused;
         bool fInvalid = false;
@@ -754,8 +795,6 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
         {
             if (fInvalid)
                 return error("AcceptToMemoryPool : FetchInputs found invalid tx %s", hash.ToString());
-            if (pfMissingInputs)
-                *pfMissingInputs = true;
             return false;
         }
 
@@ -779,33 +818,39 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
         unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
         // Don't accept it if it can't get into a block
-        int64_t txMinFee = GetMinFee(nBestHeight, tx, 1000, GMF_RELAY, nSize);
-        if ((fLimitFree && nFees < txMinFee) || (!fLimitFree && nFees < MIN_TX_FEE))
-            return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
-                         hash.ToString(),
-                         nFees, txMinFee);
+        // but prioritise dstx and don't check fees for it
+        if(mapAnonsendBroadcastTxes.count(hash)) {
+            // Normally we would PrioritiseTransaction But currently it is unimplemented
+            // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
+        } else if(!ignoreFees){
+            int64_t txMinFee = GetMinFee(nBestHeight, tx, 1000, GMF_RELAY, nSize);
+            if (fLimitFree && nFees < txMinFee)
+                return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
+                            hash.ToString(),
+                            nFees, txMinFee);
 
-        // Continuously rate-limit free transactions
-        // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
-        // be annoying or make others' transactions take longer to confirm.
-        if (fLimitFree && nFees < MIN_RELAY_TX_FEE)
-        {
-            static CCriticalSection csFreeLimiter;
-            static double dFreeCount;
-            static int64_t nLastTime;
-            int64_t nNow = GetTime();
+            // Continuously rate-limit free transactions
+            // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
+            // be annoying or make others' transactions take longer to confirm.
+            if (fLimitFree && nFees < GetMinTransactionFee())
+            {
+                static CCriticalSection csFreeLimiter;
+                static double dFreeCount;
+                static int64_t nLastTime;
+                int64_t nNow = GetTime();
 
-            LOCK(csFreeLimiter);
+                LOCK(csFreeLimiter);
 
-            // Use an exponentially decaying ~10-minute window:
-            dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
-            nLastTime = nNow;
-            // -limitfreerelay unit is thousand-bytes-per-minute
-            // At default rate it would take over a month to fill 1GB
-            if (dFreeCount > GetArg("-limitfreerelay", 15)*10*1000)
-                return error("AcceptToMemoryPool : free transaction rejected by rate limiter");
-            LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
-            dFreeCount += nSize;
+                // Use an exponentially decaying ~10-minute window:
+                dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
+                nLastTime = nNow;
+                // -limitfreerelay unit is thousand-bytes-per-minute
+                // At default rate it would take over a month to fill 1GB
+                if (dFreeCount > GetArg("-limitfreerelay", 15)*10*1000)
+                    return error("AcceptableInputs : free transaction rejected by rate limiter");
+                LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
+                dFreeCount += nSize;
+            }
         }
 
         // Check against previous transactions
@@ -832,16 +877,144 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
 
     // Store transaction in memory
     pool.addUnchecked(hash, tx);
+    setValidatedTx.insert(hash);
 
     SyncWithWallets(tx, NULL);
 
     LogPrint("mempool", "AcceptToMemoryPool : accepted %s (poolsz %u)\n",
            hash.ToString(),
            pool.mapTx.size());
+
     return true;
 }
 
+bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree,
+                         bool* pfMissingInputs, bool isDSTX)
+{
+    AssertLockHeld(cs_main);
+    if (pfMissingInputs)
+        *pfMissingInputs = false;
 
+    CTransaction tx(txo);
+    string reason;
+
+    if (!tx.CheckTransaction())
+        return error("AcceptableInputs : CheckTransaction failed");
+
+    // Coinbase is only valid in a block, not as a loose transaction
+    if (tx.IsCoinBase())
+        return tx.DoS(100, error("AcceptableInputs : coinbase as individual tx"));
+
+    // ppcoin: coinstake is also only valid in a block, not as a loose transaction
+    if (tx.IsCoinStake())
+        return tx.DoS(100, error("AcceptableInputs : coinstake as individual tx"));
+
+    // is it already in the memory pool?
+    uint256 hash = tx.GetHash();
+    if (pool.exists(hash))
+        return false;
+
+    // Check for conflicts with in-memory transactions
+    {
+    LOCK(pool.cs); // protect pool.mapNextTx
+    for (unsigned int i = 0; i < tx.vin.size(); i++)
+    {
+        COutPoint outpoint = tx.vin[i].prevout;
+        if (pool.mapNextTx.count(outpoint))
+        {
+            // Disable replacement feature for now
+            return false;
+        }
+    }
+    }
+
+    {
+        CTxDB txdb("r");
+
+        // do we already have it?
+        if (txdb.ContainsTx(hash))
+            return false;
+
+        MapPrevTx mapInputs;
+        map<uint256, CTxIndex> mapUnused;
+        bool fInvalid = false;
+        if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
+        {
+            if (fInvalid)
+                return error("AcceptableInputs : FetchInputs found invalid tx %s", hash.ToString());
+            return false;
+        }
+
+        // Check for non-standard pay-to-script-hash in inputs
+        //if (!TestNet() && !AreInputsStandard(tx, mapInputs))
+          //  return error("AcceptToMemoryPool : nonstandard transaction input");
+
+        // Check that the transaction doesn't have an excessive number of
+        // sigops, making it impossible to mine. Since the coinbase transaction
+        // itself can contain sigops MAX_TX_SIGOPS is less than
+        // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
+        // merely non-standard transaction.
+        unsigned int nSigOps = GetLegacySigOpCount(tx);
+        nSigOps += GetP2SHSigOpCount(tx, mapInputs);
+        if (nSigOps > MAX_TX_SIGOPS)
+            return tx.DoS(0,
+                          error("AcceptableInputs : too many sigops %s, %d > %d",
+                                hash.ToString(), nSigOps, MAX_TX_SIGOPS));
+
+        int64_t nFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
+        unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+        int64_t txMinFee = GetMinFee(nBestHeight, tx, 1000, GMF_RELAY, nSize);
+
+
+        // Don't accept it if it can't get into a block
+        if(isDSTX) {
+            // Normally we would PrioritiseTransaction But currently it is unimplemented
+            // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
+        } else { // same as !ignoreFees for AcceptToMemoryPool
+            if (fLimitFree && nFees < txMinFee)
+                return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
+                            hash.ToString(),
+                            nFees, txMinFee);
+
+            // Continuously rate-limit free transactions
+            // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
+            // be annoying or make others' transactions take longer to confirm.
+            if (fLimitFree && nFees < GetMinTransactionFee(tx.nTime))
+            {
+                static CCriticalSection csFreeLimiter;
+                static double dFreeCount;
+                static int64_t nLastTime;
+                int64_t nNow = GetTime();
+
+                LOCK(csFreeLimiter);
+
+                // Use an exponentially decaying ~10-minute window:
+                dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
+                nLastTime = nNow;
+                // -limitfreerelay unit is thousand-bytes-per-minute
+                // At default rate it would take over a month to fill 1GB
+                if (dFreeCount > GetArg("-limitfreerelay", 15)*10*1000)
+                    return error("AcceptableInputs : free transaction rejected by rate limiter");
+                LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
+                dFreeCount += nSize;
+            }
+        }
+
+        // Check against previous transactions
+        // This is done last to help prevent CPU exhaustion denial-of-service attacks.
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, true, false, STANDARD_SCRIPT_VERIFY_FLAGS, false))
+        {
+            return error("AcceptableInputs : ConnectInputs failed %s", hash.ToString());
+        }
+    }
+
+
+    /*LogPrint("mempool", "AcceptableInputs : accepted %s (poolsz %u)\n",
+           hash.ToString(),
+           pool.mapTx.size());
+    */
+    return true;
+}
 
 
 int CMerkleTx::GetDepthInMainChainINTERNAL(CBlockIndex* &pindexRet) const
@@ -888,9 +1061,9 @@ int CMerkleTx::GetBlocksToMaturity() const
 }
 
 
-bool CMerkleTx::AcceptToMemoryPool(bool fLimitFree)
+bool CMerkleTx::AcceptToMemoryPool(bool fLimitFree, bool ignoreFees)
 {
-    return ::AcceptToMemoryPool(mempool, *this, fLimitFree, NULL);
+    return ::AcceptToMemoryPool(mempool, *this, fLimitFree, NULL, ignoreFees);
 }
 
 
@@ -934,6 +1107,25 @@ int CTxIndex::GetDepthInMainChain() const
     if (!pindex || !pindex->IsInMainChain())
         return 0;
     return 1 + nBestHeight - pindex->nHeight;
+}
+
+int GetInputAge(CTxIn& vin)
+{
+    const uint256& prevHash = vin.prevout.hash;
+    CTransaction tx;
+    uint256 hashBlock;
+    bool fFound = GetTransaction(prevHash, tx, hashBlock);
+    if(fFound)
+    {
+        if(mapBlockIndex.find(hashBlock) != mapBlockIndex.end())
+        {
+            return pindexBest->nHeight - mapBlockIndex[hashBlock]->nHeight;
+        }
+        else
+            return 0;
+    }
+    else
+        return 0;
 }
 
 // Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
@@ -1061,14 +1253,12 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d nHeight=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
-    if (pindexBest->nMoneySupply + nSubsidy > MAX_MONEY)
-        nSubsidy = (pindexBest->nMoneySupply + nSubsidy) - MAX_MONEY;
-
     return nSubsidy+ nFees;
 }
 
+
 // miner's coin base reward
-int64_t GetProofOfWorkReward(int nFees, int nHeight)
+int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
 {
     if (pindexBest->nMoneySupply >= MAX_MONEY)
         return nFees;
@@ -1083,14 +1273,11 @@ int64_t GetProofOfWorkReward(int nFees, int nHeight)
     if (nHeight == 1 && !TestNet())
         nSubsidy = 466025 * COIN; // Reward for merge chains
     else if (nHeight == 1 && TestNet())
-        nSubsidy = 29990000 * COIN;
+        nSubsidy = 5000000 * COIN;
     else
     {
-        nSubsidy = 50 * COIN;
+        nSubsidy = (TestNet() ? 500 : 50) * COIN;
         nSubsidy >>= nHalvings;
-
-        if (pindexBest->nMoneySupply + nSubsidy > MAX_MONEY)
-            nSubsidy = (pindexBest->nMoneySupply + nSubsidy) - MAX_MONEY;
     }
 
     return (nSubsidy + nFees);
@@ -1106,7 +1293,7 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t nA
 
 unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool fProofOfStake)
 {
-    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    /* current difficulty formula, dash - AnonGravity v3, written by Evan Duffield - evan@dash.org */
     const CBlockIndex *BlockLastSolved = pindexLast;
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
@@ -1416,7 +1603,7 @@ int64_t CTransaction::GetValueIn(const MapPrevTx& inputs) const
 }
 
 bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-    const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags)
+    const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags, bool fVerifySig)
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the blockchain
@@ -1479,7 +1666,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate())))
             {
                 // Verify signature
-                if (!VerifySignature(txPrev, *this, i, flags, 0))
+                if (fVerifySig && !VerifySignature(txPrev, *this, i, flags, 0))
                 {
                     if (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
                         // Check whether the failure was caused by a
@@ -1680,9 +1867,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     pindex->nMint = nValueOut - nValueIn + nFees;
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
-    if (pindex->nMoneySupply > MAX_MONEY)
-        pindex->nMoneySupply = MAX_MONEY;
-
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
         return error("Connect() : WriteBlockIndex for pindex failed");
 
@@ -1712,6 +1896,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     return true;
 }
+
 bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
 {
     LogPrintf("REORGANIZE\n");
@@ -2130,6 +2315,91 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
     }
 
+    // ----------- masternode payments -----------
+    bool MasternodePayments = false;
+    bool fIsInitialDownload = IsInitialBlockDownload();
+
+    if(nTime > START_MASTERNODE_PAYMENTS) MasternodePayments = true;
+    if (!fIsInitialDownload)
+    {
+        if(MasternodePayments)
+        {
+            LOCK2(cs_main, mempool.cs);
+
+            CBlockIndex *pindex = pindexBest;
+        if(pindex != NULL){
+                if(pindex->GetBlockHash() == hashPrevBlock){
+                    // If we don't already have its previous block, skip masternode payment step
+                    int64_t masternodePaymentAmount;
+                    if(IsProofOfStake()){
+                      for (int i = vtx[1].vout.size(); i--> 0; ) {
+                         masternodePaymentAmount = vtx[1].vout[i].nValue;
+                         break;
+                      }
+                    }
+                    if(IsProofOfWork()){
+                      for (int i = vtx[0].vout.size(); i--> 0; ) {
+                         masternodePaymentAmount = vtx[0].vout[i].nValue;
+                         break;
+                      }
+                    }
+                      bool foundPaymentAmount = false;
+                      bool foundPayee = false;
+                      bool foundPaymentAndPayee = false;
+
+                      CScript payee;
+                      CTxIn vin;
+                      if(!masternodePayments.GetBlockPayee(pindexBest->nHeight+1, payee, vin) || payee == CScript()){
+                          foundPayee = true; //doesn't require a specific payee
+                          foundPaymentAmount = true;
+                          foundPaymentAndPayee = true;
+                          if(fDebug) { LogPrintf("CheckBlock() : Using non-specific masternode payments %d\n", pindexBest->nHeight+1); }
+                      }
+
+                    if(IsProofOfStake()){
+                      for (unsigned int i = 0; i < vtx[1].vout.size(); i++) {
+                          if(vtx[1].vout[i].nValue == masternodePaymentAmount )
+                              foundPaymentAmount = true;
+                          if(vtx[1].vout[i].scriptPubKey == payee )
+                              foundPayee = true;
+                          if(vtx[1].vout[i].nValue == masternodePaymentAmount && vtx[1].vout[i].scriptPubKey == payee)
+                              foundPaymentAndPayee = true;
+                      }
+                    }
+                    if(IsProofOfWork()){
+                      for (unsigned int i = 0; i < vtx[0].vout.size(); i++) {
+                          if(vtx[0].vout[i].nValue == masternodePaymentAmount )
+                              foundPaymentAmount = true;
+                          if(vtx[0].vout[i].scriptPubKey == payee )
+                              foundPayee = true;
+                          if(vtx[0].vout[i].nValue == masternodePaymentAmount && vtx[0].vout[i].scriptPubKey == payee)
+                              foundPaymentAndPayee = true;
+                      }
+                    }
+
+                    CTxDestination address1;
+                    ExtractDestination(payee, address1);
+                    CGalaxyCashAddress address2(address1);
+
+                    if(!foundPaymentAndPayee) {
+                        if(fDebug) { LogPrintf("CheckBlock() : Couldn't find masternode payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1); }
+                        return DoS(100, error("CheckBlock() : Couldn't find masternode payment or payee"));
+                    } else {
+                        LogPrintf("CheckBlock() : Found payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1);
+                    }
+                } else {
+                    if(fDebug) { LogPrintf("CheckBlock() : Skipping masternode payment check - nHeight %d Hash %s\n", pindexBest->nHeight+1, GetHash().ToString().c_str()); }
+                }
+            } else {
+                if(fDebug) { LogPrintf("CheckBlock() : pindex is null, skipping masternode payment check\n"); }
+            }
+        } else {
+            if(fDebug) { LogPrintf("CheckBlock() : skipping masternode payment checks\n"); }
+        }
+    } else {
+        if(fDebug) { LogPrintf("CheckBlock() : Is initial download, skipping masternode payment check %d\n", pindexBest->nHeight+1); }
+    }
+
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, vtx)
     {
@@ -2321,6 +2591,15 @@ void PushGetBlocks(CNode* pnode, CBlockIndex* pindexBegin, uint256 hashEnd)
     pnode->PushMessage("getblocks", CBlockLocator(pindexBegin), hashEnd);
 }
 
+int GetHeight()
+{
+    while(true){
+        TRY_LOCK(cs_main, lockMain);
+        if(!lockMain) { MilliSleep(50); continue; }
+        return pindexBest->nHeight;
+    }
+}
+
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
@@ -2345,6 +2624,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
+
 
 
     if (pblock->IsProofOfStake())
@@ -2438,6 +2718,45 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
+    if(!IsInitialBlockDownload()){
+
+        CScript payee;
+        CTxIn vin;
+
+        // If we're in LiteMode disable anonsend features without disabling masternodes
+        if (!fLiteMode && !fImporting && !fReindex && pindexBest->nHeight > Checkpoints::GetTotalBlocksEstimate()){
+
+            if(masternodePayments.GetBlockPayee(pindexBest->nHeight, payee, vin)){
+                //UPDATE MASTERNODE LAST PAID TIME
+                CMasternode* pmn = mnodeman.Find(vin);
+                if(pmn != NULL) {
+                    pmn->nLastPaid = GetAdjustedTime();
+                }
+
+                LogPrintf("ProcessBlock() : Update Masternode Last Paid Time - %d\n", pindexBest->nHeight);
+            }
+
+            anonSendPool.CheckTimeout();
+            anonSendPool.NewBlock();
+            masternodePayments.ProcessBlock(GetHeight()+10);
+
+        } else if (fLiteMode && !fImporting && !fReindex && pindexBest->nHeight > Checkpoints::GetTotalBlocksEstimate())
+        {
+            if(masternodePayments.GetBlockPayee(pindexBest->nHeight, payee, vin)){
+                //UPDATE MASTERNODE LAST PAID TIME
+                CMasternode* pmn = mnodeman.Find(vin);
+                if(pmn != NULL) {
+                    pmn->nLastPaid = GetAdjustedTime();
+                }
+
+                LogPrintf("ProcessBlock() : Update Masternode Last Paid Time - %d\n", pindexBest->nHeight);
+            }
+
+            masternodePayments.ProcessBlock(GetHeight()+10);
+        }
+
+    }
+
     LogPrintf("ProcessBlock: ACCEPTED (%s, %s)\n", pblock->IsProofOfStake() ? "PoS" : "PoW", GetAlgorithmName(pblock->GetAlgorithm()));
 
     return true;
@@ -2515,26 +2834,6 @@ bool CBlock::CheckBlockSignature() const
     {
         valtype& vchPubKey = vSolutions[0];
         return CPubKey(vchPubKey).Verify(GetHash(), vchBlockSig);
-    }
-    else
-    {
-        // Block signing key also can be encoded in the nonspendable output
-        // This allows to not pollute UTXO set with useless outputs e.g. in case of multisig staking
-
-        const CScript& script = txout.scriptPubKey;
-        CScript::const_iterator pc = script.begin();
-        opcodetype opcode;
-        valtype vchPushValue;
-
-        if (!script.GetOp(pc, opcode, vchPushValue))
-            return false;
-        if (opcode != OP_RETURN)
-            return false;
-        if (!script.GetOp(pc, opcode, vchPushValue))
-            return false;
-        if (!IsCompressedOrUncompressedPubKey(vchPushValue))
-            return false;
-        return CPubKey(vchPushValue).Verify(GetHash(), vchBlockSig);
     }
 
     return false;
@@ -2870,6 +3169,8 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
 {
     switch (inv.type)
     {
+    case MSG_DSTX:
+        return mapAnonsendBroadcastTxes.count(inv.hash);
     case MSG_TX:
         {
         bool txInMap = false;
@@ -2882,6 +3183,10 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
     case MSG_BLOCK:
         return mapBlockIndex.count(inv.hash) ||
                mapOrphanBlocks.count(inv.hash);
+    case MSG_SPORK:
+        return mapSporks.count(inv.hash);
+    case MSG_MASTERNODE_WINNER:
+        return mapSeenMasternodeVotes.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -2954,6 +3259,38 @@ void static ProcessGetData(CNode* pfrom)
                         pushed = true;
                     }
                 }
+                if (!pushed && inv.type == MSG_SPORK) {
+                    if(mapSporks.count(inv.hash)){
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapSporks[inv.hash];
+                        pfrom->PushMessage("spork", ss);
+                        pushed = true;
+                    }
+                }
+                if (!pushed && inv.type == MSG_MASTERNODE_WINNER) {
+                    if(mapSeenMasternodeVotes.count(inv.hash)){
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapSeenMasternodeVotes[inv.hash];
+                        pfrom->PushMessage("mnw", ss);
+                        pushed = true;
+                    }
+                }
+                if (!pushed && inv.type == MSG_DSTX) {
+                    if(mapAnonsendBroadcastTxes.count(inv.hash)){
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss <<
+                            mapAnonsendBroadcastTxes[inv.hash].tx <<
+                            mapAnonsendBroadcastTxes[inv.hash].vin <<
+                            mapAnonsendBroadcastTxes[inv.hash].vchSig <<
+                            mapAnonsendBroadcastTxes[inv.hash].sigTime;
+
+                        pfrom->PushMessage("dstx", ss);
+                        pushed = true;
+                    }
+                }
                 if (!pushed) {
                     vNotFound.push_back(inv);
                 }
@@ -2990,6 +3327,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
+
+    LogPrintf("Processing command %s\n", strCommand.c_str());
 
     if (strCommand == "version")
     {
@@ -3274,65 +3613,84 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
     }
 
-    else if (strCommand == "getheaders")
-    {
-        CBlockLocator locator;
-        uint256 hashStop;
-        vRecv >> locator >> hashStop;
-
-        LOCK(cs_main);
-
-        CBlockIndex* pindex = NULL;
-        if (locator.IsNull())
-        {
-            // If locator is null, return the hashStop block
-            map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashStop);
-            if (mi == mapBlockIndex.end())
-                return true;
-            pindex = (*mi).second;
-        }
-        else
-        {
-            // Find the last block the caller has in the main chain
-            pindex = locator.GetBlockIndex();
-            if (pindex)
-                pindex = pindex->pnext;
-        }
-
-        vector<CBlock> vHeaders;
-        int nLimit = 2000;
-        LogPrint("net", "getheaders %d to %s\n", (pindex ? pindex->nHeight : -1), hashStop.ToString());
-        for (; pindex; pindex = pindex->pnext)
-        {
-            vHeaders.push_back(pindex->GetBlockHeader());
-            if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
-                break;
-        }
-        pfrom->PushMessage("headers", vHeaders);
-    }
-
-
-    else if (strCommand == "tx")
+    else if (strCommand == "tx"|| strCommand == "dstx")
     {
         vector<uint256> vWorkQueue;
         vector<uint256> vEraseQueue;
         CTransaction tx;
-        vRecv >> tx;
 
-        CInv inv(MSG_TX, tx.GetHash());
+        //masternode signed transaction
+        bool ignoreFees = false;
+        CTxIn vin;
+        CInv inv;
+        vector<unsigned char> vchSig;
+        int64_t sigTime;
+        CTxDB txdb("r");
+
+        if(strCommand == "tx") {
+            vRecv >> tx;
+            inv = CInv(MSG_TX, tx.GetHash());
+            // Check for recently rejected (and do other quick existence checks)
+            if (AlreadyHave(txdb, inv))
+                return true;
+        } else if (strCommand == "dstx") {
+            vRecv >> tx >> vin >> vchSig >> sigTime;
+            inv = CInv(MSG_DSTX, tx.GetHash());
+            // Check for recently rejected (and do other quick existence checks)
+            if (AlreadyHave(txdb, inv))
+                return true;
+            //these allow masternodes to publish a limited amount of free transactions
+            CMasternode* pmn = mnodeman.Find(vin);
+            if(pmn != NULL)
+            {
+                if(!pmn->allowFreeTx){
+                    //multiple peers can send us a valid masternode transaction
+                    if(fDebug) LogPrintf("dstx: Masternode sending too many transactions %s\n", tx.GetHash().ToString().c_str());
+                    return true;
+                }
+
+                std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+
+                std::string errorMessage = "";
+                if(!anonSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage)){
+                    LogPrintf("dstx: Got bad masternode address signature %s \n", vin.ToString().c_str());
+                    //pfrom->Misbehaving(20);
+                    return false;
+                }
+
+                LogPrintf("dstx: Got Masternode transaction %s\n", tx.GetHash().ToString().c_str());
+
+                ignoreFees = true;
+                pmn->allowFreeTx = false;
+
+                if(!mapAnonsendBroadcastTxes.count(tx.GetHash())){
+                    CAnonsendBroadcastTx dstx;
+                    dstx.tx = tx;
+                    dstx.vin = vin;
+                    dstx.vchSig = vchSig;
+                    dstx.sigTime = sigTime;
+
+                    mapAnonsendBroadcastTxes.insert(make_pair(tx.GetHash(), dstx));
+                }
+            }
+        }
+
+
+
+
         pfrom->AddInventoryKnown(inv);
 
         LOCK(cs_main);
 
         bool fMissingInputs = false;
-
+        pfrom->AskFor(inv);
         mapAlreadyAskedFor.erase(inv);
 
-        if (AcceptToMemoryPool(mempool, tx, true, &fMissingInputs))
+        if (AcceptToMemoryPool(mempool, tx, true, &fMissingInputs, ignoreFees))
         {
             RelayTransaction(tx, inv.hash);
             vWorkQueue.push_back(inv.hash);
-            vEraseQueue.push_back(inv.hash);
+
 
             // Recursively process any orphan transactions that depended on this one
             for (unsigned int i = 0; i < vWorkQueue.size(); i++)
@@ -3348,6 +3706,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     CTransaction& orphanTx = mapOrphanTransactions[orphanTxHash];
                     bool fMissingInputs2 = false;
 
+
+
+
+
+
                     if (AcceptToMemoryPool(mempool, orphanTx, true, &fMissingInputs2))
                     {
                         LogPrint("mempool", "   accepted orphan tx %s\n", orphanTxHash.ToString());
@@ -3357,7 +3720,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     }
                     else if (!fMissingInputs2)
                     {
-                        // invalid or too-little-fee orphan
+                        // Has inputs but not accepted to mempool
+                        // Probably non-standard or insufficient fee/priority
                         vEraseQueue.push_back(orphanTxHash);
                         LogPrint("mempool", "   removed orphan tx %s\n", orphanTxHash.ToString());
                     }
@@ -3376,27 +3740,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             if (nEvicted > 0)
                 LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
         }
-        if (tx.nDoS) pfrom->Misbehaving(tx.nDoS);
-    }
-
-
-    else if (strCommand == "newblock")
-    {
-        if (GetBoolArg("-master", false))
-        {
-            CBlock block;
-            vRecv >> block;
-            uint256 hashBlock = block.GetHash();
-
-            LogPrint("net", "received new block %s\n", hashBlock.ToString());
-
-            LOCK(cs_main);
-
-            if (ProcessBlock(NULL, &block))
-                pfrom->PushMessage("block", block);
-
-            if (block.nDoS) pfrom->Misbehaving(block.nDoS);
+        if(strCommand == "dstx"){
+            inv = CInv(MSG_DSTX, tx.GetHash());
+            RelayInventory(inv);
         }
+        if (tx.nDoS) pfrom->Misbehaving(tx.nDoS);
     }
 
     else if (strCommand == "block" && !fImporting && !fReindex) // Ignore blocks received while importing
@@ -3534,6 +3882,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     else
     {
+        LogPrintf("Prcessing command %s\n", strCommand);
+
+        anonSendPool.ProcessMessageAnonsend(pfrom, strCommand, vRecv);
+        mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
+        ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
+        ProcessSpork(pfrom, strCommand, vRecv);
+
         // Ignore unknown commands for extensibility
     }
 
@@ -3841,4 +4196,34 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
     }
     return true;
+}
+
+int static generateMTRandom(unsigned int s, int range)
+{
+    random::mt19937 gen(s);
+    random::uniform_int_distribution<> dist(0, range);
+    return dist(gen);
+}
+
+int randreward()
+{
+    // Superblock calculations
+    uint256 prevHash = 0;
+    if(pindexBest->pprev)
+        prevHash = pindexBest->pprev->GetBlockHash();
+    std::string cseed_str = prevHash.ToString().substr(7,7);
+    const char* cseed = cseed_str.c_str();
+    long seed = hex2long(cseed);
+    int rand1 = generateMTRandom(seed, 1000000);
+    return rand1;
+}
+
+// Define masternode payment value
+int64_t GetMasternodePayment(int nHeight, int64_t blockValue)
+{
+    int64_t ret = blockValue * 1/6; // 1/6th
+    ret = blockValue * 5/6; // 5/6th
+    if(randreward() <= 5000) // 5% Chance of superblock
+    ret = blockValue * 4/6; // 4/6th
+    return ret;
 }

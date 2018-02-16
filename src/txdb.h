@@ -3,9 +3,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GCH_TXDB_H
-#define GCH_TXDB_H
+#ifndef GALAXYCASH_TXDB_H
+#define GALAXYCASH_TXDB_H
 
 #include "txdb-leveldb.h"
 
-#endif  // GCH_TXDB_H
+#endif  // GALAXYCASH_TXDB_H
+

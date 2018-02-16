@@ -54,6 +54,21 @@ void OptionsModel::Init()
         SoftSetArg("-proxy", settings.value("addrProxy").toString().toStdString());
     if (!language.isEmpty())
         SoftSetArg("-lang", language.toStdString());
+
+
+    // Anon Send
+    if (!settings.contains("nAnonsendRounds"))
+        settings.setValue("nAnonsendRounds", nAnonsendRounds);
+    nAnonsendRounds = settings.value("nAnonsendRounds").toLongLong();
+    if (!settings.contains("nAnonymizeAmount"))
+        settings.setValue("nAnonymizeAmount", nAnonymizeAmount);
+    nAnonymizeAmount = settings.value("nAnonymizeAmount").toLongLong();
+    if (settings.contains("nAnonsendRounds"))
+        SoftSetArg("-anonsendrounds", settings.value("nAnonsendRounds").toString().toStdString());
+    if (settings.contains("nAnonymizeAmount"))
+        SoftSetArg("-anonymizeamount", settings.value("nAnonymizeAmount").toString().toStdString());
+
+
 }
 
 int OptionsModel::rowCount(const QModelIndex & parent) const
@@ -102,6 +117,10 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language", "");
         case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
+        case AnonsendRounds:
+            return QVariant(nAnonsendRounds);
+        case AnonymizeAmount:
+            return QVariant(nAnonymizeAmount);
         default:
             return QVariant();
         }
@@ -180,6 +199,16 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             }
+            break;
+        case AnonsendRounds:
+            nAnonsendRounds = value.toInt();
+            settings.setValue("nAnonsendRounds", nAnonsendRounds);
+            emit anonsendRoundsChanged(nAnonsendRounds);
+            break;
+        case AnonymizeAmount:
+            nAnonymizeAmount = value.toInt();
+            settings.setValue("nAnonymizeAmount", nAnonymizeAmount);
+            emit anonymizeAmountChanged(nAnonymizeAmount);
             break;
         default:
             break;

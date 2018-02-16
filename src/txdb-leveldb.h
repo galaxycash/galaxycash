@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GCH_LEVELDB_H
-#define GCH_LEVELDB_H
+#ifndef GALAXYCASH_LEVELDB_H
+#define GALAXYCASH_LEVELDB_H
 
 #include "main.h"
 
@@ -207,4 +207,5 @@ private:
 };
 
 
-#endif // GCH_DB_H
+#endif // GALAXYCASH_DB_H
+

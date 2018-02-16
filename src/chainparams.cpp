@@ -103,6 +103,9 @@ public:
 
         hashGenesisBlock = genesis.GetHash();
 
+        nPoolMaxTransactions = 3;
+        strAnonsendPoolDummyAddress = "GMY5kZMSgtJs22VDiQKtYMYcapy4FKaBVu";
+
         assert(hashGenesisBlock == uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468"));
         assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
@@ -156,7 +159,7 @@ public:
         pchMessageStart[3] = 0x4e;
 
         // POW
-        fPOWNoRetargeting = GetBoolArg("-pownoretargeting", false);
+        fPOWNoRetargeting = GetBoolArg("-pownoretargeting", true);
 
         // Merge params
         nMergeFirstBlock = nMergeLastBlock = 0;
@@ -259,3 +262,4 @@ bool SelectParamsFromCommandLine() {
 
     return true;
 }
+

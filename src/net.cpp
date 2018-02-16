@@ -490,6 +490,11 @@ bool CNode::Misbehaving(int howmuch)
     return false;
 }
 
+int CNode::GetMisbehavior() const
+{
+    return nMisbehavior;
+}
+
 #undef X
 #define X(name) stats.name = name
 void CNode::copyStats(CNodeStats &stats)
@@ -1845,3 +1850,4 @@ bool CAddrDB::Read(CAddrMan& addr)
 
     return true;
 }
+

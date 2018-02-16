@@ -14,7 +14,7 @@
 #include "script.h"
 #include "hash.h"
 #include "kernel.h"
-
+#include "chainparams.h"
 #include <limits>
 #include <list>
 
@@ -26,8 +26,11 @@ class CNode;
 class CReserveKey;
 class CWallet;
 
+#define START_MASTERNODE_PAYMENTS_TEST 1515086697
+#define START_MASTERNODE_PAYMENTS 1515086697
 #define START_MASTERNODE_PAYMENTS_TESTNET 1515086697
 #define START_MASTERNODE_PAYMENTS 1515086697
+#define REWARD_MN_POW_SWITCH_TIME 1515086697
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 4000000;
@@ -47,10 +50,6 @@ static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 40;
 /** The maximum number of entries in an 'inv' protocol message */
 static const unsigned int MAX_INV_SZ = 50000;
-/** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */
-static const int64_t MIN_TX_FEE = 100;
-/** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
-static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 /** PoS Reward Fixed */
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 /** PoS Superblock Reward */
@@ -101,13 +100,25 @@ extern bool fLiteMode;
 extern int nAnonsendRounds;
 extern int nAnonymizeAmount;
 extern int nLiquidityProvider;
-extern bool fEnableDarksend;
+extern bool fEnableAnonsend;
 extern int64_t enforceMasternodePaymentsTime;
 extern std::string strMasterNodeAddr;
 extern int nMasternodeMinProtocol;
+extern bool fMasternodeSoftLock;
 extern int keysLoaded;
 extern bool fSucessfullyLoaded;
-extern std::vector<int64_t> darkSendDenominations;
+extern std::vector<int64_t> anonSendDenominations;
+
+inline int64_t GetMinTransactionFee(int64_t nTime = 0)
+{
+    if (nTime <= 0)
+        nTime = GetAdjustedTime();
+
+    if (nTime >= 1525132800 || TestNet()) // after 05/01/2018 @ 12:00am (UTC) switch to 0.005 txfee
+        return COIN * 0.005;
+
+    return 100;
+}
 
 // Settings
 extern bool fUseFastIndex;
@@ -153,7 +164,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
 bool IsMergeBlock(const unsigned int nHeight);
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool ProofOfStake);
-int64_t GetProofOfWorkReward(int nFees, int nHeight);
+int64_t GetProofOfWorkReward(int64_t nFees, int nHeight);
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees);
 bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
@@ -166,11 +177,12 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue);
 
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
-                        bool* pfMissingInputs);
+                        bool* pfMissingInputs, bool ignoreFees=false);
+bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree,
+                        bool* pfMissingInputs, bool isDSTX=false);
 
 
-
-
+int GetInputAge(CTxIn& vin);
 
 
 
@@ -419,7 +431,7 @@ public:
      */
     bool ConnectInputs(CTxDB& txdb, MapPrevTx inputs,
                        std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-                       const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags = STANDARD_SCRIPT_VERIFY_FLAGS);
+                       const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags = STANDARD_SCRIPT_VERIFY_FLAGS, bool fValidateSig = true);
     bool CheckTransaction() const;
     bool GetCoinAge(CTxDB& txdb, const CBlockIndex* pindexPrev, uint64_t& nCoinAge) const;
 
@@ -523,7 +535,7 @@ public:
     int GetDepthInMainChain() const { CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet); }
     bool IsInMainChain() const { CBlockIndex *pindexRet; return GetDepthInMainChainINTERNAL(pindexRet) > 0; }
     int GetBlocksToMaturity() const;
-    bool AcceptToMemoryPool(bool fLimitFree=true);
+    bool AcceptToMemoryPool(bool fLimitFree=true, bool ignoreFees=false);
 };
 
 
@@ -1483,14 +1495,70 @@ public:
     }
 };
 
+bool AbortNode(const std::string &strMessage, const std::string &userMessage="");
 
-
-
-
-
-
-
-
+/** Capture information about block/transaction validation */
+class CValidationState {
+private:
+    enum mode_state {
+        MODE_VALID,   //! everything ok
+        MODE_INVALID, //! network rule violation (DoS value may be set)
+        MODE_ERROR,   //! run-time error
+    } mode;
+    int nDoS;
+    std::string strRejectReason;
+    unsigned char chRejectCode;
+    bool corruptionPossible;
+public:
+    CValidationState() : mode(MODE_VALID), nDoS(0), chRejectCode(0), corruptionPossible(false) {}
+    bool DoS(int level, bool ret = false,
+             unsigned char chRejectCodeIn=0, std::string strRejectReasonIn="",
+             bool corruptionIn=false) {
+        chRejectCode = chRejectCodeIn;
+        strRejectReason = strRejectReasonIn;
+        corruptionPossible = corruptionIn;
+        if (mode == MODE_ERROR)
+            return ret;
+        nDoS += level;
+        mode = MODE_INVALID;
+        return ret;
+    }
+    bool Invalid(bool ret = false,
+                 unsigned char _chRejectCode=0, std::string _strRejectReason="") {
+        return DoS(0, ret, _chRejectCode, _strRejectReason);
+    }
+    bool Error(std::string strRejectReasonIn="") {
+        if (mode == MODE_VALID)
+            strRejectReason = strRejectReasonIn;
+        mode = MODE_ERROR;
+        return false;
+    }
+    bool Abort(const std::string &msg) {
+        AbortNode(msg);
+        return Error(msg);
+    }
+    bool IsValid() const {
+        return mode == MODE_VALID;
+    }
+    bool IsInvalid() const {
+        return mode == MODE_INVALID;
+    }
+    bool IsError() const {
+        return mode == MODE_ERROR;
+    }
+    bool IsInvalid(int &nDoSOut) const {
+        if (IsInvalid()) {
+            nDoSOut = nDoS;
+            return true;
+        }
+        return false;
+    }
+    bool CorruptionPossible() const {
+        return corruptionPossible;
+    }
+    unsigned char GetRejectCode() const { return chRejectCode; }
+    std::string GetRejectReason() const { return strRejectReason; }
+};
 
 class CWalletInterface {
 protected:
@@ -1506,3 +1574,4 @@ protected:
 };
 
 #endif
+

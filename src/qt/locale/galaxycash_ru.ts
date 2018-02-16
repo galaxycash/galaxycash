@@ -321,6 +321,11 @@ This product includes software developed by the OpenSSL Project for use in the O
         <translation>&amp;Транзакции</translation>
     </message>
     <message>
+    <location line="+17"/>
+    <source>&amp;Masternodes</source>
+    <translation>&amp;Мастерноды</translation>
+    </message>
+    <message>
         <location line="+1"/>
         <source>Browse transaction history</source>
         <translation>Показать историю транзакций</translation>
@@ -1330,10 +1335,78 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <translation>Бумажник</translation>
     </message>
     <message>
+        <source>Anonsend</source>
+        <translation>Анонимность</translation>
+    </message> 
+    <message>
+        <source>Status:</source>
+        <translation>Статус:</translation>
+    </message> 
+    <message>
+        <source>Enabled</source>
+        <translation>Включено</translation>
+    </message>
+    <message>
+        <source>Try Mix</source>
+        <translation>Попытатся перемешать</translation>
+    </message>
+    <message>
+        <source>Start Anonsend Mixing</source>
+        <translation>Начать перемешивание</translation>
+    </message>
+    <message>
+        <source>Stop Anonsend Mixing</source>
+        <translation>Остановить перемешивание</translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation>Сбросить статус</translation>
+    </message>
+    <message>
+        <source>Last Message</source>
+        <translation>Последнее сообщение</translation>
+    </message>
+    <message>
+        <source>Last Anonsend message:</source>
+        <translation>Последнее сообщение:</translation>
+    </message>
+    <message>
+        <source>Submitted to masternode, waiting in queue</source>
+        <translation>Отправлено мастерноде, ждём в очереди</translation>
+    </message>
+    <message>
+        <source>Anonsend is idle.</source>
+        <translation>В простое</translation>
+    </message>   
+    <message>
+        <source>(Last Message)</source>
+        <translation>(Последнее сообщение)</translation>
+    </message>    
+    <message>
+        <source>Disabled</source>
+        <translation>Выключено</translation>
+    </message>
+    <message>
+        <source>Completion:</source>
+        <translation>Завершено:</translation>
+    </message>
+    <message>
         <location line="+49"/>
         <source>Spendable:</source>
         <translation>Доступно:</translation>
     </message>
+    <message>
+        <source>Anonsend Balance:</source>
+        <translation>Анонимный баланс:</translation>
+    </message>
+    <message>
+        <source>Amount and Rounds:</source>
+        <translation>Количиство и Раунды:</translation>
+    </message> 
+    <message>
+        <source>Submitted Denom:</source>
+        <translation>Отправлено для перемешивания:</translation>
+    </message>               
     <message>
         <location line="+16"/>
         <source>Your current spendable balance</source>

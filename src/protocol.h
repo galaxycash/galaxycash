@@ -125,3 +125,4 @@ class CInv
 };
 
 #endif // __INCLUDED_PROTOCOL_H__
+

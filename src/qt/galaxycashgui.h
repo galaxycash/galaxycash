@@ -18,6 +18,7 @@ class SignVerifyMessageDialog;
 class Notificator;
 class RPCConsole;
 class BlockBrowser;
+class MasternodeManager;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -70,6 +71,7 @@ private:
     AddressBookPage *receiveCoinsPage;
     SendCoinsDialog *sendCoinsPage;
     SignVerifyMessageDialog *signVerifyMessageDialog;
+    MasternodeManager *masternodeManagerPage;
 
     QLabel *labelEncryptionIcon;
     QLabel *labelConnectionsIcon;
@@ -101,6 +103,7 @@ private:
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
     QAction *blockAction;
+    QAction *masternodeManagerAction;
     QPushButton *stakingButton;
 
     QSystemTrayIcon *trayIcon;
@@ -167,6 +170,8 @@ private slots:
     void gotoSendCoinsPage();
     /** Show block explorer page */
     void gotoBlockBrowser(QString transactionId = "");
+    /** Switch to masternode manager page*/
+    void gotoMasternodeManagerPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

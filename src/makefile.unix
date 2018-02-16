@@ -1,4 +1,5 @@
 # Copyright (c) 2009-2010 Satoshi Nakamoto
+# Copyright (c) 2017-2018 The GalaxyCash developers
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -151,7 +152,15 @@ OBJS= \
     obj/simd.o \
     obj/ripemd.o \
     obj/skein.o \
-    obj/blake2s-ref.o
+    obj/blake2s-ref.o \
+    obj/masternode.o \
+    obj/activemasternode.o \
+    obj/masternodeman.o \
+    obj/masternodeconfig.o \
+    obj/masternode-payments.o \
+    obj/rpcanonsend.o \
+    obj/anonsend.o \
+    obj/anonsend-relay.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET

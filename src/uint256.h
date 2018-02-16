@@ -923,4 +923,5 @@ inline int Testuint256AdHoc(std::vector<std::string> vArg)
 // Temporary for migration to opaque uint160/256
 inline uint256 uint256S(const std::string &x) { return uint256(x); }
 
-#endif // GCH_UINT256_H
+#endif // GALAXYCASH_UINT256_H
+

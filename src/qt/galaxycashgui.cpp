@@ -34,6 +34,7 @@
 #include "ui_interface.h"
 #include "miner.h"
 #include "blockbrowser.h"
+#include "masternodemanager.h"
 
 #ifdef Q_OS_MAC
 #include "macdockiconhandler.h"
@@ -133,6 +134,8 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
 
     signVerifyMessageDialog = new SignVerifyMessageDialog(this);
 
+    masternodeManagerPage = new MasternodeManager(this);
+
     centralStackedWidget = new QStackedWidget(this);
     centralStackedWidget->addWidget(overviewPage);
     centralStackedWidget->addWidget(transactionsPage);
@@ -140,6 +143,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     centralStackedWidget->addWidget(receiveCoinsPage);
     centralStackedWidget->addWidget(sendCoinsPage);
     centralStackedWidget->addWidget(blockBrowser);
+    centralStackedWidget->addWidget(masternodeManagerPage);
 
     QWidget *centralWidget = new QWidget();
     QVBoxLayout *centralLayout = new QVBoxLayout(centralWidget);
@@ -276,6 +280,11 @@ void GalaxyCashGUI::createActions()
     addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
     tabGroup->addAction(addressBookAction);
 
+    masternodeManagerAction = new QAction(QIcon(":/icons/mnnodes"), tr("&Masternodes"), this);
+    masternodeManagerAction->setToolTip(tr("Show Master Nodes status and configure your nodes."));
+    masternodeManagerAction->setCheckable(true);
+    tabGroup->addAction(masternodeManagerAction);
+
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -286,6 +295,8 @@ void GalaxyCashGUI::createActions()
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
     connect(addressBookAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(addressBookAction, SIGNAL(triggered()), this, SLOT(gotoAddressBookPage()));
+    connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(gotoMasternodeManagerPage()));
 
     quitAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/quit" : ":/icons/quit"), tr("E&xit"), this);
     quitAction->setToolTip(tr("Quit application"));
@@ -400,7 +411,7 @@ void GalaxyCashGUI::createToolBars()
     toolbar->addAction(addressBookAction);
     toolbar->addAction(blockAction);
     toolbar->addAction(openRPCConsoleAction);
-
+    toolbar->addAction(masternodeManagerAction);
     toolbar->addWidget(makeToolBarSpacer());
 
     QWidget* mineWidget = new QWidget();
@@ -796,6 +807,15 @@ void GalaxyCashGUI::incomingTransaction(const QModelIndex & parent, int start, i
                               .arg(address), icon);
         }
     }
+}
+
+void GalaxyCashGUI::gotoMasternodeManagerPage()
+{
+    masternodeManagerAction->setChecked(true);
+    centralStackedWidget->setCurrentWidget(masternodeManagerPage);
+
+    exportAction->setEnabled(false);
+    disconnect(exportAction, SIGNAL(triggered()), 0, 0);
 }
 
 void GalaxyCashGUI::gotoOverviewPage()

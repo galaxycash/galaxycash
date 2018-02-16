@@ -19,6 +19,8 @@ using namespace std;
 using namespace boost::assign;
 
 extern double GetDifficultyFromBits(unsigned int nBits);
+extern double GetDifficultyForAlgorithm(int nAlgo);
+extern double GetDifficultyForPOS();
 
 // Key used by getwork/getblocktemplate miners.
 // Allocated in InitRPCMining, free'd in ShutdownRPCMining
@@ -141,7 +143,7 @@ Value getnetworkhashps(const Array& params, bool fHelp)
             "x             (numeric) Hashes per second estimated\n"
        );
 
-    return (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS());
+    return (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS()) * 2000.0;
 }
 
 Value getnetworkhashrate(const Array& params, bool fHelp)
@@ -235,8 +237,8 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
 
-    diff.push_back(Pair("proof-of-work",        GetDifficultyFromBits(GetLastBlockIndex(pindexBest, nMiningAlgo, false)->nBits)));
-    diff.push_back(Pair("proof-of-stake",       GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    diff.push_back(Pair("proof-of-work",        GetDifficultyForAlgorithm(nMiningAlgo)));
+    diff.push_back(Pair("proof-of-stake",       GetDifficultyForPOS()));
     diff.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
     obj.push_back(Pair("difficulty",    diff));
 
@@ -280,7 +282,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
-    obj.push_back(Pair("difficulty", GetDifficultyFromBits(GetLastBlockIndex(pindexBest, CBlock::ALGO_X12, true)->nBits)));
+    obj.push_back(Pair("difficulty", GetDifficultyForPOS()));
     obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));

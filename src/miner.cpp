@@ -13,6 +13,8 @@
 #include "walletdb.h"
 #include "init.h"
 #include <openssl/sha.h>
+#include "masternodeman.h"
+#include "masternode-payments.h"
 
 using namespace std;
 
@@ -127,6 +129,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
     txNew.vin[0].prevout.SetNull();
 
 
+
     if (!fProofOfStake)
     {
         txNew.vout.resize(1);
@@ -137,7 +140,37 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
             if (!reservekey.GetReservedKey(pubkey))
                 return NULL;
         }
-        txNew.vout[0].scriptPubKey.SetDestination(GetBoolArg("-usedefaultkey", false) ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
+        txNew.vout[0].scriptPubKey.SetDestination(GetBoolArg("-usedefaultkey", true) ? pwalletMain->vchDefaultKey.GetID() : pubkey.GetID());
+        if (GetTime() > REWARD_MN_POW_SWITCH_TIME){
+            bool hasPayment = true;
+            CScript payee;
+            CTxIn vin;
+
+            //spork
+            if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin))
+            {
+                //no masternode detected
+                CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
+                if(winningNode){
+                    payee = GetScriptForDestination(winningNode->pubkey.GetID());
+                } else {
+                    LogPrintf("CreateNewBlock PoW: Failed to detect masternode to pay\n");
+                    hasPayment = false;
+                }
+            }
+
+            if(hasPayment)
+            {
+                txNew.vout.resize(2);
+                txNew.vout[1].scriptPubKey = payee;
+
+                CTxDestination address1;
+                ExtractDestination(payee, address1);
+                CGalaxyCashAddress address2(address1);
+
+                LogPrintf("PoW Masternode payment to %s\n", address2.ToString().c_str());
+            }
+        }
     }
     else
     {
@@ -176,10 +209,6 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
     // a transaction spammer can cheaply fill blocks using
     // 1-satoshi-fee transactions. It should be set above the real
     // cost to you of processing a transaction.
-    int64_t nMinTxFee = MIN_TX_FEE;
-    if (mapArgs.count("-mintxfee"))
-        ParseMoney(mapArgs["-mintxfee"], nMinTxFee);
-
     pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), fProofOfStake);
 
     // Collect memory pool transactions into the block
@@ -301,7 +330,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
             int64_t nMinFee = GetMinFee(nHeight, tx, nBlockSize, GMF_BLOCK);
 
             // Skip free transactions if we're past the minimum block size:
-            if (fSortedByFee && (dFeePerKb < nMinTxFee) && (nBlockSize + nTxSize >= nBlockMinSize))
+            if (fSortedByFee && (dFeePerKb < nMinFee) && (nBlockSize + nTxSize >= nBlockMinSize))
                 continue;
 
             // Prioritize by fee once past the priority size or we run out of high-priority
@@ -377,7 +406,25 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
         if (fDebug && GetBoolArg("-printpriority", false))
             LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
-        if (!fProofOfStake)
+
+        if (!fProofOfStake && txNew.vout.size() == 2)
+        {
+
+            int64_t nblockValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
+            int64_t nmasternodePayment = (nblockValue - nFees) / 100 * 15;
+
+            if (!fProofOfStake){
+                int64_t blockValue = nblockValue - nmasternodePayment;
+                int64_t masternodePayment = nmasternodePayment;
+
+                txNew.vout[1].nValue = masternodePayment;
+                txNew.vout[0].nValue = blockValue;
+
+                pblock->vtx[0].vout[0].nValue = blockValue;
+                pblock->vtx[0].vout[1].nValue = masternodePayment;
+            }
+        }
+        else if (!fProofOfStake)
             pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
 
         if (pFees)
@@ -531,6 +578,17 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
         // Process this block the same as if we had received it from another node
         if (!ProcessBlock(NULL, pblock))
             return error("CheckStake() : ProcessBlock, block not accepted");
+        else
+        {
+            //ProcessBlock successful for PoS. now FixSpentCoins.
+            int nMismatchSpent;
+            int64_t nBalanceInQuestion;
+            wallet.FixSpentCoins(nMismatchSpent, nBalanceInQuestion);
+            if (nMismatchSpent != 0)
+            {
+                LogPrintf("PoS mismatched spent coins = %d and balance affects = %d \n", nMismatchSpent, nBalanceInQuestion);
+            }
+        }
     }
 
     return true;
@@ -725,3 +783,4 @@ void GenerateGalaxyCashs(bool fGenerate, CWallet* pwallet, int nThreads)
 	minerThreads->create_thread(boost::bind(&GalaxyCashMiner, pwallet));
 }
 #endif
+

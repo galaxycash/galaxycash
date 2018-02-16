@@ -570,3 +570,4 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
+

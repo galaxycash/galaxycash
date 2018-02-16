@@ -254,8 +254,13 @@ static const CRPCCommand vRPCCommands[] =
     { "validateaddress",        &validateaddress,        true,      false,     false },
     { "validatepubkey",         &validatepubkey,         true,      false,     false },
     { "verifymessage",          &verifymessage,          false,     false,     false },
+    /* Anon features */
+    { "spork",                  &spork,                  true,      false,      false },
+    { "masternode",             &masternode,             true,      false,      true },
+    { "masternodelist",         &masternodelist,         true,      false,      false },
 
 #ifdef ENABLE_WALLET
+    { "anonsend",               &anonsend,               false,     false,      true },
     { "getgenerate",            &getgenerate,            true, 	    false,	   true },
     { "setgenerate",            &setgenerate,            true, 	    false,	   true },
     { "getminingalgo",          &getminingalgo,          true, 	    false,	   true },
@@ -838,3 +843,4 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
 }
 
 const CRPCTable tableRPC;
+

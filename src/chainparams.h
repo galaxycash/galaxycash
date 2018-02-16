@@ -77,6 +77,8 @@ public:
     int64_t MergeStart() const { return nMergeFirstBlock; }
     int64_t MergeEnd() const { return nMergeLastBlock; }
 
+    int PoolMaxTransactions() const { return nPoolMaxTransactions; }
+    std::string AnonsendPoolDummyAddress() const { return strAnonsendPoolDummyAddress; }
 protected:
     CChainParams() {};
 
@@ -94,6 +96,8 @@ protected:
     string strDataDir;
     vector<CDNSSeedData> vSeeds;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
+    int nPoolMaxTransactions;
+    std::string strAnonsendPoolDummyAddress;
 };
 
 /**
@@ -122,3 +126,4 @@ inline bool EasyNet() {
 }
 
 #endif
+
