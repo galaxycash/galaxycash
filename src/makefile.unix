@@ -161,7 +161,7 @@ OBJS= \
     obj/rpcanonsend.o \
     obj/anonsend.o \
     obj/anonsend-relay.o \
-    obj/sport.o
+    obj/spork.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET
