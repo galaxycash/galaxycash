@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 2.0.0.1
+VERSION = 2.0.0.2
 INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
@@ -171,7 +171,15 @@ HEADERS += src/addrman.h \
     src/crypto/sph_ripemd.h \
     src/crypto/sph_types.h \
     src/crypto/blake2.h \
-    src/crypto/blake2-impl.h
+    src/crypto/blake2-impl.h \
+    src/masternode.h \
+    src/anonsend.h \
+    src/anonsend-relay.h \
+    src/activemasternode.h \
+    src/masternodeconfig.h \
+    src/masternodeman.h \
+    src/masternode-payments.h \
+    src/spork.h
 
 SOURCES += src/galaxycashd.cpp \
     src/kernel.cpp \
@@ -210,6 +218,15 @@ SOURCES += src/galaxycashd.cpp \
     src/crypter.cpp \
     src/protocol.cpp \
     src/noui.cpp \
+    src/masternode.cpp \
+    src/anonsend.cpp \
+    src/anonsend-relay.cpp \
+    src/rpcanonsend.cpp \
+    src/activemasternode.cpp \
+    src/masternodeman.cpp \
+    src/masternode-payments.cpp \
+    src/spork.cpp \
+    src/masternodeconfig.cpp \
     src/crypto/aes_helper.c \
     src/crypto/blake.c \
     src/crypto/bmw.c \
@@ -232,8 +249,6 @@ SOURCES += src/galaxycashd.cpp \
     src/crypto/ripemd.c \
     src/crypto/skein.c \
     src/crypto/blake2s-ref.c
-
-CODECFORTR = UTF-8
 
 
 # "Other files" to show in Qt Creator
