@@ -793,6 +793,8 @@ Value getblocktemplate(const Array& params, bool fHelp)
         result.push_back(Pair("payee_script", HexStr(payee.begin(), payee.end())));
         result.push_back(Pair("masternode_payments", true));
         result.push_back(Pair("enforce_masternode_payments", true));
+        result.push_back(Pair("masternode_payments_started", true));
+        result.push_back(Pair("masternode_payments_enforced", true));
     } else {
         result.push_back(Pair("payee", ""));
         result.push_back(Pair("payee_amount", ""));
