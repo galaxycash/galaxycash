@@ -160,7 +160,8 @@ OBJS= \
     obj/masternode-payments.o \
     obj/rpcanonsend.o \
     obj/anonsend.o \
-    obj/anonsend-relay.o
+    obj/anonsend-relay.o \
+    obj/sport.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET
