@@ -69,13 +69,15 @@ Value getinfo(const Array& params, bool fHelp)
     double difficultyBlake = GetDifficultyForAlgorithm(CBlock::ALGO_BLAKE2S);
     double difficultyTotal = difficultyX12 + difficultyX13 + difficultyX11 + difficultySha + difficultyBlake;
 
+
+    diff.push_back(Pair("proof-of-work",  difficultyTotal));
+    diff.push_back(Pair("proof-of-stake", GetDifficultyForPOS()));
     diff.push_back(Pair("proof-of-work-x12", difficultyX12));
     diff.push_back(Pair("proof-of-work-x13", difficultyX13));
     diff.push_back(Pair("proof-of-work-x11", difficultyX11));
     diff.push_back(Pair("proof-of-work-sha256d", difficultySha));
     diff.push_back(Pair("proof-of-work-blake2s", difficultyBlake));
-    diff.push_back(Pair("proof-of-work",  difficultyTotal));
-    diff.push_back(Pair("proof-of-stake", GetDifficultyForPOS()));
+
     obj.push_back(Pair("difficulty",    diff));
 
     obj.push_back(Pair("testnet",       TestNet()));    
