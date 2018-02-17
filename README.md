@@ -3,11 +3,11 @@ GalaxyCash
 Copyright (C) 2017-2018 The GalaxyCash developers
 
 
-Site:                                       https://galaxycash.info
+Site(Wallet & Exchange):                    https://galaxycash.info
 
 Pool:                                       https://galaxypool.info
 
-Explorer:                                   https://galaxypool.info/explorer/GCH
+Explorer:                                   https://explorer.galaxypool.info
 
 Discord:                                    https://discord.gg/NseejAk
 
