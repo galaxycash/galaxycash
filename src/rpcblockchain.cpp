@@ -50,9 +50,10 @@ double GetDifficultyForAlgorithm(int nAlgo)
     CBlockIndex *pindex = pindexBest;
     while (true)
     {
-        pindex = pindex->pprev;
-        if (!pindex || pindex->GetBlockAlgorithm() == nAlgo)
+        if (!pindex || (pindex->IsProofOfWork() && pindex->GetBlockAlgorithm() == nAlgo))
             break;
+
+        pindex = pindex->pprev;
     }
 
     if (!pindex)
@@ -66,9 +67,10 @@ double GetDifficultyForPOS()
     CBlockIndex *pindex = pindexBest;
     while (true)
     {
-        pindex = pindex->pprev;
         if (!pindex || pindex->IsProofOfStake())
             break;
+
+        pindex = pindex->pprev;
     }
 
     if (!pindex)
