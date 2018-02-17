@@ -70,7 +70,7 @@ qint64 WalletModel::getImmatureBalance() const
     return wallet->GetImmatureBalance();
 }
 
-int64_t WalletModel::getAnonymizedBalance() const
+qint64 WalletModel::getAnonymizedBalance() const
 {
     return wallet->GetAnonymizedBalance();
 }
