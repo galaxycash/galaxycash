@@ -67,10 +67,8 @@ Value getinfo(const Array& params, bool fHelp)
     double difficultyX11 = GetDifficultyForAlgorithm(CBlock::ALGO_X11);
     double difficultySha = GetDifficultyForAlgorithm(CBlock::ALGO_SHA256D);
     double difficultyBlake = GetDifficultyForAlgorithm(CBlock::ALGO_BLAKE2S);
-    double difficultyTotal = difficultyX12 + difficultyX13 + difficultyX11 + difficultySha + difficultyBlake;
 
-
-    diff.push_back(Pair("proof-of-work",  difficultyTotal));
+    diff.push_back(Pair("proof-of-work",  GetDifficultyForAlgorithm(nMiningAlgo)));
     diff.push_back(Pair("proof-of-stake", GetDifficultyForPOS()));
     diff.push_back(Pair("proof-of-work-x12", difficultyX12));
     diff.push_back(Pair("proof-of-work-x13", difficultyX13));

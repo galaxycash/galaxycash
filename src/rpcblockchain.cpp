@@ -239,8 +239,21 @@ Value getdifficulty(const Array& params, bool fHelp)
             "Returns the difficulty as a multiple of the minimum difficulty.");
 
     Object obj;
-    obj.push_back(Pair("proof-of-work",        GetDifficultyForAlgorithm(nMiningAlgo)));
-    obj.push_back(Pair("proof-of-stake",       GetDifficultyForPOS()));
+
+    double difficultyX12 = GetDifficultyForAlgorithm(CBlock::ALGO_X12);
+    double difficultyX13 = GetDifficultyForAlgorithm(CBlock::ALGO_X13);
+    double difficultyX11 = GetDifficultyForAlgorithm(CBlock::ALGO_X11);
+    double difficultySha = GetDifficultyForAlgorithm(CBlock::ALGO_SHA256D);
+    double difficultyBlake = GetDifficultyForAlgorithm(CBlock::ALGO_BLAKE2S);
+
+    diff.push_back(Pair("proof-of-work",  GetDifficultyForAlgorithm(nMiningAlgo)));
+    diff.push_back(Pair("proof-of-stake", GetDifficultyForPOS()));
+    diff.push_back(Pair("proof-of-work-x12", difficultyX12));
+    diff.push_back(Pair("proof-of-work-x13", difficultyX13));
+    diff.push_back(Pair("proof-of-work-x11", difficultyX11));
+    diff.push_back(Pair("proof-of-work-sha256d", difficultySha));
+    diff.push_back(Pair("proof-of-work-blake2s", difficultyBlake));
+
     return obj;
 }
 
