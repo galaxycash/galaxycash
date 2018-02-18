@@ -96,7 +96,7 @@ void CActiveMasternode::ManageStatus()
             	return;
             }
 
-            /* donations are not supported in MarteX.conf */
+            /* donations are not supported in GalaxyCash.conf */
             CScript donationAddress = CScript();
             int donationPercentage = 0;
 

@@ -786,7 +786,7 @@ void CAnonsendPool::ChargeRandomFees(){
 
                 Being that AnonSend has "no fees" we need to have some kind of cost associated
                 with using it to stop abuse. Otherwise it could serve as an attack vector and
-                allow endless transaction that would bloat MarteX and make it unusable. To
+                allow endless transaction that would bloat GalaxyCash and make it unusable. To
                 stop these kinds of attacks 1 in 50 successful transactions are charged. This
                 adds up to a cost of 0.002 MXT per transaction on average.
             */
@@ -2258,7 +2258,7 @@ void ThreadCheckAnonSendPool()
     if(fLiteMode) return; //disable all Anonsend/Masternode related functionality
 
     // Make this thread recognisable as the wallet flushing thread
-    RenameThread("MarteX-anonsend");
+    RenameThread("GalaxyCash-anonsend");
 
     unsigned int c = 0;
 
