@@ -7,7 +7,7 @@ Site:                                       https://galaxycash.info
 
 Pool:                                       https://galaxypool.info
 
-Explorer:                                   https://explorer.galaxypool.info
+Explorer:                                   http://explorer.galaxypool.info
 
 Discord:                                    https://discord.gg/NseejAk
 
