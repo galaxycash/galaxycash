@@ -3,7 +3,7 @@ GalaxyCash
 Copyright (C) 2017-2018 The GalaxyCash developers
 
 
-Site(Wallet & Exchange):                    https://galaxycash.info
+Site:                                       https://galaxycash.info
 
 Pool:                                       https://galaxypool.info
 
@@ -35,7 +35,7 @@ PoS Block reward:                           10% per year
 
 Max supply:                                 30000000
 
-Fees:                                       0.00000100
+Fee:                                        0.00000100, 0.00500000 after 1st may
 
 Coinbase maturity:                          11 blocks
 
