@@ -89,6 +89,7 @@ CMasternode::CMasternode()
     nLastScanningErrorBlockHeight = 0;
     //mark last paid as current for new entries
     nLastPaid = GetAdjustedTime();
+    isSelfNode = false;
 }
 
 CMasternode::CMasternode(const CMasternode& other)
@@ -117,9 +118,10 @@ CMasternode::CMasternode(const CMasternode& other)
     nLastScanningErrorBlockHeight = other.nLastScanningErrorBlockHeight;
     nLastPaid = other.nLastPaid;
     nLastPaid = GetAdjustedTime();
+    isSelfNode = other.isSelfNode;
 }
 
-CMasternode::CMasternode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64_t newSigTime, CPubKey newPubkey2, int protocolVersionIn, CScript newDonationAddress, int newDonationPercentage)
+CMasternode::CMasternode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64_t newSigTime, CPubKey newPubkey2, int protocolVersionIn, CScript newDonationAddress, int newDonationPercentage, bool isSelfNode)
 {
     LOCK(cs);
     vin = newVin;
@@ -143,6 +145,7 @@ CMasternode::CMasternode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std:
     lastVote = 0;
     nScanningErrorCount = 0;
     nLastScanningErrorBlockHeight = 0;
+    this->isSelfNode = isSelfNode;
 }
 
 //

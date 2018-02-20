@@ -1586,3 +1586,21 @@ Value settxfee(const Array& params, bool fHelp)
 
     return true;
 }
+
+// Fix spendable coins
+Value fixspendable(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "fixspendable\n"
+            "Fix spendable coins.\n"
+        );
+
+    int mismatch; int64_t inquestion;
+    pwalletMain->FixSpentCoins(mismatch, inquestion);
+
+    Object result;
+    result.push_back(Pair("mismatch", mismatch));
+    result.push_back(Pair("inquestion", inquestion));
+    return result;
+}

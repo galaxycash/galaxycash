@@ -84,11 +84,12 @@ public:
     int nScanningErrorCount;
     int nLastScanningErrorBlockHeight;
     int64_t nLastPaid;
+    bool isSelfNode;
 
 
     CMasternode();
     CMasternode(const CMasternode& other);
-    CMasternode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64_t newSigTime, CPubKey newPubkey2, int protocolVersionIn, CScript donationAddress, int donationPercentage);
+    CMasternode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64_t newSigTime, CPubKey newPubkey2, int protocolVersionIn, CScript donationAddress, int donationPercentage, bool isSelfNode);
 
 
     void swap(CMasternode& first, CMasternode& second) // nothrow

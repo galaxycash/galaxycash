@@ -220,6 +220,7 @@ extern Value getnetworkinfo(const Array& params, bool fHelp);
 extern Value getnetworkhashps(const Array& params, bool fHelp);
 extern Value getnetworkhashrate(const Array& params, bool fHelp);
 extern Value setbestblock(const Array& params, bool fHelp);
+extern Value fixspendable(const Array& params, bool fHelp);
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
@@ -313,6 +314,7 @@ static const CRPCCommand vRPCCommands[] =
     { "resendtx",               &resendtx,               false,     true,      true },
     { "makekeypair",            &makekeypair,            false,     true,      false },
     { "checkkernel",            &checkkernel,            true,      false,     true },
+    { "fixspendable",           &fixspendable,           true,      false,     true },
 #endif
 };
 

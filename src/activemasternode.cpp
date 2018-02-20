@@ -115,6 +115,7 @@ void CActiveMasternode::ManageStatus()
     if(!Dseep(errorMessage)) {
     	LogPrintf("CActiveMasternode::ManageStatus() - Error on Ping: %s\n", errorMessage.c_str());
     }
+
 }
 
 // Send stop dseep to network for remote masternode
@@ -175,7 +176,10 @@ bool CActiveMasternode::Dseep(std::string& errorMessage) {
     	return false;
     }
 
-	return Dseep(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
+    //remove inactive
+   mnodeman.DseepSelfNodes(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
+
+    return Dseep(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
 }
 
 bool CActiveMasternode::Dseep(CTxIn vin, CService service, CKey keyMasternode, CPubKey pubKeyMasternode, std::string &retErrorMessage, bool stop) {
@@ -296,7 +300,7 @@ bool CActiveMasternode::Register(CTxIn vin, CService service, CKey keyCollateral
     if(pmn == NULL)
     {
         LogPrintf("CActiveMasternode::Register() - Adding to masternode list service: %s - vin: %s\n", service.ToString().c_str(), vin.ToString().c_str());
-        CMasternode mn(service, vin, pubKeyCollateralAddress, vchMasterNodeSignature, masterNodeSignatureTime, pubKeyMasternode, PROTOCOL_VERSION, donationAddress, donationPercentage);
+        CMasternode mn(service, vin, pubKeyCollateralAddress, vchMasterNodeSignature, masterNodeSignatureTime, pubKeyMasternode, PROTOCOL_VERSION, donationAddress, donationPercentage, true);
         mn.UpdateLastSeen(masterNodeSignatureTime);
         mnodeman.Add(mn);
     }

@@ -142,6 +142,9 @@ public:
 
     std::string ToString() const;
 
+    bool DseepSelfNodes(CTxIn vin, CService service, CKey key, CPubKey pubKey, std::string &retErrorMessage, bool stop); // ping for any masternode
+
+
     //
     // Relay Masternode Messages
     //

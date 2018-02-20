@@ -235,17 +235,42 @@ void CMasternodeMan::Check()
         mn.Check();
 }
 
+bool CMasternodeMan::DseepSelfNodes(CTxIn vin, CService service, CKey key, CPubKey pubKey, std::string &retErrorMessage, bool stop)
+{
+    LOCK(cs);
+
+    bool allsOk = true;
+
+    //remove inactive
+    vector<CMasternode>::iterator it = vMasternodes.begin();
+    while(it != vMasternodes.end()){
+        if ((*it).isSelfNode)
+        {
+            if ((*it).vin == vin)
+                continue;
+
+            if (!activeMasternode.Dseep((*it).vin, service, key, pubKey, retErrorMessage, stop))
+                allsOk = false;
+        }
+        ++it;
+    }
+
+    return allsOk;
+}
+
 void CMasternodeMan::CheckAndRemove()
 {
     LOCK(cs);
 
     Check();
 
+
     //remove inactive
     vector<CMasternode>::iterator it = vMasternodes.begin();
     while(it != vMasternodes.end()){
         if((*it).activeState == CMasternode::MASTERNODE_REMOVE || (*it).activeState == CMasternode::MASTERNODE_VIN_SPENT || (*it).protocolVersion < nMasternodeMinProtocol){
             LogPrint("masternode", "CMasternodeMan: Removing inactive masternode %s - %i now\n", (*it).addr.ToString().c_str(), size() - 1);
+
             it = vMasternodes.erase(it);
         } else {
             ++it;
@@ -757,7 +782,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             }
 
             // add our masternode
-            CMasternode mn(addr, vin, pubkey, vchSig, sigTime, pubkey2, protocolVersion, donationAddress, donationPercentage);
+            CMasternode mn(addr, vin, pubkey, vchSig, sigTime, pubkey2, protocolVersion, donationAddress, donationPercentage, false);
             mn.UpdateLastSeen(lastUpdated);
             this->Add(mn);
 
