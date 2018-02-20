@@ -2287,22 +2287,6 @@ void ThreadCheckAnonSendPool()
                 masternodePayments.CleanPaymentList();
             }
 
-            if(c % (2 * 60) == 0)
-            {
-                // Restart stoped masternodes
-                std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
-                mnEntries = masternodeConfig.getEntries();
-                BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
-                    std::string errorMessage;
-                    std::string strDonateAddress = "";
-                    std::string strDonationPercentage = "";
-
-
-
-                    activeMasternode.Register(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strDonateAddress, strDonationPercentage, errorMessage);
-                }
-            }
-
             //try to sync the masternode list and payment list every 5 seconds from at least 3 nodes
             if(c % 5 == 0 && RequestedMasterNodeList < 3){
                 bool fIsInitialDownload = IsInitialBlockDownload();
