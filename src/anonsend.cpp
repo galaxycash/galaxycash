@@ -1,12 +1,13 @@
 // Copyright (c) 2014-2015 The Darkcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
+#include "masternodeman.h"
 #include "anonsend.h"
 #include "main.h"
 #include "init.h"
 #include "util.h"
-#include "masternodeman.h"
+#include "masternodeconfig.h"
+#include "activemasternode.h"
 #include "ui_interface.h"
 
 #include <boost/algorithm/string/replace.hpp>
@@ -788,7 +789,7 @@ void CAnonsendPool::ChargeRandomFees(){
                 with using it to stop abuse. Otherwise it could serve as an attack vector and
                 allow endless transaction that would bloat GalaxyCash and make it unusable. To
                 stop these kinds of attacks 1 in 50 successful transactions are charged. This
-                adds up to a cost of 0.002 MXT per transaction on average.
+                adds up to a cost of 0.002 GCH per transaction on average.
             */
             if(r <= 10)
             {
@@ -1925,10 +1926,10 @@ bool CAnonsendPool::IsCompatibleWithSession(int64_t nDenom, CTransaction txColla
 void CAnonsendPool::GetDenominationsToString(int nDenom, std::string& strDenom){
     // Function returns as follows:
     //
-    // bit 0 - 100 MXT +1 ( bit on if present )
-    // bit 1 - 10 MXT +1
-    // bit 2 - 1 MXT +1
-    // bit 3 - .1 MXT +1
+    // bit 0 - 100 GCH +1 ( bit on if present )
+    // bit 1 - 10 GCH +1
+    // bit 2 - 1 GCH +1
+    // bit 3 - .1 GCH +1
     // bit 3 - non-denom
 
 
@@ -2001,10 +2002,10 @@ int CAnonsendPool::GetDenominations(const std::vector<CTxOut>& vout, bool fSingl
 
     // Function returns as follows:
     //
-    // bit 0 - 100 MXT +1 ( bit on if present )
-    // bit 1 - 10 MXT +1
-    // bit 2 - 1 MXT +1
-    // bit 3 - .1 MXT +1
+    // bit 0 - 100 GCH +1 ( bit on if present )
+    // bit 1 - 10 GCH +1
+    // bit 2 - 1 GCH +1
+    // bit 3 - .1 GCH +1
 
     return denom;
 }
@@ -2270,7 +2271,6 @@ void ThreadCheckAnonSendPool()
         // try to sync from all available nodes, one step at a time
         //masternodeSync.Process();
 
-
         if(anonSendPool.IsBlockchainSynced()) {
 
             c++;
@@ -2281,9 +2281,50 @@ void ThreadCheckAnonSendPool()
 
             if(c % 60 == 0)
             {
+
                 mnodeman.CheckAndRemove();
                 mnodeman.ProcessMasternodeConnections();
                 masternodePayments.CleanPaymentList();
+            }
+
+            if(c % (2 * 60) == 0)
+            {
+                // Restart stoped masternodes
+                std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+                mnEntries = masternodeConfig.getEntries();
+                BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+                    std::string errorMessage;
+                    std::string strDonateAddress = "";
+                    std::string strDonationPercentage = "";
+
+
+
+                    activeMasternode.Register(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strDonateAddress, strDonationPercentage, errorMessage);
+                }
+            }
+
+            //try to sync the masternode list and payment list every 5 seconds from at least 3 nodes
+            if(c % 5 == 0 && RequestedMasterNodeList < 3){
+                bool fIsInitialDownload = IsInitialBlockDownload();
+                if(!fIsInitialDownload) {
+                    LOCK(cs_vNodes);
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                    {
+                        if (pnode->nVersion >= MIN_PEER_PROTO_VERSION) {
+
+                            //keep track of who we've asked for the list
+                            if(pnode->HasFulfilledRequest("mnsync")) continue;
+                            pnode->FulfilledRequest("mnsync");
+
+                            LogPrintf("Successfully synced, asking for Masternode list and payment list\n");
+
+                            pnode->PushMessage("dseg", CTxIn()); //request full mn list
+                            pnode->PushMessage("mnget"); //sync payees
+                            pnode->PushMessage("getsporks"); //get current network sporks
+                            RequestedMasterNodeList++;
+                        }
+                    }
+                }
             }
 
             //if(c % MASTERNODES_DUMP_SECONDS == 0) DumpMasternodes();

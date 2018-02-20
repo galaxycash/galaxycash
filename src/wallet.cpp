@@ -746,6 +746,7 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, int64_t> >& listReceived,
         else if (!(fIsMine = pwallet->IsMine(txout)))
             continue;
 
+
         // In either case, we need to get the destination address
         CTxDestination address;
         if (!ExtractDestination(txout.scriptPubKey, address))
@@ -3101,11 +3102,11 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, int64_t nValueMin, int64_t 
 
             // Function returns as follows:
             //
-            // bit 0 - 1000 MXT +1 ( bit on if present )
-            // bit 1 - 100 MXT +1
-            // bit 2 - 10 MXT +1
-            // bit 3 - 1 MXT +1
-            // bit 4 - .1 MXT +1
+            // bit 0 - 1000 GCH +1 ( bit on if present )
+            // bit 1 - 100 GCH +1
+            // bit 2 - 10 GCH +1
+            // bit 3 - 1 GCH +1
+            // bit 4 - .1 GCH +1
 
             CTxIn vin = CTxIn(out.tx->GetHash(),out.i);
 

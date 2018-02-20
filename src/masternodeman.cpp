@@ -581,6 +581,7 @@ void CMasternodeMan::ProcessMasternodeConnections()
             pnode->CloseSocketDisconnect();
         }
     }
+
 }
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
@@ -853,6 +854,18 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         int64_t askAgain = GetTime()+ MASTERNODE_MIN_DSEEP_SECONDS;
         mWeAskedForMasternodeListEntry[vin.prevout] = askAgain;
 
+    } else if (strCommand == "mnget") { //Masternode Payments Request Sync
+        if(fLiteMode) return; //disable all darksend/masternode related functionality
+
+            /*if(pfrom->HasFulfilledRequest("mnget")) {
+                LogPrintf("mnget - peer already asked me for the list\n");
+                Misbehaving(pfrom->GetId(), 20);
+                return;
+            }*/
+
+        pfrom->FulfilledRequest("mnget");
+        masternodePayments.Sync(pfrom);
+        LogPrintf("mnget - Sent masternode winners to %s\n", pfrom->addr.ToString().c_str());
     } else if (strCommand == "mvote") { //Masternode Vote
 
         CTxIn vin;
