@@ -62,4 +62,7 @@ public:
     bool EnableHotColdMasterNode(CTxIn& vin, CService& addr);
 };
 
+void RegisterInstance(CActiveMasternode &amn);
+void UpdateInstances();
+
 #endif

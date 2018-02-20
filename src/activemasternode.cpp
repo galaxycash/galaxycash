@@ -8,6 +8,29 @@
 #include <boost/lexical_cast.hpp>
 #include "clientversion.h"
 
+static CCriticalSection cs_instances;
+static vector <CActiveMasternode> vInstances;
+
+
+void RegisterInstance(CActiveMasternode &amn)
+{
+    LOCK(cs_instances);
+    for (vector <CActiveMasternode>::iterator it = vInstances.begin(); it != vInstances.end(); it++)
+    {
+        if (amn.vin == (*it).vin)
+            return;
+    }
+
+    vInstances.push_back(amn);
+}
+
+void UpdateInstances()
+{
+    LOCK(cs_instances);
+    BOOST_FOREACH(CActiveMasternode& mn, vInstances)
+            mn.ManageStatus();
+}
+
 //
 // Bootup the masternode, look for a 5,000 GCH input and register on the network
 //
@@ -177,7 +200,7 @@ bool CActiveMasternode::Dseep(std::string& errorMessage) {
     }
 
     //remove inactive
-   mnodeman.DseepSelfNodes(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
+   //mnodeman.DseepSelfNodes(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
 
     return Dseep(vin, service, keyMasternode, pubKeyMasternode, errorMessage, false);
 }
@@ -308,6 +331,9 @@ bool CActiveMasternode::Register(CTxIn vin, CService service, CKey keyCollateral
     //send to all peers
     LogPrintf("CActiveMasternode::Register() - RelayElectionEntry vin = %s\n", vin.ToString().c_str());
     mnodeman.RelayMasternodeEntry(vin, service, vchMasterNodeSignature, masterNodeSignatureTime, pubKeyCollateralAddress, pubKeyMasternode, -1, -1, masterNodeSignatureTime, PROTOCOL_VERSION, donationAddress, donationPercentage);
+
+    this->vin = vin;
+    RegisterInstance(*this);
 
     return true;
 }
@@ -479,6 +505,8 @@ bool CActiveMasternode::EnableHotColdMasterNode(CTxIn& newVin, CService& newServ
     this->service = newService;
 
     LogPrintf("CActiveMasternode::EnableHotColdMasterNode() - Enabled! You may shut down the cold daemon.\n");
+
+    RegisterInstance(*this);
 
     return true;
 }
