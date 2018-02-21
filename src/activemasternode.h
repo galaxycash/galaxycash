@@ -64,5 +64,7 @@ public:
 
 void RegisterInstance(CActiveMasternode &amn);
 void UpdateInstances();
+int NumInstances();
+CActiveMasternode *GetInstance(int i);
 
 #endif

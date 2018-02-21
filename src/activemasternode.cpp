@@ -31,6 +31,20 @@ void UpdateInstances()
             mn.ManageStatus();
 }
 
+int NumInstances()
+{
+    LOCK(cs_instances);
+    int insts = vInstances.size();
+
+    return insts;
+}
+
+CActiveMasternode *GetInstance(int i){
+    LOCK(cs_instances);
+    CActiveMasternode *instance = &vInstances[i];
+   return instance;
+}
+
 //
 // Bootup the masternode, look for a 5,000 GCH input and register on the network
 //

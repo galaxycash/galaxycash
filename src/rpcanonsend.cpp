@@ -734,13 +734,23 @@ Value masternode(const Array& params, bool fHelp)
     {
         if(!fMasterNode) throw runtime_error("This is not a masternode\n");
 
-        Object mnObj;
-        CMasternode *pmn = mnodeman.Find(activeMasternode.vin);
-        mnObj.push_back(Pair("vin", activeMasternode.vin.ToString()));
-        mnObj.push_back(Pair("service", activeMasternode.service.ToString()));
-        if (pmn) mnObj.push_back(Pair("pubkey", CGalaxyCashAddress(pmn->pubkey.GetID()).ToString()));
-        mnObj.push_back(Pair("status", activeMasternode.status));
-        return mnObj;
+
+        Object result;
+        for (int i = 0; i < NumInstances(); i++)
+        {
+            CActiveMasternode *instance = GetInstance(i);
+
+            Object mnObj;
+            CMasternode *pmn = mnodeman.Find(instance->vin);
+            mnObj.push_back(Pair("vin", instance->vin.ToString()));
+            mnObj.push_back(Pair("service", instance->service.ToString()));
+            if (pmn) mnObj.push_back(Pair("pubkey", CGalaxyCashAddress(pmn->pubkey.GetID()).ToString()));
+            mnObj.push_back(Pair("status", pmn ? pmn->activeState  : instance->status));
+
+            result.push_back(Pair("masternode", mnObj));
+        }
+
+        return result;
     }
 
     return Value::null;
