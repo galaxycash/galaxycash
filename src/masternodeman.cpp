@@ -235,29 +235,6 @@ void CMasternodeMan::Check()
         mn.Check();
 }
 
-bool CMasternodeMan::DseepSelfNodes(CTxIn vin, CService service, CKey key, CPubKey pubKey, std::string &retErrorMessage, bool stop)
-{
-    LOCK(cs);
-
-    bool allsOk = true;
-
-    //remove inactive
-    vector<CMasternode>::iterator it = vMasternodes.begin();
-    while(it != vMasternodes.end()){
-        if ((*it).isSelfNode)
-        {
-            if ((*it).vin == vin)
-                continue;
-
-            if (!activeMasternode.Dseep((*it).vin, service, key, pubKey, retErrorMessage, stop))
-                allsOk = false;
-        }
-        ++it;
-    }
-
-    return allsOk;
-}
-
 void CMasternodeMan::CheckAndRemove()
 {
     LOCK(cs);

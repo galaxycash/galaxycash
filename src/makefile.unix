@@ -155,6 +155,7 @@ OBJS= \
     obj/blake2s-ref.o \
     obj/masternode.o \
     obj/activemasternode.o \
+    obj/activemasternodeman.o \
     obj/masternodeman.o \
     obj/masternodeconfig.o \
     obj/masternode-payments.o \

@@ -8,6 +8,7 @@
 #include "util.h"
 #include "masternodeconfig.h"
 #include "activemasternode.h"
+#include "activemasternodeman.h"
 #include "ui_interface.h"
 
 #include <boost/algorithm/string/replace.hpp>
@@ -2278,7 +2279,7 @@ void ThreadCheckAnonSendPool()
             // check if we should activate or ping every few minutes,
             // start right after sync is considered to be done
             if(c % MASTERNODE_PING_SECONDS == 1)
-                UpdateInstances();
+                activemnodeman.ManageStatus();
 
             if(c % 60 == 0)
             {

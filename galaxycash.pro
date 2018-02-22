@@ -262,6 +262,7 @@ HEADERS += src/qt/galaxycashgui.h \
     src/anonsend.h \
     src/anonsend-relay.h \
     src/activemasternode.h \
+    src/activemasternodeman.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
@@ -371,6 +372,7 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/anonsend-relay.cpp \
     src/rpcanonsend.cpp \
     src/activemasternode.cpp \
+    src/activemasternodeman.cpp \
     src/masternodeman.cpp \
     src/masternode-payments.cpp \
     src/spork.cpp \
@@ -429,7 +431,7 @@ QMAKE_EXTRA_COMPILERS += TSQM
 
 # "Other files" to show in Qt Creator
 OTHER_FILES += \
-    doc/*.rst doc/*.txt doc/README README.md res/galaxycash-qt.rc
+    doc/*.rst doc/*.txt doc/README README.md res/galaxycash-qt.rc src/makefile.unix
 
 # platform specific defaults, if not overridden on command line
 isEmpty(BOOST_LIB_SUFFIX) {

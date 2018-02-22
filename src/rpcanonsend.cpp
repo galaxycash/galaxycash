@@ -8,6 +8,7 @@
 #include "db.h"
 #include "init.h"
 #include "activemasternode.h"
+#include "activemasternodeman.h"
 #include "masternodeman.h"
 #include "masternodeconfig.h"
 #include "rpcserver.h"
@@ -736,16 +737,16 @@ Value masternode(const Array& params, bool fHelp)
 
 
         Object result;
-        for (int i = 0; i < NumInstances(); i++)
+        for (int i = 0; i < activemnodeman.NumNodes(); i++)
         {
-            CActiveMasternode *instance = GetInstance(i);
+            CMasternode *instance = activemnodeman.GetMasternode(i);
 
             Object mnObj;
-            CMasternode *pmn = mnodeman.Find(instance->vin);
+
             mnObj.push_back(Pair("vin", instance->vin.ToString()));
-            mnObj.push_back(Pair("service", instance->service.ToString()));
-            if (pmn) mnObj.push_back(Pair("pubkey", CGalaxyCashAddress(pmn->pubkey.GetID()).ToString()));
-            mnObj.push_back(Pair("status", pmn ? pmn->activeState  : instance->status));
+            mnObj.push_back(Pair("service", instance->addr.ToString()));
+            mnObj.push_back(Pair("pubkey", CGalaxyCashAddress(instance->pubkey.GetID()).ToString()));
+            mnObj.push_back(Pair("status", instance->activeState));
 
             result.push_back(Pair("masternode", mnObj));
         }

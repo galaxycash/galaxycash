@@ -176,6 +176,7 @@ HEADERS += src/addrman.h \
     src/anonsend.h \
     src/anonsend-relay.h \
     src/activemasternode.h \
+    src/activemasternodeman.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
@@ -223,6 +224,7 @@ SOURCES += src/galaxycashd.cpp \
     src/anonsend-relay.cpp \
     src/rpcanonsend.cpp \
     src/activemasternode.cpp \
+    src/activemasternodeman.cpp \
     src/masternodeman.cpp \
     src/masternode-payments.cpp \
     src/spork.cpp \
