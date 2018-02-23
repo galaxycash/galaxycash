@@ -357,17 +357,6 @@ void BlockBrowser::setModel(ClientModel *model)
 void BlockBrowser::showEvent(QShowEvent *ev)
 {
     QDialog::showEvent(ev);
-    int maxBlocks = 8;
-    const CBlockIndex *pindex = pindexBest;
-    for (int i = 0; i < maxBlocks; i++)
-    {
-        std::string id = std::string("block ") + std::to_string(pindex->nHeight);
-        QAction *action = new QAction(QString::fromStdString(id), ui->listBlocks);
-        ui->listBlocks->addAction(action);
-
-        if (pindex->pprev)
-            pindex = pindex->pprev;
-    }
 }
 
 BlockBrowser::~BlockBrowser()
