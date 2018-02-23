@@ -849,8 +849,8 @@ void GalaxyCashGUI::gotoAddressBookPage()
 
 void GalaxyCashGUI::gotoBlockBrowser(QString transactionId)
 {
-    if(!transactionId.isEmpty())
-    blockBrowser->setTransactionId(transactionId);
+    /*if(!transactionId.isEmpty())
+    blockBrowser->setTransactionId(transactionId);*/
 
     blockBrowser->show();
 }

@@ -7,47 +7,44 @@
 
 
 double GetDifficulty(const CBlockIndex* blockindex, const int);
-
+double GetDifficultyFromBits(unsigned int);
 
 using namespace std;
 
-const CBlockIndex* getBlockIndex(qint64 height)
+const CBlockIndex* getBlockIndexByHeight(qint64 height)
 {
-    std::string hex = getBlockHash(height);
-    uint256 hash(hex);
-
-    return mapBlockIndex[hash];
-}
-
-std::string getBlockHash(qint64 Height)
-{
-    if(Height > pindexBest->nHeight) { return ""; }
-    if(Height < 0) { return ""; }
+    if(height > pindexBest->nHeight) { return pindexBest; }
+    if(height < 0) { return pindexGenesisBlock; }
     qint64 desiredheight;
-    desiredheight = Height;
+    desiredheight = height;
     if (desiredheight < 0 || desiredheight > nBestHeight)
         return 0;
 
     CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
     while (pblockindex->nHeight > desiredheight)
         pblockindex = pblockindex->pprev;
-    return  pblockindex->GetBlockHash().GetHex(); // pblockindex->phashBlock->GetHex();
+    return  pblockindex;
 }
 
-std::string getBlockAlgorithm(qint64 Height)
+const CBlockIndex* getBlockIndexByHash(const uint256 &hash)
 {
-    if(Height > pindexBest->nHeight) { return "None"; }
-    if(Height < 0) { return "None"; }
-    qint64 desiredheight;
-    desiredheight = Height;
-    if (desiredheight < 0 || desiredheight > nBestHeight)
-        return 0;
+    if (mapBlockIndex.find(hash) == mapBlockIndex.end())
+        return pindexGenesisBlock;
 
-    CBlockIndex* pblockindex = FindBlockByHeight(desiredheight);
-    while (pblockindex->nHeight > desiredheight)
-        pblockindex = pblockindex->pprev;
+    return mapBlockIndex[hash];
+}
 
-    switch (pblockindex->GetBlockAlgorithm())
+std::string getBlockHash(const CBlockIndex *pindex)
+{
+    if(!pindex) { return ""; }
+    return  pindex->GetBlockHash().GetHex();
+}
+
+std::string getBlockAlgorithm(const CBlockIndex *pindex)
+{
+    if(!pindex) { return ""; }
+
+    switch (pindex->GetBlockAlgorithm())
     {
     case CBlock::ALGO_X11:
         return "x11";
@@ -62,71 +59,38 @@ std::string getBlockAlgorithm(qint64 Height)
     }
 }
 
-std::string getBlockType(qint64 Height)
+std::string getBlockType(const CBlockIndex *pindex)
 {
-    if(Height > pindexBest->nHeight) { return "None"; }
-    if(Height < 0) { return "None"; }
-    qint64 desiredheight;
-    desiredheight = Height;
-    if (desiredheight < 0 || desiredheight > nBestHeight)
-        return 0;
+    if(!pindex) { return ""; }
 
-    CBlockIndex* pblockindex = FindBlockByHeight(desiredheight);
-    while (pblockindex->nHeight > desiredheight)
-        pblockindex = pblockindex->pprev;
-
-    if (pblockindex->IsProofOfWork())
+    if (pindex->IsProofOfWork())
         return "PoW";
     else
         return "PoS";
 }
 
-qint64 getBlockTime(qint64 Height)
+qint64 getBlockTime(const CBlockIndex *pindex)
 {
-    std::string strHash = getBlockHash(Height);
-    uint256 hash(strHash);
-
-    if (mapBlockIndex.count(hash) == 0)
-        return 0;
-
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    return pblockindex->nTime;
+    if(!pindex) { return 0; }
+    return pindex->nTime;
 }
 
-std::string getBlockMerkle(qint64 Height)
+std::string getBlockMerkle(const CBlockIndex *pindex)
 {
-    std::string strHash = getBlockHash(Height);
-    uint256 hash(strHash);
-
-    if (mapBlockIndex.count(hash) == 0)
-        return 0;
-
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    return pblockindex->hashMerkleRoot.ToString();//.substr(0,10).c_str();
+    if(!pindex) { return ""; }
+    return pindex->hashMerkleRoot.ToString();//.substr(0,10).c_str();
 }
 
-qint64 getBlocknBits(qint64 Height)
+qint64 getBlocknBits(const CBlockIndex *pindex)
 {
-    std::string strHash = getBlockHash(Height);
-    uint256 hash(strHash);
-
-    if (mapBlockIndex.count(hash) == 0)
-        return 0;
-
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    return pblockindex->nBits;
+    if(!pindex) { return 0; }
+    return pindex->nBits;
 }
 
-qint64 getBlockNonce(qint64 Height)
+qint64 getBlockNonce(const CBlockIndex *pindex)
 {
-    std::string strHash = getBlockHash(Height);
-    uint256 hash(strHash);
-
-    if (mapBlockIndex.count(hash) == 0)
-        return 0;
-
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    return pblockindex->nNonce;
+    if(!pindex) { return 0; }
+    return pindex->nNonce;
 }
 
 double getTxTotalValue(std::string txid)
@@ -155,19 +119,10 @@ double getTxTotalValue(std::string txid)
     return value;
 }
 
-double getMoneySupply(qint64 Height)
+double getMoneySupply(const CBlockIndex *pindex)
 {
-     std::string strHash = getBlockHash(Height);
-    uint256 hash(strHash);
-
-    if (mapBlockIndex.count(hash) == 0)
-    return 0;
-
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-    if (Height == 0)
-    return 0;
-	else
-    return convertCoins(pblockindex->nMoneySupply);
+    if (!pindex) return 0;
+    return convertCoins(pindex->nMoneySupply);
 }
 
 double convertCoins(qint64 amount)
@@ -246,33 +201,7 @@ std::string getInputs(std::string txid)
 
 double BlockBrowser::getTxFees(std::string txid)
 {
-    uint256 hash;
-    hash.SetHex(txid);
-
-    CTransaction tx;
-    uint256 hashBlock = 0;
-	CTxDB txdb("r");
-
-    if (!GetTransaction(hash, tx, hashBlock))
-        return convertCoins(GetMinTransactionFee());
-
-    MapPrevTx mapInputs;
-    map<uint256, CTxIndex> mapUnused;
-	bool fInvalid;
-
-    if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
-          return convertCoins(GetMinTransactionFee(tx.nTime));
-
-    qint64 nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
-
-    if(tx.IsCoinBase()) {
-        ui->feesLabel->setText(QString("Reward:"));
-        nTxFees *= -1;
-    }
-    else
-        ui->feesLabel->setText(QString("Fees:"));
-
-    return convertCoins(nTxFees);
+    return 0.0;
 }
 
 BlockBrowser::BlockBrowser(QWidget *parent) :
@@ -282,88 +211,163 @@ BlockBrowser::BlockBrowser(QWidget *parent) :
     ui->setupUi(this);
 
     setBaseSize(850, 524);
+    setFixedSize(QSize(850, 524));
+    //this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 
-#if QT_VERSION >= 0x040700
-    /* Do not move this to the XML file, Qt before 4.7 will choke on it */
-    ui->txBox->setPlaceholderText(tr("Transaction ID"));
-#endif
-
-    connect(ui->blockButton, SIGNAL(pressed()), this, SLOT(blockClicked()));
-    connect(ui->txButton, SIGNAL(pressed()), this, SLOT(txClicked()));
+    connect(ui->searchButton, SIGNAL(pressed()), this, SLOT(searchClicked()));
+    connect(ui->backButton, SIGNAL(pressed()), this, SLOT(backClicked()));
     connect(ui->closeButton, SIGNAL(pressed()), this, SLOT(close()));
 }
 
-void BlockBrowser::updateExplorer(bool block)
+bool isdigit(const string &value){
+    QRegExp re("\\d*");  // a digit (\d), zero or more times (*)
+    if (re.exactMatch(QString::fromStdString(value)))
+        return true;
+    return false;
+}
+
+void BlockBrowser::updateExplorerBlock(const CBlockIndex *pindex)
 {
-    if(block)
-	{
-	    qint64 height = ui->heightBox->value();
-        if (height > pindexBest->nHeight)
+    if (!pindex)
+        return;
+    ui->heightLabelBE2->setVisible(true);
+    ui->heightLabelBE1->setVisible(true);
+    ui->algoBox->setVisible(true);
+    ui->algoLabel->setVisible(true);
+    ui->bitsBox->setVisible(true);
+    ui->bitsLabel->setVisible(true);
+    ui->nonceBox->setVisible(true);
+    ui->nonceLabel->setVisible(true);
+    ui->diffBox->setVisible(true);
+    ui->diffLabel->setVisible(true);
+    ui->merkleBox->setVisible(true);
+    ui->merkleLabel->setVisible(true);
+    ui->moneySupplyBox->setVisible(true);
+    ui->moneySupplyLabel->setVisible(true);
+    ui->inputsBox->setVisible(false);
+    ui->inputsLabel->setVisible(false);
+    ui->outputsBox->setVisible(false);
+    ui->outputsLabel->setVisible(false);
+
+    qint64 height = pindex->nHeight;
+    ui->heightLabelBE1->setText(QString::number(height));
+    ui->hashBox->setText(QString::fromUtf8(getBlockHash(pindex).c_str()));
+    ui->typeBox->setText(QString::fromUtf8(getBlockType(pindex).c_str()));
+    ui->algoBox->setText(QString::fromUtf8(getBlockAlgorithm(pindex).c_str()));
+    ui->merkleBox->setText(QString::fromUtf8(getBlockMerkle(pindex).c_str()));
+    ui->bitsBox->setText(QString::number(getBlocknBits(pindex)));
+    ui->nonceBox->setText(QString::number(getBlockNonce(pindex)));
+    ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(getBlockTime(pindex)).c_str()));
+    ui->diffBox->setText(QString::number(GetDifficultyFromBits(pindex->nBits), 'f', 6));
+    ui->moneySupplyBox->setText(QString::number(getMoneySupply(pindex), 'f', 6) + " GCH");
+}
+
+void BlockBrowser::updateExplorerTransaction(const CTransaction &tx, const uint256 &block)
+{
+    ui->heightLabelBE2->setVisible(false);
+    ui->heightLabelBE1->setVisible(false);
+    ui->algoBox->setVisible(false);
+    ui->algoLabel->setVisible(false);
+    ui->bitsBox->setVisible(false);
+    ui->bitsLabel->setVisible(false);
+    ui->nonceBox->setVisible(false);
+    ui->nonceLabel->setVisible(false);
+    ui->diffBox->setVisible(false);
+    ui->diffLabel->setVisible(false);
+    ui->merkleBox->setVisible(false);
+    ui->merkleLabel->setVisible(false);
+    ui->moneySupplyBox->setVisible(false);
+    ui->moneySupplyLabel->setVisible(false);
+    ui->inputsBox->setVisible(true);
+    ui->inputsLabel->setVisible(true);
+    ui->outputsBox->setVisible(true);
+    ui->outputsLabel->setVisible(true);
+
+    ui->typeBox->setText(QString::fromUtf8("Transaction"));
+    ui->hashBox->setText(QString::fromUtf8(tx.GetHash().GetHex().c_str()));
+    ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(tx.nTime).c_str()));
+    ui->inputsBox->setText(QString::fromUtf8(getInputs(tx.GetHash().GetHex()).c_str()));
+    ui->outputsBox->setText(QString::fromUtf8(getOutputs(tx.GetHash().GetHex()).c_str()));
+}
+
+void BlockBrowser::updateExplorerAddress(const CGalaxyCashAddress &address)
+{
+    ui->typeBox->setText(QString::fromUtf8("Address"));
+}
+
+void BlockBrowser::backClicked()
+{
+    if (!pid.empty())
+    {
+        cid  = pid.top(); pid.pop();
+        ui->lineSearch->setText(QString::fromStdString(cid));
+
+        if (!isdigit(cid))
         {
-            ui->heightBox->setValue(pindexBest->nHeight);
-            height = pindexBest->nHeight;
+            CTransaction tx; uint256 hash;
+            CGalaxyCashAddress address(cid);
+            if (address.IsValid())
+                updateExplorerAddress(address);
+            else if (GetTransaction(uint256S(cid), tx, hash))
+                updateExplorerTransaction(tx, hash);
+            else
+                updateExplorerBlock(getBlockIndexByHash(uint256S(cid)));
         }
-
-        const CBlockIndex* pindex = getBlockIndex(height);
-
-        ui->heightLabelBE1->setText(QString::number(height));
-        ui->hashBox->setText(QString::fromUtf8(getBlockHash(height).c_str()));
-        ui->typeBox->setText(QString::fromUtf8(getBlockType(height).c_str()));
-        ui->algoBox->setText(QString::fromUtf8(getBlockAlgorithm(height).c_str()));
-        ui->merkleBox->setText(QString::fromUtf8(getBlockMerkle(height).c_str()));
-        ui->bitsBox->setText(QString::number(getBlocknBits(height)));
-        ui->nonceBox->setText(QString::number(getBlockNonce(height)));
-        ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(getBlockTime(height)).c_str()));
-        ui->diffBox->setText(QString::number(GetDifficulty(pindex, pindex->GetBlockAlgorithm()), 'f', 6));
-        ui->diffLabel->setText("PoW Block Difficulty:");
-        ui->moneySupplyBox->setText(QString::number(getMoneySupply(height), 'f', 6) + " GCH");
-    }
-
-    else {
-        std::string txid = ui->txBox->text().toUtf8().constData();
-        ui->valueBox->setText(QString::number(getTxTotalValue(txid), 'f', 6) + " GCH");
-        ui->txID->setText(QString::fromUtf8(txid.c_str()));
-        ui->outputBox->setText(QString::fromUtf8(getOutputs(txid).c_str()));
-        ui->inputBox->setText(QString::fromUtf8(getInputs(txid).c_str()));
-        ui->feesBox->setText(QString::number(getTxFees(txid), 'f', 6) + " GCH");
+        else
+        {
+            qint64 height = ui->lineSearch->text().toLongLong();
+            updateExplorerBlock(getBlockIndexByHeight(height));
+        }
     }
 }
 
- void BlockBrowser::setTransactionId(const QString &transactionId)
- {
-     ui->txBox->setText(transactionId);
-     ui->txBox->setFocus();
-     updateExplorer(false);
-
-     uint256 hash;
-     hash.SetHex(transactionId.toStdString());
-
-     CTransaction tx;
-     uint256 hashBlock = 0;
-     if (GetTransaction(hash, tx, hashBlock))
-     {
-         CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
-         if (!pblockindex)
-             ui->heightBox->setValue(nBestHeight);
-         else
-             ui->heightBox->setValue(pblockindex->nHeight);
-         updateExplorer(true);
-     }
- }
-
-void BlockBrowser::txClicked()
+void BlockBrowser::searchClicked()
 {
-    updateExplorer(false);
-}
+    if (ui->lineSearch->text().toStdString().empty())
+        return;
 
-void BlockBrowser::blockClicked()
-{
-    updateExplorer(true);
+    if (!cid.empty())
+        pid.push(cid);
+
+    cid = ui->lineSearch->text().toStdString();
+
+    if (!isdigit(cid))
+    {
+        CTransaction tx; uint256 hash;
+        CGalaxyCashAddress address(cid);
+        if (address.IsValid())
+            updateExplorerAddress(address);
+        else if (GetTransaction(uint256S(cid), tx, hash))
+            updateExplorerTransaction(tx, hash);
+        else
+            updateExplorerBlock(getBlockIndexByHash(uint256S(cid)));
+    }
+    else
+    {
+        qint64 height = ui->lineSearch->text().toLongLong();
+        updateExplorerBlock(getBlockIndexByHeight(height));
+    }
 }
 
 void BlockBrowser::setModel(ClientModel *model)
 {
     this->model = model;
+}
+
+void BlockBrowser::showEvent(QShowEvent *ev)
+{
+    QDialog::showEvent(ev);
+    int maxBlocks = 8;
+    const CBlockIndex *pindex = pindexBest;
+    for (int i = 0; i < maxBlocks; i++)
+    {
+        std::string id = std::string("block ") + std::to_string(pindex->nHeight);
+        QAction *action = new QAction(QString::fromStdString(id), ui->listBlocks);
+        ui->listBlocks->addAction(action);
+
+        if (pindex->pprev)
+            pindex = pindex->pprev;
+    }
 }
 
 BlockBrowser::~BlockBrowser()
