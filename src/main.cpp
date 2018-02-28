@@ -86,6 +86,7 @@ int nMasternodeMinProtocol = 0;
 bool fEnableAnonsend = false;
 std::vector<int64_t> anonSendDenominations;
 bool fMasternodeSoftLock = false;
+std::set<COutPoint> netLockedCoins;
 
 
 struct COrphanBlock {
@@ -344,16 +345,140 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
     return nEvicted;
 }
 
+#include <zlib.h>
 
+static uint32_t compressionMagic = 0x1e0ffff0;
 
+class CDiskCompressedBlock
+{
+public:
+    unsigned int        osize, csize;
+    std::vector <char>  vch;
 
+    IMPLEMENT_SERIALIZE(
+        READWRITE(osize);
+        READWRITE(csize);
+        READWRITE(vch);
+    )
 
+    void CompressBlock(CBlock *pblock)
+    {
+        {
+            osize = pblock->GetSerializeSize(SER_DISK, CLIENT_VERSION);
 
+            CDataStream stream(SER_DISK, CLIENT_VERSION);
+            stream << *pblock;
+
+            char *buffer = (char *) malloc(osize);
+
+            // zlib struct
+            z_stream defstream;
+            defstream.zalloc = Z_NULL;
+            defstream.zfree = Z_NULL;
+            defstream.opaque = Z_NULL;
+            defstream.avail_in = (uInt) osize;
+            defstream.next_in = (Bytef *) stream.uptr();
+            defstream.avail_out = (uInt) osize;
+            defstream.next_out = (Bytef *) buffer;
+
+            // the actual compression work.
+            deflateInit(&defstream, Z_BEST_COMPRESSION);
+            deflate(&defstream, Z_FINISH);
+            deflateEnd(&defstream);
+
+            csize = defstream.total_out;
+
+            vch.resize(csize);
+            memcpy(&vch[0], buffer, csize);
+
+            free(buffer);
+        }
+    }
+
+    void DecompressBlock(CBlock *pblock, int nType, int nVersion)
+    {
+        {
+            char *buffer = (char *) malloc(osize);
+            z_stream infstream;
+            infstream.zalloc = Z_NULL;
+            infstream.zfree = Z_NULL;
+            infstream.opaque = Z_NULL;
+            infstream.avail_in = (uInt) csize;
+            infstream.next_in = (Bytef *) &vch[0];
+            infstream.avail_out = (uInt) osize;
+            infstream.next_out = (Bytef *) buffer;
+
+            inflateInit(&infstream);
+            inflate(&infstream, Z_NO_FLUSH);
+            inflateEnd(&infstream);
+
+            CDataStream stream(buffer, buffer + osize, nType, nVersion);
+            stream >> *pblock;
+
+            free(buffer);
+        }
+    }
+
+    void DecompressTransaction(const CDiskTxPos &pos, CTransaction *ptx)
+    {
+        {
+            char *buffer = (char *) malloc(osize);
+            z_stream infstream;
+            infstream.zalloc = Z_NULL;
+            infstream.zfree = Z_NULL;
+            infstream.opaque = Z_NULL;
+            infstream.avail_in = (uInt) csize;
+            infstream.next_in = (Bytef *) &vch[0];
+            infstream.avail_out = (uInt) osize;
+            infstream.next_out = (Bytef *) buffer;
+
+            inflateInit(&infstream);
+            inflate(&infstream, Z_NO_FLUSH);
+            inflateEnd(&infstream);
+
+            CDataStream stream(buffer + (pos.nTxPos - pos.nBlockPos), buffer + osize, SER_DISK, CLIENT_VERSION);
+            stream >> *ptx;
+
+            free(buffer);
+        }
+    }
+};
 
 //////////////////////////////////////////////////////////////////////////////
 //
 // CTransaction and CTxIndex
 //
+bool CTransaction::ReadFromDisk(CDiskTxPos pos)
+{
+    CBlockFile *blockfile = OpenBlockFile(pos.nFile, pos.nBlockPos, CBlockFile::OPEN);
+    if (!blockfile)
+        return error("CTransaction::ReadFromDisk() : OpenBlockFile failed");
+
+    try {
+        uint32_t magic = 0;
+        blockfile->seek(pos.nBlockPos - sizeof(uint32_t));
+        *blockfile >> magic;
+        if (magic == compressionMagic)
+        {
+            CDiskCompressedBlock block;
+            *blockfile >> block;
+            block.DecompressTransaction(pos, this);
+        }
+        else
+        {
+            blockfile->seek(pos.nTxPos);
+            *blockfile >> *this;
+        }
+    }
+    catch (std::exception &e) {
+        delete blockfile;
+        return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
+    }
+
+    // Return file pointer
+    delete blockfile;
+    return true;
+}
 
 bool CTransaction::ReadFromDisk(CTxDB& txdb, const uint256& hash, CTxIndex& txindexRet)
 {
@@ -1187,6 +1312,80 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
+    return true;
+}
+
+bool CBlock::WriteToDisk(unsigned int& nFileRet, unsigned int& nBlockPosRet)
+{
+    // Open history file to append
+    CBlockFile *blockfile = AppendBlockFile(nFileRet);
+    if (!blockfile)
+        return error("CBlock::WriteToDisk() : AppendBlockFile failed");
+
+
+
+    // Write block
+    if (GetBoolArg("-usecompression", false))
+    {
+        CDiskCompressedBlock cblock;
+        cblock.CompressBlock(this);
+
+        *blockfile << FLATDATA(Params().MessageStart()) << cblock.csize;
+        *blockfile << compressionMagic;
+        nBlockPosRet = blockfile->tell();
+        *blockfile << cblock;
+    }
+    else {
+        *blockfile << FLATDATA(Params().MessageStart()) << GetSerializeSize(blockfile->nType, blockfile->nVersion);
+        nBlockPosRet = blockfile->tell();
+        *blockfile << *this;
+    }
+    delete blockfile;
+
+    return true;
+}
+
+bool CBlock::ReadFromDisk(unsigned int nFile, unsigned int nBlockPos, bool fReadTransactions)
+{
+    SetNull();
+
+    // Open history file to read
+    CBlockFile *blockfile = OpenBlockFile(nFile, nBlockPos, CBlockFile::OPEN);
+    if (!blockfile)
+        return error("CBlock::ReadFromDisk() : OpenBlockFile failed");
+
+    if (!fReadTransactions) blockfile->nType |= SER_BLOCKHEADERONLY;
+
+    // Read block
+    try {
+        uint32_t magic = 0;
+        blockfile->seek(nBlockPos - sizeof(uint32_t));
+        *blockfile >> magic;
+
+        if (magic == compressionMagic)
+        {
+            CDiskCompressedBlock cblock;
+            *blockfile >> cblock;
+            cblock.DecompressBlock(this, blockfile->nType, blockfile->nVersion);
+        }
+        else
+        {
+            *blockfile >> *this;
+        }
+    }
+    catch (std::exception &e) {
+        delete blockfile;
+        return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
+    }
+
+    // Check the header
+    if (fReadTransactions && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
+    {
+        delete blockfile;
+        return error("CBlock::ReadFromDisk() : errors in block header");
+    }
+
+    delete blockfile;
     return true;
 }
 
@@ -3007,52 +3206,6 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
-static filesystem::path BlockFilePath(unsigned int nFile)
-{
-    string strBlockFn = strprintf("blocks/blk%04u.dat", nFile);
-    return GetDataDir() / strBlockFn;
-}
-
-FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
-{
-    if ((nFile < 1) || (nFile == (unsigned int) -1))
-        return NULL;
-    FILE* file = fopen(BlockFilePath(nFile).string().c_str(), pszMode);
-    if (!file)
-        return NULL;
-    if (nBlockPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w'))
-    {
-        if (fseek(file, nBlockPos, SEEK_SET) != 0)
-        {
-            fclose(file);
-            return NULL;
-        }
-    }
-    return file;
-}
-
-static unsigned int nCurrentBlockFile = 1;
-
-FILE* AppendBlockFile(unsigned int& nFileRet)
-{
-    nFileRet = 0;
-    while (true)
-    {
-        FILE* file = OpenBlockFile(nCurrentBlockFile, 0, "ab");
-        if (!file)
-            return NULL;
-        if (fseek(file, 0, SEEK_END) != 0)
-            return NULL;
-        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE))
-        {
-            nFileRet = nCurrentBlockFile;
-            return file;
-        }
-        fclose(file);
-        nCurrentBlockFile++;
-    }
-}
 
 bool LoadBlockIndex(bool fAllowNew)
 {
@@ -4040,7 +4193,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         // Ignore unknown commands for extensibility
     }
-
 
     // Update the last seen time for this node's address
     if (pfrom->fNetworkNode)

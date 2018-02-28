@@ -162,7 +162,8 @@ OBJS= \
     obj/rpcanonsend.o \
     obj/anonsend.o \
     obj/anonsend-relay.o \
-    obj/spork.o
+    obj/spork.o \
+    obj/blockfile.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET
@@ -222,6 +223,7 @@ obj/%.o: crypto/%.c
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
+
 
 galaxycashd: $(OBJS:obj/%=obj/%)
 	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS)

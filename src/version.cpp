@@ -9,7 +9,7 @@
 // for both galaxycashd and galaxycash-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
 const std::string CLIENT_NAME("GalaxyCash");
-const std::string CLIENT_CODENAME("AnonSide");
+const std::string CLIENT_CODENAME(CLIENT_VERSION_CODENAME);
 
 // Client version number
 #define CLIENT_VERSION_SUFFIX   ""

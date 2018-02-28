@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 2.0.0.2
+VERSION = 2.0.0.3
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network
@@ -270,7 +270,8 @@ HEADERS += src/qt/galaxycashgui.h \
     src/qt/anonsendconfig.h \
     src/qt/masternodemanager.h \
     src/qt/galaxynodeconfigdialog.h \
-    src/qt/addeditgalaxynode.h
+    src/qt/addeditgalaxynode.h \
+    src/blockfile.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -380,7 +381,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/anonsendconfig.cpp \
     src/qt/masternodemanager.cpp \
     src/qt/galaxynodeconfigdialog.cpp \
-    src/qt/addeditgalaxynode.cpp
+    src/qt/addeditgalaxynode.cpp \
+    src/blockfile.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc
@@ -492,9 +494,9 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
+LIBS += -lgmp -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
-windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lgmp
+windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 
 LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX

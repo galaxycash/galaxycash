@@ -141,18 +141,25 @@ Value getnetworkhashps(const Array& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "getnetworkhashps\n"
-            "x             (numeric) Hashes per second estimated\n"
+                "getnetworkhashps ( blocks height )\n"
+                "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+                "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+                "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
+                "\nArguments:\n"
+                "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
+                "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+                "\nResult:\n"
+                "x             (numeric) Hashes per second estimated\n"
        );
 
-    return (GetPoWMHashPSForAlgo(CBlock::ALGO_X11) +  GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoWMHashPSForAlgo(CBlock::ALGO_X12) + GetPoSKernelPS()) * 2000.0;
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
 }
 
 Value getnetworkhashrate(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getnetworkhashps ( blocks height )\n"
+            "getnetworkhashrate ( blocks height )\n"
             "\nReturns the estimated network hashes per second based on the last n blocks.\n"
             "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
             "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
@@ -170,7 +177,7 @@ Value getnetworkhashrate(const Array& params, bool fHelp)
     const double ths = ghs * 1000;
     const double phs = ths * 1000;
 
-    double hashps = (GetPoWMHashPS() + GetPoSKernelPS()) * 1000.0 * 1000.0;
+    double hashps = GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
 
     if (hashps <= hs)
         return (std::to_string(hashps) + " h/s").c_str();
@@ -194,6 +201,16 @@ Value getsubsidy(const Array& params, bool fHelp)
             "Returns proof-of-work subsidy value for the specified value of target.");
 
     return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight);
+}
+
+Value getmasternodesubsidy(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "getmasternodesubsidy [nTarget]\n"
+            "Returns proof-of-work subsidy value for the specified value of target.");
+
+    return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight) / 100 * 15;
 }
 
 Value getstakesubsidy(const Array& params, bool fHelp)
@@ -222,6 +239,34 @@ Value getstakesubsidy(const Array& params, bool fHelp)
 
     return (uint64_t)GetProofOfStakeReward(pindexBest, nCoinAge, 0);
 }
+
+Value getstakemasternodesubsidy(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getstakesubsidy <hex string>\n"
+            "Returns proof-of-stake subsidy value for the specified coinstake.");
+
+    RPCTypeCheck(params, list_of(str_type));
+
+    vector<unsigned char> txData(ParseHex(params[0].get_str()));
+    CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
+    CTransaction tx;
+    try {
+        ssData >> tx;
+    }
+    catch (std::exception &e) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+    }
+
+    uint64_t nCoinAge;
+    CTxDB txdb("r");
+    if (!tx.GetCoinAge(txdb, pindexBest, nCoinAge))
+        throw JSONRPCError(RPC_MISC_ERROR, "GetCoinAge failed");
+
+    return (uint64_t)GetProofOfStakeReward(pindexBest, nCoinAge, 0) / 100 * 10;
+}
+
 
 Value getmininginfo(const Array& params, bool fHelp)
 {

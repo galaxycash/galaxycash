@@ -104,7 +104,10 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     ShutdownRPCMining();
     if (pwalletMain)
+    {
+        pwalletMain->UnlockAllCoins();
         bitdb.Flush(false);
+    }
 #endif
     StopNode();
     {

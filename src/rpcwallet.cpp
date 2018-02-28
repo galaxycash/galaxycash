@@ -193,7 +193,7 @@ Value setaccount(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "setaccount <galaxycashaddress> <account>\n"
+            "setaccount <GalaxyCashaddress> <account>\n"
             "Sets the account associated with the given address.");
 
     CGalaxyCashAddress address(params[0].get_str());
@@ -223,7 +223,7 @@ Value getaccount(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "getaccount <galaxycashaddress>\n"
+            "getaccount <GalaxyCashaddress>\n"
             "Returns the account associated with the given address.");
 
     CGalaxyCashAddress address(params[0].get_str());
@@ -261,10 +261,10 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
 Value sendtoaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error(
-            "sendtoaddress <galaxycashaddress> <amount> [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.00000001"
+            "sendtoaddress <GalaxyCashaddress> <amount> [comment] [comment-to] [narration]\n"
+            "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
     CGalaxyCashAddress address(params[0].get_str());
@@ -273,6 +273,13 @@ Value sendtoaddress(const Array& params, bool fHelp)
 
     // Amount
     int64_t nAmount = AmountFromValue(params[1]);
+
+    std::string sNarr;
+    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+        sNarr = params[4].get_str();
+    
+    if (sNarr.length() > 24)
+        throw runtime_error("Narration must be 24 characters or less.");
 
     // Wallet comments
     CWalletTx wtx;
@@ -284,8 +291,6 @@ Value sendtoaddress(const Array& params, bool fHelp)
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    int miss; int64_t quest;
-    pwalletMain->FixSpentCoins(miss, quest);
     string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -328,7 +333,7 @@ Value signmessage(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "signmessage <galaxycashaddress> <message>\n"
+            "signmessage <GalaxyCashaddress> <message>\n"
             "Sign a message with the private key of an address");
 
     EnsureWalletIsUnlocked();
@@ -363,10 +368,10 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "getreceivedbyaddress <galaxycashaddress> [minconf=1]\n"
-            "Returns the total amount received by <galaxycashaddress> in transactions with at least [minconf] confirmations.");
+            "getreceivedbyaddress <GalaxyCashaddress> [minconf=1]\n"
+            "Returns the total amount received by <GalaxyCashaddress> in transactions with at least [minconf] confirmations.");
 
-    // GalaxyCash address
+    // Bitcoin address
     CGalaxyCashAddress address = CGalaxyCashAddress(params[0].get_str());
     CScript scriptPubKey;
     if (!address.IsValid())
@@ -589,10 +594,10 @@ Value movecmd(const Array& params, bool fHelp)
 
 Value sendfrom(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 6)
+    if (fHelp || params.size() < 3 || params.size() > 7)
         throw runtime_error(
-            "sendfrom <fromaccount> <togalaxycashaddress> <amount> [minconf=1] [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.00000001"
+            "sendfrom <fromaccount> <toGalaxyCashaddress> <amount> [minconf=1] [comment] [comment-to] [narration]\n"
+            "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
     string strAccount = AccountFromValue(params[0]);
@@ -607,6 +612,13 @@ Value sendfrom(const Array& params, bool fHelp)
 
     CWalletTx wtx;
     wtx.strFromAccount = strAccount;
+    std::string sNarr;
+    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
+        sNarr = params[6].get_str();
+    
+    if (sNarr.length() > 24)
+        throw runtime_error("Narration must be 24 characters or less.");
+
     if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
         wtx.mapValue["comment"] = params[4].get_str();
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
@@ -672,11 +684,6 @@ Value sendmany(const Array& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    // Fix spends
-    int mis;
-    int64_t quest;
-    pwalletMain->FixSpentCoins(mis,quest);
-
     // Check funds
     int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
     if (totalAmount > nBalance)
@@ -685,6 +692,8 @@ Value sendmany(const Array& params, bool fHelp)
     // Send
     CReserveKey keyChange(pwalletMain);
     int64_t nFeeRequired = 0;
+    int nChangePos;
+    std::string strFailReason;
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired);
     if (!fCreated)
     {
@@ -728,7 +737,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     {
         const std::string& ks = keys[i].get_str();
 
-        // Case 1: GalaxyCash address and we have full public key:
+        // Case 1: Bitcoin address and we have full public key:
         CGalaxyCashAddress address(ks);
         if (pwalletMain && address.IsValid())
         {
@@ -956,8 +965,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.first);
             entry.push_back(Pair("category", "send"));
-            entry.push_back(Pair("amount", ValueFromAmount(s.second)));
-            entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+            entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
+            entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -995,7 +1004,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("amount", ValueFromAmount(r.second)));
                 else
                 {
-                    entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
+                    entry.push_back(Pair("amount", ValueFromAmount(r.second)));
                     stop = true; // only one coinstake output
                 }
                 if (fLong)
@@ -1219,8 +1228,8 @@ Value gettransaction(const Array& params, bool fHelp)
 
         TxToJSON(wtx, 0, entry);
 
-        int64_t nCredit = pwalletMain->GetCredit(wtx);
-        int64_t nDebit = pwalletMain->GetDebit(wtx);
+        int64_t nCredit = wtx.GetCredit();
+        int64_t nDebit = wtx.GetDebit();
         int64_t nNet = nCredit - nDebit;
         int64_t nFee = (wtx.IsFromMe() ? wtx.GetValueOut() - nDebit : 0);
 
@@ -1351,16 +1360,13 @@ Value walletpassphrase(const Array& params, bool fHelp)
     nWalletUnlockTime = GetTime() + nSleepTime;
     RPCRunLater("lockwallet", boost::bind(LockWallet, pwalletMain), nSleepTime);
 
-    // ppcoin: if user OS account compromised prevent trivial sendmoney commands
+    //   if user OS account compromised prevent trivial sendmoney commands
     if (params.size() > 2)
         fWalletUnlockStakingOnly = params[2].get_bool();
     else
         fWalletUnlockStakingOnly = false;
 
-    Object ret;
-    ret.push_back(Pair("Unlocked for staking only", fWalletUnlockStakingOnly));
-
-    return ret;
+    return Value::null;
 }
 
 
@@ -1453,7 +1459,7 @@ Value encryptwallet(const Array& params, bool fHelp)
 }
 
 
-// ppcoin: reserve balance from being staked for network protection
+//   reserve balance from being staked for network protection
 Value reservebalance(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
@@ -1492,7 +1498,7 @@ Value reservebalance(const Array& params, bool fHelp)
 }
 
 
-// ppcoin: check wallet integrity
+//   check wallet integrity
 Value checkwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 0)
@@ -1515,7 +1521,7 @@ Value checkwallet(const Array& params, bool fHelp)
 }
 
 
-// ppcoin: repair wallet
+//   repair wallet
 Value repairwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 0)
@@ -1551,7 +1557,7 @@ Value resendtx(const Array& params, bool fHelp)
     return Value::null;
 }
 
-// ppcoin: make a public-private key pair
+//   make a public-private key pair
 Value makekeypair(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -1563,7 +1569,7 @@ Value makekeypair(const Array& params, bool fHelp)
     string strPrefix = "";
     if (params.size() > 0)
         strPrefix = params[0].get_str();
-
+ 
     CKey key;
     key.MakeNewKey(false);
 
@@ -1576,7 +1582,7 @@ Value makekeypair(const Array& params, bool fHelp)
 
 Value settxfee(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < GetMinTransactionFee(GetTime()))
+    if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < GetMinTransactionFee())
         throw runtime_error(
             "settxfee <amount>\n"
             "<amount> is a real and is rounded to the nearest 0.01");
@@ -1585,6 +1591,48 @@ Value settxfee(const Array& params, bool fHelp)
     nTransactionFee = (nTransactionFee / CENT) * CENT;  // round to cent
 
     return true;
+}
+
+Value scanforalltxns(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "scanforalltxns [fromHeight]\n"
+            "Scan blockchain for owned transactions.");
+    
+    Object result;
+    int32_t nFromHeight = 0;
+    
+    CBlockIndex *pindex = pindexGenesisBlock;
+    
+    
+    if (params.size() > 0)
+        nFromHeight = params[0].get_int();
+    
+    
+    if (nFromHeight > 0)
+    {
+        pindex = mapBlockIndex[hashBestChain];
+        while (pindex->nHeight > nFromHeight
+            && pindex->pprev)
+            pindex = pindex->pprev;
+    };
+    
+    if (pindex == NULL)
+        throw runtime_error("Genesis Block is not set.");
+    
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        
+        pwalletMain->MarkDirty();
+        
+        pwalletMain->ScanForWalletTransactions(pindex, true);
+        pwalletMain->ReacceptWalletTransactions();
+    }
+    
+    result.push_back(Pair("result", "Scan complete."));
+    
+    return result;
 }
 
 // Fix spendable coins

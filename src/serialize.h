@@ -949,7 +949,12 @@ public:
     {
         return (std::string(begin(), end()));
     }
-
+    const unsigned char *uptr() const {
+        return (const unsigned char *) &vch[0];
+    }
+    const char *ptr() const {
+        return &vch[0];
+    }
 
     //
     // Vector subset
@@ -1048,6 +1053,11 @@ public:
         return true;
     }
 
+    bool Skip(size_type n)
+    {
+        nReadPos += n;
+        return true;
+    }
 
     //
     // Stream subset
@@ -1228,6 +1238,7 @@ public:
     void clear(short n = 0)      { state = n; }
     short exceptions()           { return exceptmask; }
     short exceptions(short mask) { short prev = exceptmask; exceptmask = mask; setstate(0, "CAutoFile"); return prev; }
+    void unread(int amount)       { fseek(file, -amount, SEEK_CUR); }
 
     void SetType(int n)          { nType = n; }
     int GetType()                { return nType; }

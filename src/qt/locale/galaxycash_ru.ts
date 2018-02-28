@@ -674,7 +674,7 @@ Address: %4
         <location line="-429"/>
         <location line="+6"/>
         <source>%n week(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>%n неделя</numerusform><numerusform>%n недели</numerusform><numerusform>%n недели</numerusform></translation>
     </message>
     <message>
         <location line="+0"/>
@@ -684,7 +684,7 @@ Address: %4
     <message numerus="yes">
         <location line="+0"/>
         <source>%n year(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>%n год</numerusform><numerusform>%n лет</numerusform><numerusform>%n лет</numerusform></translation>
     </message>
     <message>
         <location line="+5"/>
@@ -1328,6 +1328,10 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <location line="+32"/>
         <source>Unconfirmed:</source>
         <translation>Не подтверждено:</translation>
+    </message>
+    <message>
+        <source>Locked:</source>
+        <translation>Закрыто:</translation>
     </message>
     <message>
         <location line="-113"/>

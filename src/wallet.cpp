@@ -19,6 +19,7 @@
 #include "masternode-payments.h"
 
 #include <boost/algorithm/string/replace.hpp>
+#include <algorithm>
 
 using namespace std;
 
@@ -725,8 +726,13 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, int64_t> >& listReceived,
     }
 
     // Sent/received.
-    BOOST_FOREACH(const CTxOut& txout, vout)
+    for (int i = 0; i < vout.size(); i++)
     {
+        const CTxOut &txout = vout[i];
+
+        if (pwallet->IsLockedCoin(GetHash(), i))
+            continue;
+
         // Skip special stake out
         if (txout.scriptPubKey.empty())
             continue;
@@ -1057,7 +1063,7 @@ int64_t CWallet::GetBalance() const
         }
     }
 
-    return nTotal;
+    return nTotal - GetLockedBalance();
 }
 
 int64_t CWallet::GetUnconfirmedBalance() const
@@ -1087,6 +1093,36 @@ int64_t CWallet::GetImmatureBalance() const
                 nTotal += GetCredit(pcoin);
         }
     }
+    return nTotal;
+}
+
+int64_t CWallet::GetLockedBalance() const
+{
+    int64_t nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted())
+            {
+                uint256 hashTx = pcoin->GetHash();
+                for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+                {
+                    if (pcoin->IsSpent(i))
+                    {
+                        const CTxOut &txout = pcoin->vout[i];
+                        if (!IsLockedCoin(hashTx, i)) continue;
+
+                        nTotal += GetCredit(txout);
+                        if (!MoneyRange(nTotal))
+                            throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
+                    }
+                }
+            }
+        }
+    }
+
     return nTotal;
 }
 
@@ -2560,37 +2596,40 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const {
 
 void CWallet::LockCoin(COutPoint& output)
 {
-    AssertLockHeld(cs_wallet); // setLockedCoins
-    setLockedCoins.insert(output);
+    AssertLockHeld(cs_wallet);
+
+    if (!setLockedCoins.count(output))
+        setLockedCoins.insert(output);
 }
 
 void CWallet::UnlockCoin(COutPoint& output)
 {
-    AssertLockHeld(cs_wallet); // setLockedCoins
-    setLockedCoins.erase(output);
+    AssertLockHeld(cs_wallet);
+
+    if (setLockedCoins.count(output))
+        setLockedCoins.erase(output);
 }
 
 void CWallet::UnlockAllCoins()
 {
-    AssertLockHeld(cs_wallet); // setLockedCoins
+    AssertLockHeld(cs_wallet);
     setLockedCoins.clear();
 }
 
 bool CWallet::IsLockedCoin(uint256 hash, unsigned int n) const
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
-    COutPoint outpt(hash, n);
-
-    return (setLockedCoins.count(outpt) > 0);
+    COutPoint output(hash, n);
+    return (setLockedCoins.count(output) > 0);
 }
 
-void CWallet::ListLockedCoins(std::vector<COutPoint>& vOutpts)
+void CWallet::ListLockedCoins(std::vector<COutPoint>& vOutputs)
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
     for (std::set<COutPoint>::iterator it = setLockedCoins.begin();
          it != setLockedCoins.end(); it++) {
-        COutPoint outpt = (*it);
-        vOutpts.push_back(outpt);
+        COutPoint output = (*it);
+        vOutputs.push_back(output);
     }
 }
 
@@ -2604,7 +2643,7 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
         return false;
 
     const CWalletTx &tx = (*it).second;
-    if (tx.IsSpent(n))
+    if (!IsLockedCoin(hash, n) && tx.IsSpent(n))
         return true;
 
     return false;
@@ -2720,7 +2759,7 @@ double CWallet::GetAverageAnonymizedRounds() const
 
                 CTxIn vin = CTxIn(hash, i);
 
-                if(IsSpent(hash, i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
+                if(IsLockedCoin(hash, i) || IsSpent(hash, i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
 
                 int rounds = GetInputAnonsendRounds(vin);
                 fTotal += (float)rounds;
@@ -2754,7 +2793,7 @@ int64_t CWallet::GetNormalizedAnonymizedBalance() const
 
                 CTxIn vin = CTxIn(hash, i);
 
-                if(IsSpent(hash, i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
+                if(IsLockedCoin(hash, i) || IsSpent(hash, i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
                 if (pcoin->GetDepthInMainChain() < 0) continue;
 
                 int rounds = GetInputAnonsendRounds(vin);

@@ -159,7 +159,7 @@ OverviewPage::~OverviewPage()
     delete ui;
 }
 
-void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 anonymizedBalance)
+void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 anonymizedBalance, qint64 lockedBalance)
 {
     int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
@@ -167,12 +167,14 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     currentUnconfirmedBalance = unconfirmedBalance;
     currentImmatureBalance = immatureBalance;
     currentAnonymizedBalance = anonymizedBalance;
+    currentLockedBalance = lockedBalance;
     ui->labelBalance->setText(GalaxyCashUnits::formatWithUnit(unit, balance));
     ui->labelAnonymized->setText(GalaxyCashUnits::formatWithUnit(unit, anonymizedBalance));
     ui->labelStake->setText(GalaxyCashUnits::formatWithUnit(unit, stake));
     ui->labelUnconfirmed->setText(GalaxyCashUnits::formatWithUnit(unit, unconfirmedBalance));
     ui->labelImmature->setText(GalaxyCashUnits::formatWithUnit(unit, immatureBalance));
-    ui->labelTotal->setText(GalaxyCashUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance));
+    ui->labelLocked->setText(GalaxyCashUnits::formatWithUnit(unit, lockedBalance));
+    ui->labelTotal->setText(GalaxyCashUnits::formatWithUnit(unit, balance + lockedBalance + unconfirmedBalance + immatureBalance));
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
@@ -180,6 +182,9 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     ui->labelImmature->setVisible(showImmature);
     ui->labelImmatureText->setVisible(showImmature);
 
+    bool showLocked = lockedBalance != 0;
+    ui->labelLocked->setVisible(showLocked);
+    ui->labelLockedText->setVisible(showLocked);
     updateAnonsendProgress();
 }
 
@@ -212,8 +217,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         // Keep up to date with wallet
-        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getAnonymizedBalance());
-        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64)));
+        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getAnonymizedBalance(), model->getLockedBalance());
+        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64, qint64)));
         connect(ui->anonsendAuto, SIGNAL(clicked()), this, SLOT(anonsendAuto()));
         connect(ui->anonsendReset, SIGNAL(clicked()), this, SLOT(anonsendReset()));
         connect(ui->toggleAnonsend, SIGNAL(clicked()), this, SLOT(toggleAnonsend()));
@@ -232,7 +237,7 @@ void OverviewPage::updateDisplayUnit()
     if(walletModel && walletModel->getOptionsModel())
     {
         if(currentBalance != -1)
-            setBalance(currentBalance, currentStake, currentUnconfirmedBalance, currentImmatureBalance, currentAnonymizedBalance);
+            setBalance(currentBalance, currentStake, currentUnconfirmedBalance, currentImmatureBalance, currentAnonymizedBalance, pwalletMain->GetLockedBalance());
 
         // Update txdelegate->unit with the current unit
         txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();

@@ -221,6 +221,8 @@ extern Value getnetworkhashps(const Array& params, bool fHelp);
 extern Value getnetworkhashrate(const Array& params, bool fHelp);
 extern Value setbestblock(const Array& params, bool fHelp);
 extern Value fixspendable(const Array& params, bool fHelp);
+extern Value getmasternodesubsidy(const Array& params, bool fHelp);
+extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
@@ -308,6 +310,8 @@ static const CRPCCommand vRPCCommands[] =
     { "settxfee",               &settxfee,               false,     false,     true },
     { "getsubsidy",             &getsubsidy,             true,      true,      false },
     { "getstakesubsidy",        &getstakesubsidy,        true,      true,      false },
+    { "getmasternodesubsidy",   &getmasternodesubsidy,             true,      true,      false },
+    { "getstakemasternodesubsidy",&getstakemasternodesubsidy,        true,      true,      false },
     { "reservebalance",         &reservebalance,         false,     true,      true },
     { "checkwallet",            &checkwallet,            false,     true,      true },
     { "repairwallet",           &repairwallet,           false,     true,      true },

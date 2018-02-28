@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 2.0.0.2
+VERSION = 2.0.0.3
 INCLUDEPATH += src src/json
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
@@ -180,7 +180,8 @@ HEADERS += src/addrman.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
-    src/spork.h
+    src/spork.h \
+    src/blockfile.h
 
 SOURCES += src/galaxycashd.cpp \
     src/kernel.cpp \
@@ -250,7 +251,8 @@ SOURCES += src/galaxycashd.cpp \
     src/crypto/simd.c \
     src/crypto/ripemd.c \
     src/crypto/skein.c \
-    src/crypto/blake2s-ref.c
+    src/crypto/blake2s-ref.c \
+    src/blockfile.cpp
 
 
 # "Other files" to show in Qt Creator
@@ -313,7 +315,7 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,)
-LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
+LIBS +=  -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 

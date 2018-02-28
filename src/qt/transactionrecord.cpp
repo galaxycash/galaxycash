@@ -26,55 +26,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 {
     QList<TransactionRecord> parts;
     int64_t nTime = wtx.GetTxTime();
-    int64_t nCredit = wtx.GetCredit();
+    int64_t nCredit = wtx.GetCredit(true);
     int64_t nDebit = wtx.GetDebit();
     int64_t nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash(), hashPrev = 0;
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    if (wtx.IsCoinStake())
-    {
-        TransactionRecord sub(hash, nTime);
-        CTxDestination address;
-        if (!ExtractDestination(wtx.vout[1].scriptPubKey, address))
-            return parts;
-
-        if(!IsMine(*wallet, address))
-        {
-            //if the address is not yours then it means you have a tx sent to you in someone elses coinstake tx
-            for(unsigned int i = 1; i < wtx.vout.size(); i++)
-            {
-                CTxDestination outAddress;
-                if(ExtractDestination(wtx.vout[i].scriptPubKey, outAddress))
-                {
-                    if(IsMine(*wallet, outAddress))
-                    {
-                        sub.type = TransactionRecord::MNReward;
-                        sub.address = CGalaxyCashAddress(outAddress).ToString();
-                        sub.credit = wtx.vout[i].nValue;
-                    }
-                }
-            }
-        }
-        else
-        {
-            //stake reward
-        int64_t nValueOut = 0;
-            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
-        {
-        if (IsMine(*wallet,txout.scriptPubKey))
-            nValueOut += txout.nValue;
-        if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
-            throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
-        }
-        sub.type = TransactionRecord::StakeMint;
-        sub.address = CGalaxyCashAddress(address).ToString();
-        sub.credit = nNet > 0 ? nNet : nValueOut - nDebit;
-        hashPrev = hash;
-        }
-        parts.append(sub);
-    }
-    else if (nNet > 0 || wtx.IsCoinBase())
+    if (nNet > 0 || wtx.IsCoinBase() || wtx.IsCoinStake())
     {
         //
         // Credit
@@ -89,9 +47,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.credit = txout.nValue;
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
-                    // Received by GCH Address
+                    // Received by Bitcoin Address
                     sub.type = TransactionRecord::RecvWithAddress;
-                    sub.address = CGalaxyCashAddress(address).ToString();
+                    sub.address = CBitcoinAddress(address).ToString();
                 }
                 else
                 {
@@ -101,8 +59,28 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
                 if (wtx.IsCoinBase())
                 {
-                    // Generated
+                    // Generated (proof-of-work)
                     sub.type = TransactionRecord::Generated;
+                }
+                if (wtx.IsCoinStake())
+                {
+                    // Generated (proof-of-stake)
+
+                    if (hashPrev == hash)
+                        continue; // last coinstake output
+
+                    int64_t nValueOut = 0;
+                    BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                    {
+                        if (IsMine(*wallet,txout.scriptPubKey))
+                            nValueOut += txout.nValue;
+                        if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
+                            throw std::runtime_error("TransactionRecord::decomposeTransaction() : value out of range");
+                    }
+
+                    sub.type = TransactionRecord::Generated;
+                    sub.credit = nNet > 0 ? nNet : nValueOut - nDebit;
+                    hashPrev = hash;
                 }
 
                 parts.append(sub);
@@ -111,78 +89,21 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     }
     else
     {
-        bool fAllFromMeDenom = true;
-        bool fAllFromMe = false;
-        int nFromMe = 0;
+        bool fAllFromMe = true;
         BOOST_FOREACH(const CTxIn& txin, wtx.vin)
-        {
-            if(wallet->IsMine(txin)) {
-                fAllFromMeDenom = fAllFromMeDenom && wallet->IsDenominated(txin);
-                nFromMe++;
-            }
+            fAllFromMe = fAllFromMe && wallet->IsMine(txin);
 
-            fAllFromMe = wallet->IsMine(txin);
-        }
+        bool fAllToMe = true;
+        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+            fAllToMe = fAllToMe && wallet->IsMine(txout);
 
-        bool fAllToMeDenom = true;
-        bool fAllToMe = false;
-        int nToMe = 0;
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout) {
-            if(wallet->IsMine(txout)) {
-                fAllToMeDenom = fAllToMeDenom && wallet->IsDenominatedAmount(txout.nValue);
-                nToMe++;
-            }
-
-            fAllToMe = wallet->IsMine(txout);
-        }
-
-        if(fAllFromMeDenom && fAllToMeDenom && nFromMe * nToMe) {
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::AnonsendDenominate, "", -nDebit, nCredit));
-        }
-        else if (fAllFromMe && fAllToMe)
+        if (fAllFromMe && fAllToMe)
         {
             // Payment to self
-            // TODO: this section still not accurate but covers most cases,
-            // might need some additional work however
-
-            TransactionRecord sub(hash, nTime);
-            // Payment to self by default
-            sub.type = TransactionRecord::SendToSelf;
-            sub.address = "";
-
-            if(mapValue["DS"] == "1")
-            {
-                sub.type = TransactionRecord::Anonsent;
-                CTxDestination address;
-                if (ExtractDestination(wtx.vout[0].scriptPubKey, address))
-                {
-                    // Sent to Dash Address
-                    sub.address = CGalaxyCashAddress(address).ToString();
-                }
-                else
-                {
-                    // Sent to IP, or other non-address transaction like OP_EVAL
-                    sub.address = mapValue["to"];
-                }
-            }
-            else
-            {
-                for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++)
-                {
-                    const CTxOut& txout = wtx.vout[nOut];
-                    sub.idx = parts.size();
-
-                    if(wallet->IsCollateralAmount(txout.nValue)) sub.type = TransactionRecord::AnonsendMakeCollaterals;
-                    if(wallet->IsDenominatedAmount(txout.nValue)) sub.type = TransactionRecord::AnonsendCreateDenominations;
-                    if(nDebit - wtx.GetValueOut() == ANONSEND_COLLATERAL) sub.type = TransactionRecord::AnonsendCollateralPayment;
-                }
-            }
-
             int64_t nChange = wtx.GetChange();
 
-            sub.debit = -(nDebit - nChange);
-            sub.credit = nCredit - nChange;
-            parts.append(sub);
+            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
+                            -(nDebit - nChange), nCredit - nChange));
         }
         else if (fAllFromMe)
         {
@@ -209,17 +130,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
-                    sub.address = CGalaxyCashAddress(address).ToString();
+                    sub.address = CBitcoinAddress(address).ToString();
                 }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL
                     sub.type = TransactionRecord::SendToOther;
                     sub.address = mapValue["to"];
-                }
-                if(mapValue["DS"] == "1")
-                {
-                    sub.type = TransactionRecord::Anonsent;
                 }
 
                 int64_t nValue = txout.nValue;
