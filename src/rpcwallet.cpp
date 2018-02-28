@@ -298,6 +298,47 @@ Value sendtoaddress(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
+Value sendfromaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 5)
+        throw runtime_error(
+            "sendfromaddress <FromGalaxyCashAddress> <ToGalaxyCashAddress> <amount> [comment] [comment-to]\n"
+            "<amount> is a real and is rounded to the nearest 0.000001"
+            + HelpRequiringPassphrase());
+
+    CGalaxyCashAddress fromaddress(params[0].get_str());
+    if (!fromaddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid GalaxyCash address");
+
+    CGalaxyCashAddress toaddress(params[1].get_str());
+    if (!toaddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid GalaxyCash address");
+
+    // Amount
+    double dvalue = atof(params[2].get_str().c_str());
+    if (dvalue < 0.0)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Negative amount");
+
+    int64_t nAmount = (int64_t)(dvalue * COIN);
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (params.size() >= 4 && params[3].type() != null_type && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
+    if (params.size() >= 5 && params[4].type() != null_type && !params[4].get_str().empty())
+        wtx.mapValue["to"]      = params[4].get_str();
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    string strError = pwalletMain->SendMoneyFromToDestination(fromaddress.Get(), toaddress.Get(), nAmount, wtx);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
+
 Value listaddressgroupings(const Array& params, bool fHelp)
 {
     if (fHelp)

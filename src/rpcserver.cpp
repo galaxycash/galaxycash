@@ -224,6 +224,10 @@ extern Value fixspendable(const Array& params, bool fHelp);
 extern Value getmasternodesubsidy(const Array& params, bool fHelp);
 extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
 
+#ifdef ENABLE_WALLET
+extern Value sendfromaddress(const Array& params, bool fHelp);
+#endif
+
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
   //  ------------------------  -----------------------  ---------- ---------- ---------
@@ -276,6 +280,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getaccount",             &getaccount,             false,     false,     true },
     { "getaddressesbyaccount",  &getaddressesbyaccount,  true,      false,     true },
     { "sendtoaddress",          &sendtoaddress,          false,     false,     true },
+    { "sendfromaddress",        &sendfromaddress,        false,     false,     true },
     { "getreceivedbyaddress",   &getreceivedbyaddress,   false,     false,     true },
     { "getreceivedbyaccount",   &getreceivedbyaccount,   false,     false,     true },
     { "listreceivedbyaddress",  &listreceivedbyaddress,  false,     false,     true },

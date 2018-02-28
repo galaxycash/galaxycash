@@ -88,6 +88,7 @@ class CWallet : public CCryptoKeyStore, public CWalletInterface
 private:
     bool SelectCoinsForStaking(int64_t nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const;
     bool SelectCoins(int64_t nTargetValue, unsigned int nSpendTime, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type = ALL_COINS) const;
+    bool SelectCoinsFrom(const CTxDestination &from, int64_t nTargetValue, unsigned int nSpendTime, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type = ALL_COINS) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -174,6 +175,7 @@ public:
 
     void AvailableCoinsForStaking(std::vector<COutput>& vCoins) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type=ALL_COINS) const;
+    void AvailableCoinsFrom(const CTxDestination &from, std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type=ALL_COINS) const;
     void AvailableCoinsMN(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type=ALL_COINS) const;
     bool SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const;
 
@@ -239,7 +241,9 @@ public:
     int64_t GetStake() const;
     int64_t GetNewMint() const;
     bool CreateTransaction(const std::vector<std::pair<CScript, int64_t> >& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type=ALL_COINS);
+    bool CreateTransactionFrom(const CTxDestination &from, const std::vector<std::pair<CScript, int64_t> >& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl *coinControl=NULL, AvailableCoinsType coin_type=ALL_COINS);
     bool CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl *coinControl=NULL);
+    bool CreateTransactionFrom(const CTxDestination &from, CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl *coinControl=NULL);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     // get the Anonsend chain depth for a given input
@@ -256,7 +260,10 @@ public:
     bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, int64_t nFees, CTransaction& txNew, CKey& key);
 
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string SendMoneyFrom(const CTxDestination &from, CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string SendMoneyFromToDestination(const CTxDestination &from, const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
+
 
     bool NewKeyPool();
     bool TopUpKeyPool(unsigned int nSize = 0);

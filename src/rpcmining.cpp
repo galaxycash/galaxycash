@@ -208,7 +208,7 @@ Value getmasternodesubsidy(const Array& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getmasternodesubsidy [nTarget]\n"
-            "Returns proof-of-work subsidy value for the specified value of target.");
+            "Returns proof-of-work masternode subsidy value for the specified value of target.");
 
     return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight) / 100 * 15;
 }
@@ -245,7 +245,7 @@ Value getstakemasternodesubsidy(const Array& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "getstakesubsidy <hex string>\n"
-            "Returns proof-of-stake subsidy value for the specified coinstake.");
+            "Returns proof-of-stake masternode subsidy value for the specified coinstake.");
 
     RPCTypeCheck(params, list_of(str_type));
 
@@ -290,6 +290,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty",    diff));
 
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight)));
+    obj.push_back(Pair("mnblockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight) / 100 * 15));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
     obj.push_back(Pair("netstakeweight", GetPoSKernelPS()));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
