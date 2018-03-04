@@ -411,7 +411,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
         {
 
             int64_t nblockValue = GetProofOfWorkReward(nFees, pindexPrev->nHeight + 1);
-            int64_t nmasternodePayment = (nblockValue - nFees) / 100 * 15;
+            int64_t nmasternodePayment = GetMNProofOfWorkReward(nblockValue, pindexPrev->nHeight + 1);
 
             if (!fProofOfStake){
                 int64_t blockValue = nblockValue - nmasternodePayment;
@@ -749,7 +749,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
                 break;
 
             // Update nTime every few seconds
-        pblock->UpdateTime(pindexPrev);
+            pblock->UpdateTime(pindexPrev);
 
             if (TestNet())
             {

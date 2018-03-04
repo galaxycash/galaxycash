@@ -1,8 +1,8 @@
 // Copyright (c) 2012 Pieter Wuille
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef _GALAXYCASH_ADDRMAN
-#define _GALAXYCASH_ADDRMAN 1
+#ifndef GALAXYCASH_ADDRMAN_H
+#define GALAXYCASH_ADDRMAN_H 1
 
 #include "netbase.h"
 #include "protocol.h"

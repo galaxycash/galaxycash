@@ -2,8 +2,8 @@
 // Copyright (c) 2009-2012 The DarkCoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef ACTIVEMASTERNODE_H
-#define ACTIVEMASTERNODE_H
+#ifndef GALAXYCASH_ACTIVEMASTERNODE_H
+#define GALAXYCASH_ACTIVEMASTERNODE_H
 
 #include "uint256.h"
 #include "sync.h"
@@ -62,9 +62,5 @@ public:
     bool EnableHotColdMasterNode(CTxIn& vin, CService& addr);
 };
 
-void RegisterActivemasternode(CActiveMasternode &amn);
-void UpdateActiveMasternodes();
-int NumActiveMasternodes();
-CActiveMasternode *GetActiveMasternode(int i);
 
 #endif

@@ -444,9 +444,8 @@ vector<COutput> CActiveMasternode::SelectCoinsMasternode()
     // Filter
     BOOST_FOREACH(const COutput& out, vCoins)
     {
-        if(out.tx->vout[out.i].nValue == MasternodeCollateral(pindexBest->nHeight)*COIN) { //exactly
+        if(out.tx->vout[out.i].nValue == MasternodeCollateral(pindexBest->nHeight)*COIN)
         	filteredCoins.push_back(out);
-        }
     }
     return filteredCoins;
 }
@@ -483,6 +482,8 @@ bool CActiveMasternode::EnableHotColdMasterNode(CTxIn& newVin, CService& newServ
     //The values below are needed for signing dseep messages going forward
     this->vin = newVin;
     this->service = newService;
+
+    activemnodeman.Register(this->vin);
 
     LogPrintf("CActiveMasternode::EnableHotColdMasterNode() - Enabled! You may shut down the cold daemon.\n");
 

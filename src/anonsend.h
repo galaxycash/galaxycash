@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ANONSEND_H
-#define ANONSEND_H
+#ifndef GALAXYCASH_ANONSEND_H
+#define GALAXYCASH_ANONSEND_H
 
 #include "core.h"
 #include "main.h"

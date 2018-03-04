@@ -220,19 +220,20 @@ extern Value getnetworkinfo(const Array& params, bool fHelp);
 extern Value getnetworkhashps(const Array& params, bool fHelp);
 extern Value getnetworkhashrate(const Array& params, bool fHelp);
 extern Value setbestblock(const Array& params, bool fHelp);
-extern Value fixspendable(const Array& params, bool fHelp);
-extern Value getmasternodesubsidy(const Array& params, bool fHelp);
-extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
+extern Value setminingalgo(const Array &params, bool fHelp);
 
 #ifdef ENABLE_WALLET
 extern Value sendfromaddress(const Array& params, bool fHelp);
+extern Value fixspendable(const Array& params, bool fHelp);
+extern Value getmasternodesubsidy(const Array& params, bool fHelp);
+extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
 #endif
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
   //  ------------------------  -----------------------  ---------- ---------- ---------
     { "help",                   &help,                   true,      true,      false },
-    { "setbestblock",           &setbestblock,         true,      false,     false },
+    { "setbestblock",           &setbestblock,           true,      false,     false },
     { "getnetworkinfo",         &getnetworkinfo,         true,      false,     false },
     { "getnetworkhashps",       &getnetworkhashps,       true,      false,     false },
     { "getnetworkhashrate",     &getnetworkhashrate,     true,      false,     false },
@@ -262,15 +263,16 @@ static const CRPCCommand vRPCCommands[] =
     { "validatepubkey",         &validatepubkey,         true,      false,     false },
     { "verifymessage",          &verifymessage,          false,     false,     false },
     /* Anon features */
-    { "spork",                  &spork,                  true,      false,      false },
-    { "masternode",             &masternode,             true,      false,      true },
-    { "masternodelist",         &masternodelist,         true,      false,      false },
+    { "spork",                  &spork,                  true,      false,     false },
+    { "masternode",             &masternode,             true,      false,     true },
+    { "masternodelist",         &masternodelist,         true,      false,     false },
+    { "getminingalgo",          &getminingalgo,          true, 	    false,	   true },
+    { "setminingalgo",          &setminingalgo,          true, 	    false,	   true },
 
 #ifdef ENABLE_WALLET
-    { "anonsend",               &anonsend,               false,     false,      true },
+    { "anonsend",               &anonsend,               false,     false,     true },
     { "getgenerate",            &getgenerate,            true, 	    false,	   true },
     { "setgenerate",            &setgenerate,            true, 	    false,	   true },
-    { "getminingalgo",          &getminingalgo,          true, 	    false,	   true },
     { "getmininginfo",          &getmininginfo,          true,      false,     false },
     { "getstakinginfo",         &getstakinginfo,         true,      false,     false },
     { "getnewaddress",          &getnewaddress,          true,      false,     true },
@@ -301,8 +303,6 @@ static const CRPCCommand vRPCCommands[] =
     { "listtransactions",       &listtransactions,       false,     false,     true },
     { "listaddressgroupings",   &listaddressgroupings,   false,     false,     true },
     { "signmessage",            &signmessage,            false,     false,     true },
-    { "getwork",                &getwork,                true,      false,     true },
-    { "getworkex",              &getworkex,              true,      false,     true },
     { "listaccounts",           &listaccounts,           false,     false,     true },
     { "getblocktemplate",       &getblocktemplate,       true,      false,     false },
     { "submitblock",            &submitblock,            false,     false,     false },

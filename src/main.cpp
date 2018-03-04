@@ -949,7 +949,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
             // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
         } else if(!ignoreFees){
             int64_t txMinFee = GetMinFee(nBestHeight, tx, 1000, GMF_RELAY, nSize);
-            if (fLimitFree && nFees < txMinFee)
+            if ((fLimitFree && nFees < txMinFee) || (!fLimitFree && nFees < GetMinTransactionFee(tx.nTime)))
                 return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
                             hash.ToString(),
                             nFees, txMinFee);
@@ -957,7 +957,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
             // Continuously rate-limit free transactions
             // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
             // be annoying or make others' transactions take longer to confirm.
-            if (fLimitFree && nFees < GetMinTransactionFee())
+            if (fLimitFree && nFees < GetMinTransactionFee(tx.nTime))
             {
                 static CCriticalSection csFreeLimiter;
                 static double dFreeCount;
@@ -980,7 +980,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, false, false, STANDARD_SCRIPT_VERIFY_FLAGS2))
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, false, false, STANDARD_SCRIPT_VERIFY_FLAGS))
         {
             return error("AcceptToMemoryPool : ConnectInputs failed %s", hash.ToString());
         }
@@ -994,7 +994,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
         // There is a similar check in CreateNewBlock() to prevent creating
         // invalid blocks, however allowing such transactions into the mempool
         // can be exploited as a DoS attack.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, false, false, MANDATORY_SCRIPT_VERIFY_FLAGS2))
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, false, false, MANDATORY_SCRIPT_VERIFY_FLAGS))
         {
             return error("AcceptToMemoryPool: : BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s", hash.ToString());
         }
@@ -1070,10 +1070,6 @@ bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree
             return false;
         }
 
-        // Check for non-standard pay-to-script-hash in inputs
-        //if (!TestNet() && !AreInputsStandard(tx, mapInputs))
-          //  return error("AcceptToMemoryPool : nonstandard transaction input");
-
         // Check that the transaction doesn't have an excessive number of
         // sigops, making it impossible to mine. Since the coinbase transaction
         // itself can contain sigops MAX_TX_SIGOPS is less than
@@ -1096,7 +1092,7 @@ bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree
             // Normally we would PrioritiseTransaction But currently it is unimplemented
             // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
         } else { // same as !ignoreFees for AcceptToMemoryPool
-            if (fLimitFree && nFees < txMinFee)
+            if ((fLimitFree && nFees < txMinFee) || (!fLimitFree && nFees < GetMinTransactionFee(tx.nTime)))
                 return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
                             hash.ToString(),
                             nFees, txMinFee);
@@ -1127,17 +1123,12 @@ bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, true, false, STANDARD_SCRIPT_VERIFY_FLAGS2, false))
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1,1,1), pindexBest, true, false, STANDARD_SCRIPT_VERIFY_FLAGS, false))
         {
             return error("AcceptableInputs : ConnectInputs failed %s", hash.ToString());
         }
     }
 
-
-    /*LogPrint("mempool", "AcceptableInputs : accepted %s (poolsz %u)\n",
-           hash.ToString(),
-           pool.mapTx.size());
-    */
     return true;
 }
 
@@ -1455,6 +1446,44 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
     return nSubsidy+ nFees;
 }
 
+int static generateMTRandom(unsigned int s, int range)
+{
+    random::mt19937 gen(s);
+    random::uniform_int_distribution<> dist(0, range);
+    return dist(gen);
+}
+
+// miner's coin base reward
+int64_t GetProofOfWorkRewardOldProtocol(int64_t nFees, int nHeight)
+{
+    if (pindexBest->nMoneySupply >= MAX_MONEY)
+        return nFees;
+
+    int nHalvings = nHeight / Params().SubsidyHalvingInterval();
+
+    // Force block reward to zero when right shift is undefined.
+    if (nHalvings >= 64)
+        return nFees;
+
+    int64_t nSubsidy = 0;
+    if (nHeight == 1 && !TestNet())
+        nSubsidy = 466025 * COIN; // Reward for merge chains
+    else if (nHeight == 1 && TestNet())
+        nSubsidy = 5000000 * COIN;
+    else if (nHeight < 100000)
+    {
+        nSubsidy = 50 * COIN;
+        nSubsidy >>= nHalvings;
+    }
+    else
+    {
+        nSubsidy = 10 * COIN;
+        nSubsidy >>= nHalvings;
+    }
+
+    return (nSubsidy + nFees);
+}
+
 
 // miner's coin base reward
 int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
@@ -1475,11 +1504,46 @@ int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
         nSubsidy = 5000000 * COIN;
     else
     {
-        nSubsidy = (TestNet() ? 500 : 50) * COIN;
+        nSubsidy = 10 * COIN;
         nSubsidy >>= nHalvings;
     }
 
     return (nSubsidy + nFees);
+}
+
+// mn reward
+static const double MN_POW_REWARD = 17.5;
+static const double MN_POW_SB_REWARD = 65.0;
+static const double MN_POS_REWARD = 12.5;
+static const double MN_POS_SB_REWARD = 50.0;
+
+bool IsSuperBlock()
+{
+    // Superblock calculations
+    uint256 prevHash = 0;
+    if(pindexBest->pprev)
+        prevHash = pindexBest->pprev->GetBlockHash();
+    std::string cseed_str = prevHash.ToString().substr(7,7);
+    const char* cseed = cseed_str.c_str();
+    long seed = hex2long(cseed);
+    int rand1 = generateMTRandom(seed, 10);
+    return (rand1 == 5);
+}
+
+int64_t GetMNProofOfStakeReward(int64_t nReward, int nHeight)
+{
+    if (IsSuperBlock())
+        return (int64_t)((nReward / 100) * MN_POS_SB_REWARD);
+    else
+        return (int64_t)((nReward / 100) * MN_POS_REWARD);
+}
+
+int64_t GetMNProofOfWorkReward(int64_t nReward, int nHeight)
+{
+    if (IsSuperBlock())
+        return (int64_t)((nReward / 100) * MN_POW_SB_REWARD);
+    else
+        return (int64_t)((nReward / 100) * MN_POW_REWARD);
 }
 
 // ppcoin: find last block index up to pindex
@@ -2148,7 +2212,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     if (IsProofOfWork())
     {
-        int64_t nReward = GetProofOfWorkReward(nFees, pindex->nHeight);
+        int64_t nReward = GetProofOfWorkRewardOldProtocol(nFees, pindex->nHeight);
         // Check coinbase reward
         if (vtx[0].GetValueOut() > nReward)
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%d vs calculated=%d)",
@@ -4184,14 +4248,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     else
     {
-        LogPrintf("Prcessing command %s\n", strCommand);
-
         anonSendPool.ProcessMessageAnonsend(pfrom, strCommand, vRecv);
         mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
         ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
         ProcessSpork(pfrom, strCommand, vRecv);
-
-        // Ignore unknown commands for extensibility
     }
 
     // Update the last seen time for this node's address
@@ -4497,34 +4557,4 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
     }
     return true;
-}
-
-int static generateMTRandom(unsigned int s, int range)
-{
-    random::mt19937 gen(s);
-    random::uniform_int_distribution<> dist(0, range);
-    return dist(gen);
-}
-
-int randreward()
-{
-    // Superblock calculations
-    uint256 prevHash = 0;
-    if(pindexBest->pprev)
-        prevHash = pindexBest->pprev->GetBlockHash();
-    std::string cseed_str = prevHash.ToString().substr(7,7);
-    const char* cseed = cseed_str.c_str();
-    long seed = hex2long(cseed);
-    int rand1 = generateMTRandom(seed, 1000000);
-    return rand1;
-}
-
-// Define masternode payment value
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue)
-{
-    int64_t ret = blockValue * 1/6; // 1/6th
-    ret = blockValue * 5/6; // 5/6th
-    if(randreward() <= 5000) // 5% Chance of superblock
-    ret = blockValue * 4/6; // 4/6th
-    return ret;
 }

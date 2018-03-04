@@ -1149,6 +1149,8 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             int nDepth = pcoin->GetDepthInMainChain();
             if (nDepth < 0)
                 continue;
+            if (nDepth < MASTERNODE_MIN_CONFIRMATIONS)
+                continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 bool found = false;
@@ -1924,11 +1926,11 @@ bool CWallet::CreateTransactionFrom(const CTxDestination &from, const vector<pai
     return true;
 }
 
-bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl* coinControl)
+bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl* coinControl, const AvailableCoinsType coinType)
 {
     vector< pair<CScript, int64_t> > vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
-    return CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, coinControl, ALL_COINS);
+    return CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, coinControl, coinType);
 }
 
 bool CWallet::CreateTransactionFrom(const CTxDestination &from, CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl* coinControl)
@@ -2167,7 +2169,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     }
 
     int64_t blockValue = nCredit;
-    int64_t masternodePayment = nReward / 100 * 10;
+    int64_t masternodePayment = GetMNProofOfStakeReward(nReward, pindexPrev->nHeight + 1);
 
     // Set output amount
     if (!hasPayment && txNew.vout.size() == 3) // 2 stake outputs, stake was split, no masternode payment

@@ -7,8 +7,8 @@
 # error This header can only be compiled as C++.
 #endif
 
-#ifndef __INCLUDED_PROTOCOL_H__
-#define __INCLUDED_PROTOCOL_H__
+#ifndef GALAXYCASH_PROTOCOL_H
+#define GALAXYCASH_PROTOCOL_H
 
 #include "chainparams.h"
 #include "serialize.h"

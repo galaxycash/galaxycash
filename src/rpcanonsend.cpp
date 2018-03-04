@@ -44,7 +44,7 @@ void SendMoney(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew,
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
     int64_t nFeeRequired;
-    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, NULL))
+    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, NULL, coin_type))
     {
         if (nValue + nFeeRequired > pwalletMain->GetBalance())
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
@@ -59,7 +59,7 @@ Value anonsend(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() == 0)
         throw runtime_error(
-            "anonsend <GalaxyCash> <amount>\n"
+            "anonsend <GalaxyCashAddress> <amount>\n"
             "GalaxyCash, reset, or auto (AutoDenominate)"
             "<amount> is a real and is rounded to the nearest 0.00000001"
             + HelpRequiringPassphrase());
@@ -81,7 +81,7 @@ Value anonsend(const Array& params, bool fHelp)
 
     if (params.size() != 2)
         throw runtime_error(
-            "anonsend <GalaxyCash> <amount>\n"
+            "anonsend <GalaxyCashAddress> <amount>\n"
             "GalaxyCash, denominate, or auto (AutoDenominate)"
             "<amount> is type \"real\" and will be rounded to the nearest 0.1"
             + HelpRequiringPassphrase());

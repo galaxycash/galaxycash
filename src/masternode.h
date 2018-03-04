@@ -2,8 +2,8 @@
 // Copyright (c) 2009-2012 The Darkcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef MASTERNODE_H
-#define MASTERNODE_H
+#ifndef GALAXYCASH_MASTERNODE_H
+#define GALAXYCASH_MASTERNODE_H
 
 #include "uint256.h"
 #include "sync.h"
@@ -27,12 +27,13 @@ class uint256;
 #define MASTERNODE_SYNC_IN_PROCESS             8
 #define MASTERNODE_REMOTELY_ENABLED            9
 
-#define MASTERNODE_MIN_CONFIRMATIONS           7
+#define MASTERNODE_MIN_CONFIRMATIONS           12
 #define MASTERNODE_MIN_DSEEP_SECONDS           (30*60)
 #define MASTERNODE_MIN_DSEE_SECONDS            (5*60)
 #define MASTERNODE_PING_SECONDS                (1*60)
-#define MASTERNODE_EXPIRATION_SECONDS          (65*60)
-#define MASTERNODE_REMOVAL_SECONDS             (70*60)
+#define MASTERNODE_PING_WAIT_SECONDS           (5*60)
+#define MASTERNODE_EXPIRATION_SECONDS          (43265*60) //Old 65*60
+#define MASTERNODE_REMOVAL_SECONDS             (43270*60) //Old 70*60
 
 using namespace std;
 

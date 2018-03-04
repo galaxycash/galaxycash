@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef _HONEYRPC_PROTOCOL_H_
-#define _HONEYRPC_PROTOCOL_H_ 1
+#ifndef GALAXYCASH_RPCPROTOCOL_H
+#define GALAXYCASH_RPCPROTOCOL_H 1
 
 #include "compat.h"
 

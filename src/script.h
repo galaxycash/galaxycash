@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef H_HONEY_SCRIPT
-#define H_HONEY_SCRIPT
+#ifndef GALAXYCASH_SCRIPT_H
+#define GALAXYCASH_SCRIPT_H
 
 #include <string>
 #include <vector>
@@ -137,21 +137,6 @@ static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS = SCRIPT_VERIFY_NULLDUMM
                                                           SCRIPT_VERIFY_FIX_HASHTYPE |
                                                           SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
 
-// Mandatory script verification flags that all new blocks must comply with for
-// them to be valid. (but old blocks may not comply with)
-//
-// Failing one of these tests may trigger a DoS ban - see ConnectInputs() for
-// details.
-static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS2 = SCRIPT_VERIFY_NONE;
-
-// Standard script verification flags that standard transactions will comply
-// with. However scripts violating these flags may still be present in valid
-// blocks and we must accept those blocks.
-static const unsigned int STANDARD_SCRIPT_VERIFY_FLAGS2 = MANDATORY_SCRIPT_VERIFY_FLAGS2 |
-                                                         SCRIPT_VERIFY_STRICTENC |
-                                                         SCRIPT_VERIFY_NULLDUMMY |
-                                                         SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS;
-
 // Standard script verification flags that standard transactions will comply
 // with. However scripts violating these flags may still be present in valid
 // blocks and we must accept those blocks.
@@ -160,9 +145,6 @@ static const unsigned int STANDARD_SCRIPT_VERIFY_FLAGS = MANDATORY_SCRIPT_VERIFY
 
 // For convenience, standard but not mandatory verify flags.
 static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS = STANDARD_SCRIPT_VERIFY_FLAGS & ~MANDATORY_SCRIPT_VERIFY_FLAGS;
-
-// For convenience, standard but not mandatory verify flags.
-static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS2 = STANDARD_SCRIPT_VERIFY_FLAGS2 & ~MANDATORY_SCRIPT_VERIFY_FLAGS2;
 
 enum txnouttype
 {

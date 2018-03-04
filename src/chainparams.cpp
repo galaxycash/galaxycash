@@ -175,6 +175,8 @@ public:
         // Merge params
         nMergeFirstBlock = nMergeLastBlock = 0;
 
+        nSubsidyHalvingInterval = 100;
+
         // POS params
         nPOSFirstBlock = 0;
 

@@ -27,11 +27,18 @@ Difficulty retarget:                        Every block
 
 Block time:                                 10 Minutes
 
-PoW Block reward:                           50 GCH
+PoW Block reward:                           10 GCH (Halving every 210 blocks)
 
 PoS First Block:                            100000
 
 PoS Block reward:                           10% per year
+
+Masternode Price:                           5000 GCH
+
+Masternode PoW Reward:                      17.5%, 65% superblock
+
+Masternode PoS Reward:                      12.5%, 50% superblock
+
 
 Max supply:                                 30000000
 
@@ -65,15 +72,11 @@ DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
 
 LTC:                                        LRWxNrvfKJVTABW9c9v8xJjMjPy9EB35SP
 
-ETH:                                        0x49d8be73ce2cb4d36ba4307df2c36b25ef973bbe
-
 XVG:                                        DFi3yFTKENa1fEC4TXkhJz4JiGeHMHaBYm
 
 DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
 
-DOGE:                                       DRvxZZ4p2TqvPyx4ioQ76ynRYeVdarKrbA
+DOGE:                                       DKFQV1cP19cRsSqNTddEBqhFqC26Arjmna
 
-XMR:                                        4BrL51JCc9NGQ71kWhnYoDRffsDZy7m1HUU7MRU4nUMXAHNFBEJhkTZV9HdaL4gfuNBxLPc3BeMkLGaPbF5vWtANQqhujdEnb9BKDn47N5
-
-ETH:                                        0x49d8be73ce2cb4d36ba4307df2c36b25ef973bbe
+ETH:                                        0xf4aede3b80e292d41bfa495cc1e48eec14aaa95d
 

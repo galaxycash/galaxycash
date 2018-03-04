@@ -2,8 +2,8 @@
 // Copyright (c) 2017-2018 The GalaxyCash developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef SPORK_H
-#define SPORK_H
+#ifndef GALAXYCASH_SPORK_H
+#define GALAXYCASH_SPORK_H
 
 #include "script.h"
 #include "arith_uint256.h"

@@ -53,10 +53,8 @@ static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 40;
 static const unsigned int MAX_INV_SZ = 50000;
 /** PoS Reward Fixed */
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
-/** PoS Superblock Reward */
-static const int64_t COIN_SPRB_REWARD_FIXED = 15 * CENT; // 15%
 /** MN Reward Fixed */
-static const int64_t MN_REWARD = 50 * CENT;
+static const int64_t MASTERNODE_REWARD = 15; // 15%
 /** Anonsend collateral */
 static const int64_t ANONSEND_COLLATERAL = (0.01*COIN);
 /** Anonsend pool values */
@@ -168,7 +166,9 @@ bool IsMergeBlock(const unsigned int nHeight);
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool ProofOfStake);
 int64_t GetProofOfWorkReward(int64_t nFees, int nHeight);
+int64_t GetMNProofOfWorkReward(int64_t nReward, int nHeight);
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees);
+int64_t GetMNProofOfStakeReward(int64_t nReward, int nHeight);
 bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
 std::string GetWarnings(std::string strFor);
@@ -176,7 +176,6 @@ bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t algo, bool ProofOfStake = false);
 void ThreadStakeMiner(CWallet *pwallet);
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue);
 
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,

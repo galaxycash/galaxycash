@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef SRC_MASTERNODECONFIG_H_
-#define SRC_MASTERNODECONFIG_H_
+#ifndef GALAXYCASH_MASTERNODECONFIG_H
+#define GALAXYCASH_MASTERNODECONFIG_H 1
 
 #include <string>
 #include <vector>

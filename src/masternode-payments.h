@@ -3,8 +3,8 @@
 // Copyright (c) 2014-2015 The Dash developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef MASTERNODE_PAYMENTS_H
-#define MASTERNODE_PAYMENTS_H
+#ifndef GALAXYCASH_MASTERNODE_PAYMENTS_H
+#define GALAXYCASH_MASTERNODE_PAYMENTS_H
 
 #include "sync.h"
 #include "net.h"

@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef _HONEYRPC_SERVER_H_
-#define _HONEYRPC_SERVER_H_ 1
+#ifndef GALAXYCASH_RPCSERVER_H
+#define GALAXYCASH_RPCSERVER_H 1
 
 #include "uint256.h"
 #include "rpcprotocol.h"
@@ -117,8 +117,6 @@ extern json_spirit::Value getstakesubsidy(const json_spirit::Array& params, bool
 extern json_spirit::Value getmininginfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getstakinginfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value checkkernel(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getwork(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getworkex(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblocktemplate(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value submitblock(const json_spirit::Array& params, bool fHelp);
 

@@ -68,14 +68,20 @@ CMasternode *CActiveMasternodeMan::GetMasternode(int i)
 int CActiveMasternodeMan::ManageStatus()
 {
     LOCK(cs);
-    CTxIn vin = activeMasternode.vin;
-    for (int i = 0; i < vMasternodes.size(); i++)
+    if (vMasternodes.size() > 0)
     {
-        activeMasternode.vin = vMasternodes[i];
-        activeMasternode.ManageStatus();
-    }
-    activeMasternode.vin = vin;
+        CTxIn vin = activeMasternode.vin;
+        for (int i = 0; i < vMasternodes.size(); i++)
+        {
+            activeMasternode.vin = vMasternodes[i];
+            activeMasternode.ManageStatus();
+        }
+        activeMasternode.vin = vin;
 
-    return vMasternodes.size();
+        return vMasternodes.size();
+    }
+
+    activeMasternode.ManageStatus();
+    return 1;
 }
 
