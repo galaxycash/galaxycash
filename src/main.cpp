@@ -1453,37 +1453,6 @@ int static generateMTRandom(unsigned int s, int range)
     return dist(gen);
 }
 
-// miner's coin base reward
-int64_t GetProofOfWorkRewardOldProtocol(int64_t nFees, int nHeight)
-{
-    if (pindexBest->nMoneySupply >= MAX_MONEY)
-        return nFees;
-
-    int nHalvings = nHeight / Params().SubsidyHalvingInterval();
-
-    // Force block reward to zero when right shift is undefined.
-    if (nHalvings >= 64)
-        return nFees;
-
-    int64_t nSubsidy = 0;
-    if (nHeight == 1 && !TestNet())
-        nSubsidy = 466025 * COIN; // Reward for merge chains
-    else if (nHeight == 1 && TestNet())
-        nSubsidy = 5000000 * COIN;
-    else if (nHeight < 100000)
-    {
-        nSubsidy = 50 * COIN;
-        nSubsidy >>= nHalvings;
-    }
-    else
-    {
-        nSubsidy = 10 * COIN;
-        nSubsidy >>= nHalvings;
-    }
-
-    return (nSubsidy + nFees);
-}
-
 
 // miner's coin base reward
 int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
@@ -1502,6 +1471,11 @@ int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
         nSubsidy = 466025 * COIN; // Reward for merge chains
     else if (nHeight == 1 && TestNet())
         nSubsidy = 5000000 * COIN;
+    else if (nHeight < 56000)
+    {
+        nSubsidy = 50 * COIN;
+        nSubsidy >>= nHalvings;
+    }
     else
     {
         nSubsidy = 10 * COIN;
@@ -2212,7 +2186,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     if (IsProofOfWork())
     {
-        int64_t nReward = GetProofOfWorkRewardOldProtocol(nFees, pindex->nHeight);
+        int64_t nReward = GetProofOfWorkReward(nFees, pindex->nHeight);
         // Check coinbase reward
         if (vtx[0].GetValueOut() > nReward)
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%d vs calculated=%d)",
