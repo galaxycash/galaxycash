@@ -95,9 +95,6 @@ int64_t AmountFromValue(const Value& value)
 
 Value ValueFromAmount(int64_t amount)
 {
-    if (amount < 0)
-        return 0.0;
-
     return (double)amount / (double)COIN;
 }
 
