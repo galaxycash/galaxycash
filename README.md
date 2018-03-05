@@ -15,6 +15,8 @@ Telegram:                                   http://t.me/galaxycash
 
 Reddit:                                     https://www.reddit.com/user/galaxycash
 
+Twitter:                                    https://twitter.com/cash_galaxy
+
 Specifications
 --------------
 Type:                                       PoW/PoS Hybrid
@@ -27,7 +29,7 @@ Difficulty retarget:                        Every block
 
 Block time:                                 10 Minutes
 
-PoW Block reward:                           10 GCH (Halving every 210 blocks)
+PoW Block reward:                           10 GCH (Halving every 210 blocks), 50 before 56000 block
 
 PoS First Block:                            100000
 
