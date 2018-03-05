@@ -1147,9 +1147,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 0)
-                continue;
-            if (nDepth < MASTERNODE_MIN_CONFIRMATIONS)
+            if (nDepth <= 0)
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
@@ -1196,7 +1194,7 @@ void CWallet::AvailableCoinsFrom(const CTxDestination &from, vector<COutput>& vC
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 0)
+            if (nDepth <= 0)
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
