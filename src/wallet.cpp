@@ -2986,7 +2986,7 @@ void CWallet::AvailableCoinsMN(vector<COutput>& vCoins, bool fOnlyConfirmed, con
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 1) // TXNOTE: coincontrol fix / ignore 0 confirm
+            if (nDepth <= 0) // TXNOTE: coincontrol fix / ignore 0 confirm
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
