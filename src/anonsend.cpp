@@ -1444,7 +1444,7 @@ bool CAnonsendPool::DoAutomaticDenominating(bool fDryRun)
     if(nBalanceNeedsAnonymized > ANONSEND_POOL_MAX) nBalanceNeedsAnonymized = ANONSEND_POOL_MAX;
 
     // if balanceNeedsAnonymized is more than non-anonymized, take non-anonymized
-    int64_t nAnonymizableBalance = pwalletMain->GetAnonymizableBalance();
+    int64_t nAnonymizableBalance = pwalletMain->GetBalance() - pwalletMain->GetAnonymizedBalance();
     if(nBalanceNeedsAnonymized > nAnonymizableBalance) nBalanceNeedsAnonymized = nAnonymizableBalance;
 
     if(nBalanceNeedsAnonymized < nLowestDenom)

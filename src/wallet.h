@@ -801,7 +801,6 @@ public:
         uint256 hashTx = GetHash();
         for (unsigned int i = 0; i < vout.size(); i++)
         {
-            if (IsSpent(i))
             {
                 const CTxOut &txout = vout[i];
                 if (!pwallet->IsLockedCoin(hashTx, i)) continue;

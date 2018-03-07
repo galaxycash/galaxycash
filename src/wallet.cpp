@@ -1108,16 +1108,13 @@ int64_t CWallet::GetLockedBalance() const
             {
                 uint256 hashTx = pcoin->GetHash();
                 for (unsigned int i = 0; i < pcoin->vout.size(); i++)
-                {
-                    if (pcoin->IsSpent(i))
-                    {
-                        const CTxOut &txout = pcoin->vout[i];
-                        if (!IsLockedCoin(hashTx, i)) continue;
+                {   
+                    const CTxOut &txout = pcoin->vout[i];
+                    if (!IsLockedCoin(hashTx, i)) continue;
+                    nTotal += GetCredit(txout);
 
-                        nTotal += GetCredit(txout);
-                        if (!MoneyRange(nTotal))
-                            throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
-                    }
+                    if (!MoneyRange(nTotal))
+                        throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
                 }
             }
         }

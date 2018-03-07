@@ -931,9 +931,6 @@ bool AppInit2(boost::thread_group& threadGroup)
     /* Denominations
        A note about convertability. Within Anonsend pools, each denomination
        is convertable to another.
-       For example:
-       1TX+1000 == (.1TX+100)*10
-       10TX+10000 == (1TX+1000)*10
     */
     anonSendDenominations.push_back( (1000        * COIN)+1000000 );
     anonSendDenominations.push_back( (100         * COIN)+100000 );
