@@ -79,6 +79,7 @@ extern int nStakeMinConfirmations;
 extern unsigned int nStakeMinAge;
 extern unsigned int nNodeLifespan;
 extern int nCoinbaseMaturity;
+extern int nMinConfirmations;
 extern int nBestHeight;
 extern arith_uint256 nBestChainTrust;
 extern arith_uint256 nBestInvalidTrust;

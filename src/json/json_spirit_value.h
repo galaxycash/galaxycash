@@ -335,6 +335,7 @@ namespace json_spirit
         return type() == null_type;
     }
 
+
     template< class Config >
     void Value_impl< Config >::check_type( const Value_type vtype ) const
     {

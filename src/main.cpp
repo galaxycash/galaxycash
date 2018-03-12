@@ -50,6 +50,7 @@ set<pair<COutPoint, unsigned int> > setStakeSeen;
 std::set<uint256> setValidatedTx;
 
 int nCoinbaseMaturity = 11;
+int nMinConfirmations = 10;
 int nStakeMinConfirmations = 50;
 unsigned int nStakeMinAge = 6 * 60 * 60; // 6 hours
 unsigned int nModifierInterval = 5 * 60; // time to elapse before new modifier is computed

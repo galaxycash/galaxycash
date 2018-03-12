@@ -904,6 +904,7 @@ public:
 
             if (!IsFinalTx(*ptx))
                 return false;
+
             int nPDepth = ptx->GetDepthInMainChain();
             if (nPDepth >= 1)
                 continue;

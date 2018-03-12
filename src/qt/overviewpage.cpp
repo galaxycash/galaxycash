@@ -118,7 +118,7 @@ OverviewPage::OverviewPage(QWidget *parent) :
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
     fLiteMode = GetBoolArg("-litemode", false);
 
-    if(fLiteMode){
+    if(fLiteMode ){
         ui->frameAnonsend->setVisible(false);
     } else {
         if(fMasterNode){

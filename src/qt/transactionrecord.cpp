@@ -237,7 +237,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
         {
             status.status = TransactionStatus::Unconfirmed;
         }
-        else if (status.depth < RecommendedNumConfirmations)
+        else if (status.depth < nMinConfirmations)
         {
             status.status = TransactionStatus::Confirming;
         }
