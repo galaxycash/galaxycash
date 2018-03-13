@@ -173,7 +173,7 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     ui->labelStake->setText(GalaxyCashUnits::formatWithUnit(unit, stake));
     ui->labelUnconfirmed->setText(GalaxyCashUnits::formatWithUnit(unit, unconfirmedBalance));
     ui->labelImmature->setText(GalaxyCashUnits::formatWithUnit(unit, immatureBalance));
-    ui->labelLocked->setText(GalaxyCashUnits::formatWithUnit(unit, lockedBalance));
+    ui->labelLockedBalance->setText(GalaxyCashUnits::formatWithUnit(unit, lockedBalance));
     ui->labelTotal->setText(GalaxyCashUnits::formatWithUnit(unit, balance + lockedBalance + unconfirmedBalance + immatureBalance));
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
@@ -184,7 +184,7 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
 
     bool showLocked = lockedBalance != 0;
     ui->labelLocked->setVisible(showLocked);
-    ui->labelLockedText->setVisible(showLocked);
+    ui->labelLockedBalance->setVisible(showLocked);
     updateAnonsendProgress();
 }
 

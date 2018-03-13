@@ -263,7 +263,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error(
-            "sendtoaddress <GalaxyCashaddress> <amount> [comment] [comment-to] [narration]\n"
+            "sendtoaddress <GalaxyCashaddress> <amount> [comment] [comment-to] [subtractfee]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
@@ -274,24 +274,22 @@ Value sendtoaddress(const Array& params, bool fHelp)
     // Amount
     int64_t nAmount = AmountFromValue(params[1]);
 
-    std::string sNarr;
-    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
-        sNarr = params[4].get_str();
-    
-    if (sNarr.length() > 24)
-        throw runtime_error("Narration must be 24 characters or less.");
-
     // Wallet comments
     CWalletTx wtx;
-    if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
+    if (params.size() > 2 && params[2].type() == str_type && !params[2].get_str().empty())
         wtx.mapValue["comment"] = params[2].get_str();
-    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+    if (params.size() > 3 && params[3].type() == str_type && !params[3].get_str().empty())
         wtx.mapValue["to"]      = params[3].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (params.size() > 4 && !params[4].is_null())
+        fSubtractFeeFromAmount = params[4].get_bool();
+
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+    string strError = fSubtractFeeFromAmount ? pwalletMain->SendMoneyToDestinationSubfee(address.Get(), nAmount, wtx) : pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -302,7 +300,7 @@ Value sendfromaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
         throw runtime_error(
-            "sendfromaddress <FromGalaxyCashAddress> <ToGalaxyCashAddress> <amount> [comment] [comment-to]\n"
+            "sendfromaddress <FromGalaxyCashAddress> <ToGalaxyCashAddress> <amount> [comment] [comment-to] [subtractfee]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
@@ -315,23 +313,23 @@ Value sendfromaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid GalaxyCash address");
 
     // Amount
-    double dvalue = atof(params[2].get_str().c_str());
-    if (dvalue < 0.0)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Negative amount");
-
-    int64_t nAmount = (int64_t)(dvalue * COIN);
+    int64_t nAmount = AmountFromValue(params[2]);
 
     // Wallet comments
     CWalletTx wtx;
-    if (params.size() >= 4 && params[3].type() != null_type && !params[3].get_str().empty())
+    if (params.size() > 3 && params[3].type() == str_type && !params[3].get_str().empty())
         wtx.mapValue["comment"] = params[3].get_str();
-    if (params.size() >= 5 && params[4].type() != null_type && !params[4].get_str().empty())
+    if (params.size() > 4 && params[4].type() == str_type && !params[4].get_str().empty())
         wtx.mapValue["to"]      = params[4].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (params.size() > 5 && !params[5].is_null())
+        fSubtractFeeFromAmount = params[5].get_bool();
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    string strError = pwalletMain->SendMoneyFromToDestination(fromaddress.Get(), toaddress.Get(), nAmount, wtx);
+    string strError = fSubtractFeeFromAmount ? pwalletMain->SendMoneyFromToDestinationSubfee(fromaddress.Get(), toaddress.Get(), nAmount, wtx) : pwalletMain->SendMoneyFromToDestination(fromaddress.Get(), toaddress.Get(), nAmount, wtx);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -637,7 +635,7 @@ Value sendfrom(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 7)
         throw runtime_error(
-            "sendfrom <fromaccount> <toGalaxyCashaddress> <amount> [minconf=1] [comment] [comment-to] [narration]\n"
+            "sendfrom <fromaccount> <toGalaxyCashaddress> <amount> [minconf=1] [comment] [comment-to] [subtractfee]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
@@ -653,17 +651,16 @@ Value sendfrom(const Array& params, bool fHelp)
 
     CWalletTx wtx;
     wtx.strFromAccount = strAccount;
-    std::string sNarr;
-    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
-        sNarr = params[6].get_str();
-    
-    if (sNarr.length() > 24)
-        throw runtime_error("Narration must be 24 characters or less.");
+
 
     if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
         wtx.mapValue["comment"] = params[4].get_str();
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["to"]      = params[5].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (params.size() > 6 && !params[6].is_null())
+        fSubtractFeeFromAmount = params[6].get_bool();
 
     EnsureWalletIsUnlocked();
 
@@ -673,7 +670,7 @@ Value sendfrom(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     // Send
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+    string strError = fSubtractFeeFromAmount ? pwalletMain->SendMoneyToDestinationSubfee(address.Get(), nAmount, wtx) : pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -685,7 +682,7 @@ Value sendmany(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
-            "sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
+            "sendmany <fromaccount> {address:amount,...} [minconf=1] [comment] [subtractfee]\n"
             "amounts are double-precision floating point numbers"
             + HelpRequiringPassphrase());
 
@@ -699,6 +696,10 @@ Value sendmany(const Array& params, bool fHelp)
     wtx.strFromAccount = strAccount;
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["comment"] = params[3].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (params.size() > 4 && !params[4].is_null())
+        fSubtractFeeFromAmount = params[4].get_bool();
 
     set<CGalaxyCashAddress> setAddress;
     vector<pair<CScript, int64_t> > vecSend;
@@ -735,7 +736,7 @@ Value sendmany(const Array& params, bool fHelp)
     int64_t nFeeRequired = 0;
     int nChangePos;
     std::string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired);
+    bool fCreated = fSubtractFeeFromAmount ? pwalletMain->CreateTransactionSubfee(vecSend, wtx, keyChange, nFeeRequired) : pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired);
     if (!fCreated)
     {
         if (totalAmount + nFeeRequired > pwalletMain->GetBalance())
@@ -1629,7 +1630,7 @@ Value settxfee(const Array& params, bool fHelp)
             "<amount> is a real and is rounded to the nearest 0.01");
 
     nTransactionFee = AmountFromValue(params[0]);
-    nTransactionFee = (nTransactionFee / CENT) * CENT;  // round to cent
+    nTransactionFee = std::max<int64_t>((nTransactionFee / CENT) * CENT, GetMinTransactionFee());  // round to cent
 
     return true;
 }

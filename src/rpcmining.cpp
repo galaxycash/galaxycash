@@ -51,6 +51,7 @@ Value setminingalgo(const Array& params, bool fHelp) {
             "setminingalgo <algo>\n");
 
     nMiningAlgo = GetAlgorithm(params[0].get_str());
+    return Value::null;
 }
 
 Value getminingalgo(const Array& params, bool fHelp)
@@ -298,7 +299,6 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty",    diff));
 
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight)));
-    obj.push_back(Pair("mnblockvalue",    (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight) / 100 * 15));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
     obj.push_back(Pair("netstakeweight", GetPoSKernelPS()));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
