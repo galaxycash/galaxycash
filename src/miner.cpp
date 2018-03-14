@@ -154,8 +154,10 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
                 if(winningNode){
                     payee = GetScriptForDestination(winningNode->pubkey.GetID());
                 } else {
-                    LogPrintf("CreateNewBlock PoW: Failed to detect masternode to pay\n");
-                    hasPayment = false;
+                    std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+                    CGalaxyCashAddress gdevAddr;
+                    gdevAddr.SetString(devAddr);
+                    payee = GetScriptForDestination(gdevAddr.Get());
                 }
             }
 

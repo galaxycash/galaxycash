@@ -2472,7 +2472,10 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if(winningNode){
                 payee = GetScriptForDestination(winningNode->pubkey.GetID());
             } else {
-                return error("CreateCoinStake: Failed to detect masternode to pay\n");
+               std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+               CGalaxyCashAddress gdevAddr;
+               gdevAddr.SetString(devAddr);
+               payee = GetScriptForDestination(gdevAddr.Get());
             }
         }
     } else {
