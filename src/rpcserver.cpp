@@ -218,6 +218,7 @@ extern Value getnetworkhashps(const Array& params, bool fHelp);
 extern Value getnetworkhashrate(const Array& params, bool fHelp);
 extern Value setbestblock(const Array& params, bool fHelp);
 extern Value setminingalgo(const Array &params, bool fHelp);
+extern Value getnodes(const Array &params, bool fHelp);
 
 #ifdef ENABLE_WALLET
 extern Value sendfromaddress(const Array& params, bool fHelp);
@@ -243,6 +244,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getaddednodeinfo",       &getaddednodeinfo,       true,      true,      false },
     { "ping",                   &ping,                   true,      false,     false },
     { "getnettotals",           &getnettotals,           true,      true,      false },
+    { "getnodes",               &getnodes,               true,      true,      false },
     { "getdifficulty",          &getdifficulty,          true,      false,     false },
     { "getinfo",                &getinfo,                true,      false,     false },
     { "getrawmempool",          &getrawmempool,          true,      false,     false },

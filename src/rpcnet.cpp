@@ -315,3 +315,25 @@ Value getnetworkinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("warnings",       GetWarnings("statusbar")));
     return obj;
 }
+
+Value getnodes(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getnodes\n"
+            "Returns all connected nodes.\n"
+        );
+
+    std::string res;
+
+    LOCK(cs_vNodes);
+    for (size_t i = 0; i < vNodes.size(); i++)
+    {
+        CNode *pNode = vNodes[i];
+        std::string sAddress = pNode->addr.ToString();
+        res += std::string("addnode=") + sAddress + "\n";
+    }
+
+
+    return res;
+}
