@@ -50,6 +50,8 @@ Coinbase maturity:                          11 blocks
 
 Minimum confirmations:                      10 blocks
 
+Stake minimum confirmations:                50 blocks
+
 Minimum POS Age:                            6 Hours
 
 Maximum POS Age:                            No Max
