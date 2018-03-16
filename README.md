@@ -44,7 +44,7 @@ Masternode PoS Reward:                      12.5%, 50% superblock
 
 Max supply:                                 30000000
 
-Fee:                                        0.00000100, 0.00500000 after 1st may
+Fee:                                        0.00000100, 0.00500000 - 01.05.2018 12:00am (UTC), switch automatically
 
 Coinbase maturity:                          11 blocks
 
