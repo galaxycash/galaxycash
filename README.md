@@ -19,7 +19,7 @@ Twitter:                                    https://twitter.com/cash_galaxy
 
 Specifications
 --------------
-Type:                                       PoW/PoS Hybrid
+Type:                                       PoW/PoS Hybrid with Masternodes
 
 Ticker:                                     GCH
 
@@ -29,7 +29,7 @@ Difficulty retarget:                        Every block
 
 Block time:                                 10 Minutes
 
-PoW Block reward:                           10 GCH (Halving every 210 blocks), 50 before 56000 block
+PoW Block reward:                           10 GCH (Halving every 210 blocks)
 
 PoS First Block:                            100000
 
@@ -48,7 +48,7 @@ Fee:                                        0.00000100, 0.00500000 after 1st may
 
 Coinbase maturity:                          11 blocks
 
-Minimum confirmations(PoW):                 12 blocks
+Minimum confirmations:                      10 blocks
 
 Minimum POS Age:                            6 Hours
 
@@ -74,11 +74,5 @@ DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
 
 LTC:                                        LRWxNrvfKJVTABW9c9v8xJjMjPy9EB35SP
 
-XVG:                                        DFi3yFTKENa1fEC4TXkhJz4JiGeHMHaBYm
 
-DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
-
-DOGE:                                       DKFQV1cP19cRsSqNTddEBqhFqC26Arjmna
-
-ETH:                                        0xf4aede3b80e292d41bfa495cc1e48eec14aaa95d
 
