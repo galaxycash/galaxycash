@@ -893,3 +893,12 @@ Value masternodelist(const Array& params, bool fHelp)
 
 }
 
+Value masternodecount(const Array& params, bool fHelp)
+{
+    if (fHelp)
+        throw runtime_error(
+                "masternodecount\n"
+                "Get a masternode count\n");
+
+    return mnodeman.CountEnabled();
+}

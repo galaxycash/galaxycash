@@ -219,6 +219,7 @@ extern Value getnetworkhashrate(const Array& params, bool fHelp);
 extern Value setbestblock(const Array& params, bool fHelp);
 extern Value setminingalgo(const Array &params, bool fHelp);
 extern Value getnodes(const Array &params, bool fHelp);
+extern Value masternodecount(const Array &params, bool fHelp);
 
 #ifdef ENABLE_WALLET
 extern Value sendfromaddress(const Array& params, bool fHelp);
@@ -265,6 +266,7 @@ static const CRPCCommand vRPCCommands[] =
     { "spork",                  &spork,                  true,      false,     false },
     { "masternode",             &masternode,             true,      false,     true },
     { "masternodelist",         &masternodelist,         true,      false,     false },
+    { "masternodecount",        &masternodecount,        true,      false,     false },
     { "getminingalgo",          &getminingalgo,          true, 	    false,	   true },
     { "setminingalgo",          &setminingalgo,          true, 	    false,	   true },
 

@@ -32,8 +32,8 @@ class uint256;
 #define MASTERNODE_MIN_DSEE_SECONDS            (5*60)
 #define MASTERNODE_PING_SECONDS                (1*60)
 #define MASTERNODE_PING_WAIT_SECONDS           (5*60)
-#define MASTERNODE_EXPIRATION_SECONDS          (43265*60) //Old 65*60
-#define MASTERNODE_REMOVAL_SECONDS             (43270*60) //Old 70*60
+#define MASTERNODE_EXPIRATION_SECONDS          (120*60) //Old 65*60
+#define MASTERNODE_REMOVAL_SECONDS             (130*60) //Old 70*60
 
 using namespace std;
 
