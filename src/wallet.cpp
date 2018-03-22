@@ -24,7 +24,7 @@
 using namespace std;
 
 // Settings
-int64_t nTransactionFee = (GetTime() > 1525132800) ? COIN * 0.005 : 100;
+int64_t nTransactionFee = 100;
 int64_t nReserveBalance = 0;
 int64_t nMinimumInputValue = 0;
 
