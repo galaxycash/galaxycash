@@ -113,12 +113,6 @@ extern std::vector<int64_t> anonSendDenominations;
 
 inline int64_t GetMinTransactionFee(int64_t nTime = 0)
 {
-    if (nTime <= 0)
-        nTime = GetAdjustedTime();
-
-    if (nTime >= 1525132800 || TestNet()) // after 05/01/2018 @ 12:00am (UTC) switch to 0.005 txfee
-        return COIN * 0.005;
-
     return 100;
 }
 

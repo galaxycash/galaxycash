@@ -61,7 +61,7 @@ public:
 
         // POS
         stakeLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
-        nPOSFirstBlock = 100000;
+        nPOSFirstBlock = 61300;
 
         // Merge
         nMergeFirstBlock = nCoinbaseMaturity + 2;

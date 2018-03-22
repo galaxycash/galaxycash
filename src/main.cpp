@@ -1492,7 +1492,39 @@ static const double MN_POW_SB_REWARD = 65.0;
 static const double MN_POS_REWARD = 12.5;
 static const double MN_POS_SB_REWARD = 50.0;
 
-bool IsSuperBlock()
+static const double MN_Rewards_POW[] =
+{
+  17.0, // 0
+  18.0, // 1
+  20.0, // 2
+  22.0, // 3
+  25.0, // 4
+  45.0, // 5
+  55.5, // 6
+  65.0, // 7
+  60.0, // 8
+  70.0, // 9
+  80.0, // 10
+  20
+};
+
+static const double MN_Rewards_POS[] =
+{
+  13.0, // 0
+  14.0, // 1
+  15.0, // 2
+  16.0, // 3
+  20.0, // 4
+  60.0, // 5
+  45.5, // 6
+  22.0, // 7
+  15.0, // 8
+  50.0, // 9
+  55.0, // 10
+  12.5
+};
+
+int GetRewardIndex()
 {
     // Superblock calculations
     uint256 prevHash = 0;
@@ -1501,24 +1533,17 @@ bool IsSuperBlock()
     std::string cseed_str = prevHash.ToString().substr(7,7);
     const char* cseed = cseed_str.c_str();
     long seed = hex2long(cseed);
-    int rand1 = generateMTRandom(seed, 10);
-    return (rand1 == 5);
+    return generateMTRandom(seed, 10);
 }
 
 int64_t GetMNProofOfStakeReward(int64_t nReward, int nHeight)
 {
-    if (IsSuperBlock())
-        return (int64_t)((nReward / 100) * MN_POS_SB_REWARD);
-    else
-        return (int64_t)((nReward / 100) * MN_POS_REWARD);
+    return (int64_t)((nReward / 100) * MN_Rewards_POS[GetRewardIndex()]);
 }
 
 int64_t GetMNProofOfWorkReward(int64_t nReward, int nHeight)
 {
-    if (IsSuperBlock())
-        return (int64_t)((nReward / 100) * MN_POW_SB_REWARD);
-    else
-        return (int64_t)((nReward / 100) * MN_POW_REWARD);
+    return (int64_t)((nReward / 100) * MN_Rewards_POW[GetRewardIndex()]);
 }
 
 // ppcoin: find last block index up to pindex
