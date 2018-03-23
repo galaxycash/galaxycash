@@ -29,7 +29,7 @@ Difficulty retarget:                        Every block
 
 Block time:                                 10 Minutes
 
-PoW Block reward:                           10 GCH (Halving every 210 blocks)
+PoW Block reward:                           10 GCH (Halving every 210k blocks)
 
 PoS First Block:                            100000
 
@@ -37,9 +37,9 @@ PoS Block reward:                           10% per year
 
 Masternode Price:                           5000 GCH
 
-Masternode PoW Reward:                      17.5%, 65% superblock
+Masternode PoW Reward:                      Complex 20%-80% 
 
-Masternode PoS Reward:                      12.5%, 50% superblock
+Masternode PoS Reward:                      Complex 13%-60%
 
 
 Max supply:                                 30,000,000
