@@ -2491,7 +2491,6 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     int64_t blockValue = nCredit;
     int64_t masternodePayment = GetMNProofOfStakeReward(nReward, pindexPrev->nHeight + 1);
 
-
     // Set output amount
     if (txNew.vout.size() == 3)
     {
