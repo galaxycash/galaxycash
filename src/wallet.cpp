@@ -2447,6 +2447,11 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         nCredit += nReward;
     }
 
+
+    if (nCredit >= GetStakeSplitThreshold())
+        txNew.vout.push_back(CTxOut(0, txNew.vout[1].scriptPubKey)); //split stake
+
+
     // Masternode Payments
     int payments = 1;
     // start masternode payments
@@ -2482,45 +2487,39 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         hasPayment = false;
     }
 
-    if(hasPayment){
-        payments = txNew.vout.size() + 1;
-        txNew.vout.resize(payments);
-
-        txNew.vout[payments-1].scriptPubKey = payee;
-        txNew.vout[payments-1].nValue = 0;
-
-        CTxDestination address1;
-        ExtractDestination(payee, address1);
-        CGalaxyCashAddress address2(address1);
-
-        LogPrintf("Masternode payment to %s\n", address2.ToString().c_str());
-    }
 
     int64_t blockValue = nCredit;
     int64_t masternodePayment = GetMNProofOfStakeReward(nReward, pindexPrev->nHeight + 1);
 
     // Set output amount
-    if (!hasPayment && txNew.vout.size() == 3) // 2 stake outputs, stake was split, no masternode payment
+    if (txNew.vout.size() == 3)
     {
-        txNew.vout[1].nValue = (blockValue / 2 / CENT) * CENT;
-        txNew.vout[2].nValue = blockValue - txNew.vout[1].nValue;
-    }
-    else if(hasPayment && txNew.vout.size() == 4) // 2 stake outputs, stake was split, plus a masternode payment
-    {
-        txNew.vout[payments-1].nValue = masternodePayment;
-        blockValue -= masternodePayment;
-        txNew.vout[1].nValue = (blockValue / 2 / CENT) * CENT;
-        txNew.vout[2].nValue = blockValue - txNew.vout[1].nValue;
-    }
-    else if(!hasPayment && txNew.vout.size() == 2) // only 1 stake output, was not split, no masternode payment
-        txNew.vout[1].nValue = blockValue;
-    else if(hasPayment && txNew.vout.size() == 3) // only 1 stake output, was not split, plus a masternode payment
-    {
-        txNew.vout[payments-1].nValue = masternodePayment;
-        blockValue -= masternodePayment;
-        txNew.vout[1].nValue = blockValue;
-    }
+        if (hasPayment)
+        {
+            payments = txNew.vout.size() + 1;
+            txNew.vout.resize(payments);
 
+            txNew.vout[payments-1].scriptPubKey = payee;
+            txNew.vout[payments-1].nValue = masternodePayment;
+            blockValue -= masternodePayment;
+        }
+
+        txNew.vout[1].nValue = (blockValue / 2 / CENT) * CENT;
+        txNew.vout[2].nValue = blockValue - txNew.vout[1].nValue;
+    }
+    else {
+        if (hasPayment)
+        {
+            payments = txNew.vout.size() + 1;
+            txNew.vout.resize(payments);
+
+            txNew.vout[payments-1].scriptPubKey = payee;
+            txNew.vout[payments-1].nValue = masternodePayment;
+            blockValue -= masternodePayment;
+        }
+
+        txNew.vout[1].nValue = blockValue;
+    }
 
     // Sign
     int nIn = 0;
