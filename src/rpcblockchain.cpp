@@ -390,3 +390,27 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
     return result;
 }
+
+
+Value getsupply(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getsupply\n"
+            "Show current coin supply.\n");
+
+    if (pindexBest)
+        return ValueFromAmount(pindexBest->nMoneySupply);
+
+    return 0;
+}
+
+Value getmaxmoney(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getmaxmoney\n"
+            "Show max coin supply.\n");
+
+    return ValueFromAmount(MAX_MONEY);
+}

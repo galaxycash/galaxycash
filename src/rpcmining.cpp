@@ -698,3 +698,7 @@ Value submitblock(const Array& params, bool fHelp)
 
     return Value::null;
 }
+
+Value getreward(const Array& params, bool fHelp) {
+    return ValueFromAmount(GetProofOfWorkReward(0, pindexBest->nHeight));
+}

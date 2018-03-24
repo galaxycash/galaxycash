@@ -220,12 +220,15 @@ extern Value setbestblock(const Array& params, bool fHelp);
 extern Value setminingalgo(const Array &params, bool fHelp);
 extern Value getnodes(const Array &params, bool fHelp);
 extern Value masternodecount(const Array &params, bool fHelp);
+extern Value getmasternodesubsidy(const Array& params, bool fHelp);
+extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
+extern Value getsupply(const Array& params, bool fHelp);
+extern Value getmaxmoney(const Array& params, bool fHelp);
+extern Value getreward(const Array& params, bool fHelp);
 
 #ifdef ENABLE_WALLET
 extern Value sendfromaddress(const Array& params, bool fHelp);
 extern Value fixspendable(const Array& params, bool fHelp);
-extern Value getmasternodesubsidy(const Array& params, bool fHelp);
-extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
 #endif
 
 static const CRPCCommand vRPCCommands[] =
@@ -267,8 +270,11 @@ static const CRPCCommand vRPCCommands[] =
     { "masternode",             &masternode,             true,      false,     true },
     { "masternodelist",         &masternodelist,         true,      false,     false },
     { "masternodecount",        &masternodecount,        true,      false,     false },
-    { "getminingalgo",          &getminingalgo,          true, 	    false,	   true },
-    { "setminingalgo",          &setminingalgo,          true, 	    false,	   true },
+    { "getminingalgo",          &getminingalgo,          true, 	    false,	   false },
+    { "setminingalgo",          &setminingalgo,          true, 	    false,	   false },
+    { "getsupply",              &getsupply,              true, 	    false,	   false },
+    { "getmaxmoney",            &getmaxmoney,            true, 	    false,	   false },
+    { "getreward",              &getreward,              true, 	    false,	   false },
 
 #ifdef ENABLE_WALLET
     { "anonsend",               &anonsend,               false,     false,     true },
