@@ -19,6 +19,7 @@
 #include "script.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "base58.h"
 
 // Settings
 extern int64_t nTransactionFee;
@@ -228,6 +229,7 @@ public:
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(bool fForce = false);
+    int64_t GetAddressBalance(const CGalaxyCashAddress &address) const;
     int64_t GetBalance() const;
     int64_t GetUnconfirmedBalance() const;
     int64_t GetImmatureBalance() const;

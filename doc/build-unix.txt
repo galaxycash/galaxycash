@@ -11,6 +11,18 @@ software written by Thomas Bernard.
 UNIX BUILD NOTES
 ================
 
+Dependencies
+----------------------------------------------
+sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo apt-get update
+
+sudo apt-get install build-essential
+sudo apt-get install libssl-dev
+sudo apt-get install libdb4.8++-dev
+sudo apt-get install libboost-all-dev
+sudo apt-get install libqrencode-dev
+sudo apt-get install libminiupnpc-dev
+
 To Build
 --------
 
@@ -19,13 +31,13 @@ qmake -makefile galaxycash.pro
 make
 
 Deamon
-qmake -makefile galaxycashd.pro
-make
-
-or
-
 cd src
 make -f makefile.unix 
+
+or with qmake
+
+qmake -makefile galaxycashd.pro
+make
 
 
 Versions used in this release:
@@ -37,15 +49,3 @@ Versions used in this release:
  qrencode      3.4.4 (optional)
 
  For build qt wallet need Qt5.6+ libraries.
-
-Dependency Build Instructions: Ubuntu & Debian
-----------------------------------------------
-sudo add-apt-repository ppa:bitcoin/bitcoin
-sudo apt-get update
-
-sudo apt-get install build-essential
-sudo apt-get install libssl-dev
-sudo apt-get install libdb4.8++-dev
-sudo apt-get install libboost-all-dev
-sudo apt-get install libqrencode-dev
-sudo apt-get install libminiupnpc-dev
