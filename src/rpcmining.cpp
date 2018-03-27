@@ -593,6 +593,9 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     if (pblock->IsProofOfWork() && pblock->vtx[0].vout.size() == 2)
     {
+        Array votes;
+        result.push_back(Pair("votes", votes));
+
         CScript payee = pblock->vtx[0].vout[1].scriptPubKey;
         CTxDestination address1;
         ExtractDestination(payee, address1);
