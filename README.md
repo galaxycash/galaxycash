@@ -70,7 +70,9 @@ Donate for development
 
 GCH:                                        GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC
 
-BTC:                                        1SKhuk7hVJcj41hqMqrJKsKLb9oq7dk1h
+BTC:                                        12AVNXAP72cXez9JN7F4FQZy6Vtf5DzVJR
+
+BCH:                                        qqxv8rtf8l6wr7upz9apmtq7zk3yl732wqwyc9sje0
 
 DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
 

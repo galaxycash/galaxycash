@@ -1091,7 +1091,7 @@ int64_t CWallet::GetBalance() const
         }
     }
 
-    return nTotal - GetLockedBalance();
+    return nTotal;
 }
 
 int64_t CWallet::GetUnconfirmedBalance() const
