@@ -111,22 +111,12 @@ public:
 
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("galaxycash.main", "195.133.201.213"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node1", "195.133.201.213:7688"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node2", "128.69.4.143"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node3", "210.211.124.162"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node4", "37.21.134.25"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node5", "73.213.209.183"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node6", "74.103.154.124"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node7", "45.77.31.169"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node8", "104.155.55.140"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node9", "35.229.115.102"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node10", "35.199.170.116"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node11", "35.224.227.214"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node12", "73.140.224.25"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node13", "179.214.188.108"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node14", "159.224.5.79"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node15", "188.220.237.254"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.node16", "68.235.38.177"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node1", "195.133.147.242:9992"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node2", "109.195.166.186"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node3", "185.239.237.167"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node4", "113.161.8.131"));
+        vSeeds.push_back(CDNSSeedData("galaxycash.node5", "85.90.150.4"));
+
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);
