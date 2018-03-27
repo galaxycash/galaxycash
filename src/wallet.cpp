@@ -1052,7 +1052,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
 int64_t CWallet::GetAddressBalance(const CGalaxyCashAddress &address) const
 {
     int64_t nTotal = 0;
-    /*{
+    {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
@@ -1073,7 +1073,7 @@ int64_t CWallet::GetAddressBalance(const CGalaxyCashAddress &address) const
                 }
             }
         }
-    }*/
+    }
 
     return nTotal;
 }
@@ -1243,7 +1243,9 @@ void CWallet::AvailableCoinsFrom(const CTxDestination &from, vector<COutput>& vC
                 CTxDestination destination;
                 if (ExtractDestination(pcoin->vout[i].scriptPubKey, destination))
                 {
-                    if (destination != from)
+                    CGalaxyCashAddress addr1(from);
+                    CGalaxyCashAddress addr2(destination);
+                    if (!(addr1 == addr2))
                         continue;
                 }
                 else
