@@ -620,6 +620,9 @@ Value getblocktemplate(const Array& params, bool fHelp)
         result.push_back(Pair("masternode_payments_enforced", IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
     } else {
+        Array votes;
+        result.push_back(Pair("votes", votes));
+
         result.push_back(Pair("payee", ""));
         result.push_back(Pair("payee_amount", ""));
         result.push_back(Pair("payee_script", ""));
