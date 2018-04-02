@@ -31,13 +31,13 @@ qmake -makefile galaxycash.pro
 make
 
 LevelDB
-cd /galxycash/src/leveldb
+cd ~/galaxycash/src/leveldb
 chmod +x build_detect_platform
 make clean
 make libleveldb.a libmemenv.a
 
-Deamon
-cd /galaxycash/src
+Daemon
+cd ~/galaxycash/src
 make -f makefile.unix 
 
 or with qmake
