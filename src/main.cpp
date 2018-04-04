@@ -3709,7 +3709,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         CAddress addrMe;
         CAddress addrFrom;
         uint64_t nNonce = 1;
-        vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
+
+        vRecv >> pfrom->nVersion;
+        vRecv >> pfrom->nServices;
+        vRecv >> nTime;
+        vRecv >> addrMe;
         if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
         {
             // disconnect from peers older than this proto version
@@ -3720,10 +3724,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         if (pfrom->nVersion == 10300)
             pfrom->nVersion = 300;
+
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
+
         if (!vRecv.empty())
             vRecv >> pfrom->strSubVer;
+
         if (!vRecv.empty())
             vRecv >> pfrom->nStartingHeight;
 
@@ -3977,6 +3984,46 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 break;
             }
         }
+    }
+
+    else if (strCommand == "getheaders")
+    {
+        CBlockLocator locator;
+        uint256 hashStop;
+        vRecv >> locator >> hashStop;
+
+        LOCK(cs_main);
+
+        // Find the last block the caller has in the main chain
+        CBlockIndex* pindex = locator.GetBlockIndex();
+
+        // Send the rest of the chain
+        if (pindex)
+            pindex = pindex->pnext;
+        int nLimit = 500;
+        LogPrint("net", "getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(), nLimit);
+
+        std::vector <CBlock> vHeaders;
+        for (; pindex; pindex = pindex->pnext)
+        {
+            if (pindex->GetBlockHash() == hashStop)
+            {
+                LogPrint("net", "  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+                break;
+            }
+            vHeaders.push_back(pindex->GetBlockHeader());
+            if (--nLimit <= 0)
+            {
+                // When this block is requested, we'll send an inv that'll make them
+                // getblocks the next batch of inventory.
+                LogPrint("net", "  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+                pfrom->hashContinue = pindex->GetBlockHash();
+                break;
+            }
+        }
+
+        if (vHeaders.size() > 0)
+            pfrom->PushMessage("headers", vHeaders);
     }
 
     else if (strCommand == "tx"|| strCommand == "dstx")

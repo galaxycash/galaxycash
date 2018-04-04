@@ -310,7 +310,25 @@ Value getblock(const Array& params, bool fHelp)
     CBlockIndex* pblockindex = mapBlockIndex[hash];
     block.ReadFromDisk(pblockindex, true);
 
-    return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
+    //return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
+    bool fTxinfo = false;
+    if (params.size() > 2)
+      fTxinfo = params[2].get_bool();
+
+    // bitcoin-cli verbose=0 support
+    bool fVerbose = true;
+    if (params.size() > 1)
+      fVerbose = params[1].get_bool();
+
+    if (!fVerbose)
+      {
+        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+        ssBlock << block;
+        std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+        return strHex;
+      }
+
+    return blockToJSON(block, pblockindex, fTxinfo);
 }
 
 Value setbestblock(const Array& params, bool fHelp)

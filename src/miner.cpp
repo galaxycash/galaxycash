@@ -703,7 +703,7 @@ void static GalaxyCashMiner(CWallet *pwallet)
         while (true)
         {
             unsigned int nHashesDone = 0;
-            hash = pblock->GetHash();
+            hash = pblock->GetPoWHash();
 
             if (hash <= hashTarget)
             {

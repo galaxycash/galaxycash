@@ -22,7 +22,7 @@ static const char* ppszTypeName[] =
     "dsee",
     "masternode winner",
     "lock",
-    "unlock",
+    "headers",
     "unknown",
     "unknown",
     "unknown",
