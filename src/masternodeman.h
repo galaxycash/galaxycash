@@ -133,6 +133,19 @@ public:
     int GetMasternodeRank(const CTxIn &vin, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
     CMasternode* GetMasternodeByRank(int nRank, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
 
+    bool IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey) const;
+
+    /// Set the private/public key values, returns true if successful
+    bool SetKey(std::string strSecret, std::string& errorMessage, CKey& key, CPubKey& pubkey);
+
+    /// Sign the message, returns true if successful
+    bool SignMessage(std::string strMessage, std::string& errorMessage, std::vector<unsigned char>& vchSig, CKey key);
+
+    /// Verify the message, returns true if succcessful
+    bool VerifyMessage(CPubKey pubkey, std::vector<unsigned char>& vchSig, std::string strMessage, std::string& errorMessage);
+
+    bool IsBlockchainSynced() const;
+
     void ProcessMasternodeConnections();
 
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
@@ -154,5 +167,7 @@ public:
     void Remove(CTxIn vin);
 
 };
+
+void ThreadMasternode();
 
 #endif

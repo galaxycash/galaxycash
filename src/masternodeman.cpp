@@ -568,6 +568,102 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int64_t nBlockHeight
     return NULL;
 }
 
+bool CMasternodeMan::IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey) const
+{
+    CScript payee2;
+    payee2 = GetScriptForDestination(pubkey.GetID());
+
+    CTransaction txVin;
+    uint256 hash;
+    //if(GetTransaction(vin.prevout.hash, txVin, hash, true)){
+    if(GetTransaction(vin.prevout.hash, txVin, hash)){
+        BOOST_FOREACH(CTxOut out, txVin.vout){
+            if(out.nValue == MasternodeCollateral(pindexBest->nHeight)*COIN){
+                if(out.scriptPubKey == payee2) return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool CMasternodeMan::SetKey(std::string strSecret, std::string& errorMessage, CKey& key, CPubKey& pubkey){
+    CGalaxyCashSecret vchSecret;
+    bool fGood = vchSecret.SetString(strSecret);
+
+    if (!fGood) {
+        errorMessage = _("Invalid private key.");
+        return false;
+    }
+
+    key = vchSecret.GetKey();
+    pubkey = key.GetPubKey();
+
+    return true;
+}
+
+bool CMasternodeMan::SignMessage(std::string strMessage, std::string& errorMessage, vector<unsigned char>& vchSig, CKey key)
+{
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+
+    if (!key.SignCompact(ss.GetHash(), vchSig)) {
+        errorMessage = _("Signing failed.");
+        return false;
+    }
+
+    return true;
+}
+
+bool CMasternodeMan::VerifyMessage(CPubKey pubkey, vector<unsigned char>& vchSig, std::string strMessage, std::string& errorMessage)
+{
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+
+    CPubKey pubkey2;
+    if (!pubkey2.RecoverCompact(ss.GetHash(), vchSig)) {
+        errorMessage = _("Error recovering public key.");
+        return false;
+    }
+
+    if (fDebug && (pubkey2.GetID() != pubkey.GetID()))
+        LogPrintf("CAnonSendSigner::VerifyMessage -- keys don't match: %s %s\n", pubkey2.GetID().ToString(), pubkey.GetID().ToString());
+
+    return (pubkey2.GetID() == pubkey.GetID());
+}
+
+bool CMasternodeMan::IsBlockchainSynced() const
+{
+    static bool fBlockchainSynced = false;
+    static int64_t lastProcess = GetTime();
+
+    // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
+    if(GetTime() - lastProcess > 60*60)
+        fBlockchainSynced = false;
+
+    lastProcess = GetTime();
+
+    if(fBlockchainSynced) return true;
+
+    if (fImporting || fReindex) return false;
+
+    TRY_LOCK(cs_main, lockMain);
+    if(!lockMain) return false;
+
+    CBlockIndex* pindex = pindexBest;
+    if(pindex == NULL) return false;
+
+
+    if(pindex->nTime + 60*60 < GetTime())
+        return false;
+
+    fBlockchainSynced = true;
+
+    return true;
+}
+
 void CMasternodeMan::ProcessMasternodeConnections()
 {
     LOCK(cs_vNodes);
@@ -981,4 +1077,44 @@ std::string CMasternodeMan::ToString() const
             ", nDsqCount: " << (int)nDsqCount;
 
     return info.str();
+}
+
+#include "activemasternodeman.h"
+
+//TODO: Rename/move to core
+void ThreadMasternode()
+{
+    if(fLiteMode) return; //disable all Anonsend/Masternode related functionality
+
+    // Make this thread recognisable as the wallet flushing thread
+    RenameThread("GalaxyCash-masternode");
+
+    unsigned int c = 0;
+
+    while (true)
+    {
+        MilliSleep(1000);
+        //LogPrintf("ThreadCheckAnonSendPool::check timeout\n");
+
+        // try to sync from all available nodes, one step at a time
+        //masternodeSync.Process();
+
+        if(mnodeman.IsBlockchainSynced()) {
+
+            c++;
+
+            // check if we should activate or ping every few minutes,
+            // start right after sync is considered to be done
+            if(c % MASTERNODE_PING_SECONDS == 1)
+                activemnodeman.ManageStatus();
+
+            if(c % 60 == 0)
+            {
+
+                mnodeman.CheckAndRemove();
+                mnodeman.ProcessMasternodeConnections();
+                masternodePayments.CleanPaymentList();
+            }
+        }
+    }
 }

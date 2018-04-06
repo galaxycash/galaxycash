@@ -33,7 +33,6 @@
 #include "init.h"
 #include "ui_interface.h"
 #include "miner.h"
-#include "blockbrowser.h"
 #include "masternodemanager.h"
 
 #ifdef Q_OS_MAC
@@ -82,8 +81,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     notificator(0),
     rpcConsole(0),
     prevBlocks(0),
-    nWeight(0),
-    blockBrowser(0)
+    nWeight(0)
 {
     resize(710, 540);
     setWindowTitle((tr("GalaxyCash Core") + " - " + tr("Wallet")));
@@ -118,7 +116,6 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
 
     // Create tabs
     overviewPage = new OverviewPage();
-    blockBrowser = new BlockBrowser(this);
 
     transactionsPage = new QWidget(this);
     QVBoxLayout *vbox = new QVBoxLayout();
@@ -142,7 +139,6 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     centralStackedWidget->addWidget(addressBookPage);
     centralStackedWidget->addWidget(receiveCoinsPage);
     centralStackedWidget->addWidget(sendCoinsPage);
-    centralStackedWidget->addWidget(blockBrowser);
     centralStackedWidget->addWidget(masternodeManagerPage);
 
     QWidget *centralWidget = new QWidget();
@@ -220,9 +216,6 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
 
     rpcConsole = new RPCConsole(this);
     connect(openRPCConsoleAction, SIGNAL(triggered()), rpcConsole, SLOT(show()));
-
-    blockBrowser = new BlockBrowser(this);
-    connect(blockAction, SIGNAL(triggered()), blockBrowser, SLOT(show()));
 
     // prevents an oben debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
@@ -330,9 +323,6 @@ void GalaxyCashGUI::createActions()
     openRPCConsoleAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/debugwindow" : ":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
 
-    blockAction = new QAction(QIcon(GetBoolArg("-black", false) ? ":/icons/black/blockbrowser" : ":/icons/blockbrowser"), tr("&Block Browser"), this);
-    blockAction->setToolTip(tr("Explore the BlockChain"));
-
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
     connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
@@ -345,7 +335,6 @@ void GalaxyCashGUI::createActions()
     connect(lockWalletAction, SIGNAL(triggered()), this, SLOT(lockWallet()));
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(gotoSignMessageTab()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(gotoVerifyMessageTab()));
-    connect(blockAction, SIGNAL(triggered()), this, SLOT(gotoBlockBrowser()));
 }
 
 void GalaxyCashGUI::createMenuBar()
@@ -409,7 +398,6 @@ void GalaxyCashGUI::createToolBars()
     toolbar->addAction(sendCoinsAction);
     toolbar->addAction(historyAction);
     toolbar->addAction(addressBookAction);
-    toolbar->addAction(blockAction);
     toolbar->addAction(openRPCConsoleAction);
     toolbar->addAction(masternodeManagerAction);
     toolbar->addWidget(makeToolBarSpacer());
@@ -845,14 +833,6 @@ void GalaxyCashGUI::gotoAddressBookPage()
     exportAction->setEnabled(true);
     disconnect(exportAction, SIGNAL(triggered()), 0, 0);
     connect(exportAction, SIGNAL(triggered()), addressBookPage, SLOT(exportClicked()));
-}
-
-void GalaxyCashGUI::gotoBlockBrowser(QString transactionId)
-{
-    /*if(!transactionId.isEmpty())
-    blockBrowser->setTransactionId(transactionId);*/
-
-    blockBrowser->show();
 }
 
 void GalaxyCashGUI::gotoReceiveCoinsPage()

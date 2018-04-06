@@ -117,7 +117,9 @@ OverviewPage::OverviewPage(QWidget *parent) :
 
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
     fLiteMode = GetBoolArg("-litemode", false);
-    ui->frameAnonsend->setVisible(false); // hide anonsend
+
+    if (!GetBoolArg("-showanonsend", false))
+        ui->frameAnonsend->setVisible(false); // hide anonsend
 
     if(fLiteMode ){
         ui->frameAnonsend->setVisible(false);

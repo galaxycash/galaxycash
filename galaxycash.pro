@@ -228,7 +228,6 @@ HEADERS += src/qt/galaxycashgui.h \
     src/allocators.h \
     src/ui_interface.h \
     src/qt/rpcconsole.h \
-    src/qt/blockbrowser.h \
     src/version.h \
     src/netbase.h \
     src/clientversion.h \
@@ -271,7 +270,8 @@ HEADERS += src/qt/galaxycashgui.h \
     src/qt/masternodemanager.h \
     src/qt/galaxynodeconfigdialog.h \
     src/qt/addeditgalaxynode.h \
-    src/blockfile.h
+    src/blockfile.h \
+    src/coins.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -344,7 +344,6 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/notificator.cpp \
     src/qt/paymentserver.cpp \
     src/qt/rpcconsole.cpp \
-    src/qt/blockbrowser.cpp \
     src/noui.cpp \
     src/crypto/aes_helper.c \
     src/crypto/blake.c \
@@ -382,7 +381,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/masternodemanager.cpp \
     src/qt/galaxynodeconfigdialog.cpp \
     src/qt/addeditgalaxynode.cpp \
-    src/blockfile.cpp
+    src/blockfile.cpp \
+    src/coins.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc
@@ -403,7 +403,6 @@ FORMS += \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \
     src/qt/forms/rpcconsole.ui \
-    src/qt/forms/blockbrowser.ui \
     src/qt/forms/optionsdialog.ui
 
 contains(USE_QRCODE, 1) {

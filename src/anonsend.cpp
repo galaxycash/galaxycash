@@ -368,7 +368,6 @@ void CAnonsendPool::ProcessMessageAnonsend(CNode* pfrom, std::string& strCommand
     }
 
 }
-
 int randomizeList (int i) { return std::rand()%i;}
 
 void CAnonsendPool::Reset(){
@@ -2288,32 +2287,6 @@ void ThreadCheckAnonSendPool()
                 mnodeman.ProcessMasternodeConnections();
                 masternodePayments.CleanPaymentList();
             }
-
-            //try to sync the masternode list and payment list every 5 seconds from at least 3 nodes
-            if(c % 5 == 0 && RequestedMasterNodeList < 3){
-                bool fIsInitialDownload = IsInitialBlockDownload();
-                if(!fIsInitialDownload) {
-                    LOCK(cs_vNodes);
-                    BOOST_FOREACH(CNode* pnode, vNodes)
-                    {
-                        if (pnode->nVersion >= MIN_PEER_PROTO_VERSION) {
-
-                            //keep track of who we've asked for the list
-                            if(pnode->HasFulfilledRequest("mnsync")) continue;
-                            pnode->FulfilledRequest("mnsync");
-
-                            LogPrintf("Successfully synced, asking for Masternode list and payment list\n");
-
-                            pnode->PushMessage("dseg", CTxIn()); //request full mn list
-                            pnode->PushMessage("mnget"); //sync payees
-                            pnode->PushMessage("getsporks"); //get current network sporks
-                            RequestedMasterNodeList++;
-                        }
-                    }
-                }
-            }
-
-            //if(c % MASTERNODES_DUMP_SECONDS == 0) DumpMasternodes();
 
             anonSendPool.CheckTimeout();
             anonSendPool.CheckForCompleteQueue();

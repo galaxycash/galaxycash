@@ -5,7 +5,7 @@
 #include <QSystemTrayIcon>
 
 #include <stdint.h>
-#include "blockbrowser.h"
+
 
 class TransactionTableModel;
 class ClientModel;
@@ -17,7 +17,6 @@ class SendCoinsDialog;
 class SignVerifyMessageDialog;
 class Notificator;
 class RPCConsole;
-class BlockBrowser;
 class MasternodeManager;
 
 QT_BEGIN_NAMESPACE
@@ -102,7 +101,6 @@ private:
     QAction *lockWalletAction2;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
-    QAction *blockAction;
     QAction *masternodeManagerAction;
     QPushButton *stakingButton;
 
@@ -110,7 +108,6 @@ private:
     Notificator *notificator;
     TransactionView *transactionView;
     RPCConsole *rpcConsole;
-    BlockBrowser *blockBrowser;
 
     QMovie *syncIconMovie;
     /** Keep track of previous number of blocks, to detect progress */
@@ -168,8 +165,6 @@ private slots:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage();
-    /** Show block explorer page */
-    void gotoBlockBrowser(QString transactionId = "");
     /** Switch to masternode manager page*/
     void gotoMasternodeManagerPage();
 

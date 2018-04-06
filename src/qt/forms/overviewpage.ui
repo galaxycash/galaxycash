@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>590</width>
-    <height>554</height>
+    <height>579</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -859,7 +859,7 @@
                </font>
               </property>
               <property name="text">
-               <string notr="true">0 TX</string>
+               <string notr="true">0 GCH</string>
               </property>
              </widget>
             </item>
@@ -932,7 +932,7 @@
           <item>
            <widget class="QPushButton" name="anonsendAuto">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -951,7 +951,7 @@
           <item>
            <widget class="QPushButton" name="toggleAnonsend">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -967,7 +967,7 @@
           <item>
            <widget class="QPushButton" name="anonsendReset">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
