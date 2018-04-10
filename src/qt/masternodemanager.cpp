@@ -183,11 +183,9 @@ void MasternodeManager::on_createButton_clicked()
 
 void MasternodeManager::on_startButton_clicked()
 {
-    if(pwalletMain->IsLocked()) {
-        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-        if(!ctx.isValid())
-            return;
-    }
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if(!ctx.isValid())
+        return;
 
     // start the node
     QItemSelectionModel* selectionModel = ui->tableWidget_2->selectionModel();
@@ -219,7 +217,6 @@ void MasternodeManager::on_startButton_clicked()
         }
     }
     statusObj += "</center>";
-    pwalletMain->Lock();
 
     QMessageBox msg;
     msg.setText(QString::fromStdString(statusObj));
@@ -228,12 +225,10 @@ void MasternodeManager::on_startButton_clicked()
 }
 
 void MasternodeManager::on_startAllButton_clicked()
-{
-    {
-        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-        if(!ctx.isValid())
-            return;
-    }
+{   
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if(!ctx.isValid())
+        return;
 
     std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
 
@@ -258,7 +253,6 @@ void MasternodeManager::on_startAllButton_clicked()
             statusObj += "\nFailed to start " + mne.getAlias() + ". Error: " + errorMessage;
         }
     }
-    pwalletMain->Lock();
 
     std::string returnObj;
     returnObj = "Successfully started " + boost::lexical_cast<std::string>(successful) + " masternodes, failed to start " +
