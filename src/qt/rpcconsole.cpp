@@ -24,6 +24,12 @@ const QSize ICON_SIZE(24, 24);
 
 const int INITIAL_TRAFFIC_GRAPH_MINS = 30;
 
+// Repair parameters
+const QString SALVAGEWALLET("-salvagewallet");
+const QString RESCAN("-rescan");
+const QString UPGRADEWALLET("-upgradewallet");
+const QString REINDEX("-reindex");
+
 const struct {
     const char *url;
     const char *source;
@@ -212,6 +218,11 @@ RPCConsole::RPCConsole(QWidget *parent) :
     startExecutor();
     setTrafficGraphRange(INITIAL_TRAFFIC_GRAPH_MINS);
 
+    ui->btn_salvagewallet->setEnabled(false);
+    connect(ui->btn_rescan, SIGNAL(clicked()), this, SLOT(walletRescan()));
+    connect(ui->btn_upgradewallet, SIGNAL(clicked()), this, SLOT(walletUpgrade()));
+    connect(ui->btn_reindex, SIGNAL(clicked()), this, SLOT(walletReindex()));
+
     clear();
 }
 
@@ -255,6 +266,57 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
         }
     }
     return QDialog::eventFilter(obj, event);
+}
+
+#include <QSettings>
+
+/** Restart wallet with "-salvagewallet" */
+void RPCConsole::walletSalvage()
+{
+    QSettings settings;
+    settings.setValue("salvagewallet", QVariant(true));
+}
+
+/** Restart wallet with "-rescan" */
+void RPCConsole::walletRescan()
+{
+    QSettings settings;
+    settings.setValue("rescan", QVariant(true));
+}
+
+/** Restart wallet with "-upgradewallet" */
+void RPCConsole::walletUpgrade()
+{
+    QSettings settings;
+    settings.setValue("upgradewallet", QVariant(true));
+}
+
+/** Restart wallet with "-reindex" */
+void RPCConsole::walletReindex()
+{
+    QSettings settings;
+    settings.setValue("reindex", QVariant(true));
+}
+
+
+/** Build command-line parameter list for restart */
+void RPCConsole::buildParameterlist(QString arg)
+{
+    // Get command-line arguments and remove the application name
+    QStringList args = QApplication::arguments();
+    args.removeFirst();
+
+    // Remove existing repair-options
+    args.removeAll(SALVAGEWALLET);
+    args.removeAll(RESCAN);
+    args.removeAll(UPGRADEWALLET);
+    args.removeAll(REINDEX);
+
+    // Append repair parameter to command line.
+    args.append(arg);
+
+    // Send command-line arguments to BitcoinGUI::handleRestart()
+    Q_EMIT handleRestart(args);
 }
 
 void RPCConsole::setClientModel(ClientModel *model)

@@ -57,10 +57,18 @@ public slots:
     void browseHistory(int offset);
     /** Scroll console view to end */
     void scrollToEnd();
+
+    /** Wallet repair options */
+    void walletSalvage();
+    void walletRescan();
+    void walletUpgrade();
+    void walletReindex();
+
 signals:
     // For RPC command executor
     void stopExecutor();
     void cmdRequest(const QString &command);
+    void handleRestart(QStringList args);
 
 private:
     static QString FormatBytes(quint64 bytes);
@@ -70,6 +78,8 @@ private:
     ClientModel *clientModel;
     QStringList history;
     int historyPtr;
+
+    void buildParameterlist(QString arg);
 
     void startExecutor();
 };

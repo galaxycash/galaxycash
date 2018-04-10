@@ -124,6 +124,10 @@ private:
     /** Create system tray (notification) icon */
     void createTrayIcon();
 
+Q_SIGNALS:
+    /** Restart handling */
+    void requestedRestart(QStringList args);
+
 public slots:
     /** Set number of connections shown in the UI */
     void setNumConnections(int count);
@@ -134,6 +138,8 @@ public slots:
        @see WalletModel::EncryptionStatus
     */
     void setEncryptionStatus(int status);
+
+    void handleRestart(QStringList args);
 
     /** Notify the user of an event from the core network or transaction handling code.
        @param[in] title     the message box / notification title

@@ -159,9 +159,7 @@ OBJS= \
     obj/masternodeman.o \
     obj/masternodeconfig.o \
     obj/masternode-payments.o \
-    obj/rpcanonsend.o \
-    obj/anonsend.o \
-    obj/anonsend-relay.o \
+    obj/rpcmasternode.o \
     obj/spork.o \
     obj/blockfile.o
 

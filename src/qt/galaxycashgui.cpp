@@ -1096,3 +1096,10 @@ void GalaxyCashGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking"));
     }
 }
+
+/** Get restart command-line parameters and request restart */
+void GalaxyCashGUI::handleRestart(QStringList args)
+{
+    if (!ShutdownRequested())
+        Q_EMIT requestedRestart(args);
+}

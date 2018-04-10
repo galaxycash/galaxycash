@@ -1604,6 +1604,14 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <translation>Сетевой &amp;трафик</translation>
     </message>
     <message>
+        <source>Wallet Repair</source>
+        <translation>Восстановление кошелька</translation>
+    </message>
+    <message>
+        <source>Wallet repair options.</source>
+        <translation>Варианты восстановления кошелька.</translation>
+    </message>
+    <message>
         <location line="+52"/>
         <source>&amp;Clear</source>
         <translation type="unfinished"/>

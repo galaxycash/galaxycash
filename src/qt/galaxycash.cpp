@@ -120,6 +120,9 @@ void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, cons
 }
 #endif
 
+
+#include <QSettings>
+
 #ifndef GCH_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -166,6 +169,7 @@ int main(int argc, char *argv[])
     }
     ReadConfigFile(mapArgs, mapMultiArgs);
 
+
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)
     app.setOrganizationName("GalaxyCash");
@@ -209,6 +213,23 @@ int main(int argc, char *argv[])
     // Load e.g. galaxycash_de_DE.qm (shortcut "de_DE" needs to be defined in galaxycash.qrc)
     if (translator.load(lang_territory, ":/translations/"))
         app.installTranslator(&translator);
+
+    QSettings settings;
+
+    if (settings.value("salvagewallet").toBool()) {
+        settings.setValue("salvagewallet", QVariant(false));
+        SoftSetBoolArg("-salvagewallet", true);
+    }
+
+    if (settings.value("rescan").toBool()) {
+        settings.setValue("rescan", QVariant(false));
+        SoftSetBoolArg("-rescan", true);
+    }
+
+    if (settings.value("reindex").toBool()) {
+        settings.setValue("reindex", QVariant(false));
+        SoftSetBoolArg("-reindex", true);
+    }
 
     // Subscribe to global signals from core
     uiInterface.ThreadSafeMessageBox.connect(ThreadSafeMessageBox);
