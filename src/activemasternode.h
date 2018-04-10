@@ -13,7 +13,6 @@
 #include "main.h"
 #include "init.h"
 #include "wallet.h"
-#include "anonsend.h"
 
 // Responsible for activating the masternode and pinging the network
 class CActiveMasternode
@@ -62,5 +61,7 @@ public:
     bool EnableHotColdMasterNode(CTxIn& vin, CService& addr);
 };
 
+extern std::string strMasterNodePrivKey;
+extern CActiveMasternode activeMasternode;
 
 #endif

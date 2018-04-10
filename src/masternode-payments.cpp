@@ -4,7 +4,7 @@
 
 #include "masternode-payments.h"
 #include "masternodeman.h"
-#include "anonsend.h"
+#include "activemasternode.h"
 #include "util.h"
 #include "sync.h"
 #include "spork.h"
@@ -26,7 +26,7 @@ int CMasternodePayments::GetMinMasternodePaymentsProto() {
 
 void ProcessMessageMasternodePayments(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if(!anonSendPool.IsBlockchainSynced()) return;
+    if(!mnodeman.IsBlockchainSynced()) return;
 
     if (strCommand == "mnget") { //Masternode Payments Request Sync
 
@@ -96,7 +96,7 @@ bool CMasternodePayments::CheckSignature(CMasternodePaymentWinner& winner)
     CPubKey pubkey(ParseHex(strPubKey));
 
     std::string errorMessage = "";
-    if(!anonSendSigner.VerifyMessage(pubkey, winner.vchSig, strMessage, errorMessage)){
+    if(!mnodeman.VerifyMessage(pubkey, winner.vchSig, strMessage, errorMessage)){
         return false;
     }
 
@@ -111,18 +111,18 @@ bool CMasternodePayments::Sign(CMasternodePaymentWinner& winner)
     CPubKey pubkey2;
     std::string errorMessage = "";
 
-    if(!anonSendSigner.SetKey(strMasterPrivKey, errorMessage, key2, pubkey2))
+    if(!mnodeman.SetKey(strMasterPrivKey, errorMessage, key2, pubkey2))
     {
         LogPrintf("CMasternodePayments::Sign - ERROR: Invalid Masternodeprivkey: '%s'\n", errorMessage.c_str());
         return false;
     }
 
-    if(!anonSendSigner.SignMessage(strMessage, errorMessage, winner.vchSig, key2)) {
+    if(!mnodeman.SignMessage(strMessage, errorMessage, winner.vchSig, key2)) {
         LogPrintf("CMasternodePayments::Sign - Sign message failed");
         return false;
     }
 
-    if(!anonSendSigner.VerifyMessage(pubkey2, winner.vchSig, strMessage, errorMessage)) {
+    if(!mnodeman.VerifyMessage(pubkey2, winner.vchSig, strMessage, errorMessage)) {
         LogPrintf("CMasternodePayments::Sign - Verify message failed");
         return false;
     }

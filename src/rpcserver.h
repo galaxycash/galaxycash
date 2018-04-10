@@ -177,10 +177,27 @@ extern json_spirit::Value getblock(const json_spirit::Array& params, bool fHelp)
 extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value anonsend(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value spork(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodelist(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value masternodecount(const json_spirit::Array& params, bool fHelp);
+
+extern json_spirit::Value getnetworkinfo(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getnetworkhashps(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getnetworkhashrate(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setbestblock(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setminingalgo(const json_spirit::Array &params, bool fHelp);
+extern json_spirit::Value getnodes(const json_spirit::Array &params, bool fHelp);
+extern json_spirit::Value getmasternodesubsidy(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getstakemasternodesubsidy(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getsupply(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getmaxmoney(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getreward(const json_spirit::Array& params, bool fHelp);
+
+#ifdef ENABLE_WALLET
+extern json_spirit::Value sendfromaddress(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value fixspendable(const json_spirit::Array& params, bool fHelp);
+#endif
 
 #endif
 

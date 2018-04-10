@@ -464,6 +464,7 @@ void GalaxyCashGUI::setClientModel(ClientModel *clientModel)
         rpcConsole->setClientModel(clientModel);
         addressBookPage->setOptionsModel(clientModel->getOptionsModel());
         receiveCoinsPage->setOptionsModel(clientModel->getOptionsModel());
+        masternodeManagerPage->setClientModel(clientModel);
     }
 }
 
@@ -482,6 +483,7 @@ void GalaxyCashGUI::setWalletModel(WalletModel *walletModel)
         receiveCoinsPage->setModel(walletModel->getAddressTableModel());
         sendCoinsPage->setModel(walletModel);
         signVerifyMessageDialog->setModel(walletModel);
+        masternodeManagerPage->setWalletModel(walletModel);
 
         setEncryptionStatus(walletModel->getEncryptionStatus());
         connect(walletModel, SIGNAL(encryptionStatusChanged(int)), this, SLOT(setEncryptionStatus(int)));

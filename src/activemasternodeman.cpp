@@ -2,7 +2,6 @@
 #include "masternode.h"
 #include "activemasternode.h"
 #include "activemasternodeman.h"
-#include "anonsend.h"
 #include "core.h"
 #include "util.h"
 #include "addrman.h"

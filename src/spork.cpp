@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2012 The Anoncoin developers
+// Copyright (c) 2009-2012 The Darkcoin developers
 // Copyright (c) 2017-2018 The GalaxyCash developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -15,6 +15,7 @@
 #include "base58.h"
 #include "protocol.h"
 #include "spork.h"
+#include "masternodeman.h"
 #include "main.h"
 #include <boost/lexical_cast.hpp>
 
@@ -177,7 +178,7 @@ bool CSporkManager::CheckSignature(CSporkMessage& spork)
     CPubKey pubkey(ParseHex(strPubKey));
 
     std::string errorMessage = "";
-    if(!anonSendSigner.VerifyMessage(pubkey, spork.vchSig, strMessage, errorMessage)){
+    if(!mnodeman.VerifyMessage(pubkey, spork.vchSig, strMessage, errorMessage)){
         return false;
     }
 
@@ -192,18 +193,18 @@ bool CSporkManager::Sign(CSporkMessage& spork)
     CPubKey pubkey2;
     std::string errorMessage = "";
 
-    if(!anonSendSigner.SetKey(strMasterPrivKey, errorMessage, key2, pubkey2))
+    if(!mnodeman.SetKey(strMasterPrivKey, errorMessage, key2, pubkey2))
     {
         LogPrintf("CMasternodePayments::Sign - ERROR: Invalid masternodeprivkey: '%s'\n", errorMessage.c_str());
         return false;
     }
 
-    if(!anonSendSigner.SignMessage(strMessage, errorMessage, spork.vchSig, key2)) {
+    if(!mnodeman.SignMessage(strMessage, errorMessage, spork.vchSig, key2)) {
         LogPrintf("CMasternodePayments::Sign - Sign message failed");
         return false;
     }
 
-    if(!anonSendSigner.VerifyMessage(pubkey2, spork.vchSig, strMessage, errorMessage)) {
+    if(!mnodeman.VerifyMessage(pubkey2, spork.vchSig, strMessage, errorMessage)) {
         LogPrintf("CMasternodePayments::Sign - Verify message failed");
         return false;
     }

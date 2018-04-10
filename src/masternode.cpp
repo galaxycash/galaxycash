@@ -1,6 +1,5 @@
 #include "masternode.h"
 #include "masternodeman.h"
-#include "anonsend.h"
 #include "core.h"
 #include "main.h"
 #include "sync.h"
@@ -172,8 +171,6 @@ uint256 CMasternode::CalculateScore(int mod, int64_t nBlockHeight)
 
 void CMasternode::Check()
 {
-    if(ShutdownRequested()) return;
-
     //TODO: Random segfault with this line removed
     TRY_LOCK(cs_main, lockRecv);
     if(!lockRecv) return;
@@ -195,7 +192,11 @@ void CMasternode::Check()
     if(!unitTest){
         CValidationState state;
         CTransaction tx = CTransaction();
-        CTxOut vout = CTxOut(ANONSEND_POOL_MAX, anonSendPool.collateralPubKey);
+
+        std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+        CGalaxyCashAddress gdevAddr;
+        gdevAddr.SetString(devAddr);
+        CTxOut vout = CTxOut(4999.99*COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
 

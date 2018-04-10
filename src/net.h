@@ -41,7 +41,7 @@ void AddressCurrentlyConnected(const CService& addr);
 CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
-CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL, bool anonSendMaster = false);
+CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL);
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError=REF(std::string()));
@@ -93,8 +93,7 @@ enum {
     MSG_FILTERED_BLOCK,
     MSG_SPORK,
     MSG_MASTERNODE_WINNER,
-    MSG_MASTERNODE_SCANNING_ERROR,
-    MSG_DSTX
+    MSG_MASTERNODE_SCANNING_ERROR
 };
 
 
@@ -262,7 +261,6 @@ public:
     // Whether a ping is requested.
     bool fPingQueued;
     bool fRelayTxes;
-    bool fAnonSendMaster;
 
     CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn=false) : ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
     {
@@ -302,7 +300,6 @@ public:
         nPingUsecTime = 0;
         fPingQueued = false;
         fRelayTxes = false; // TODO: reference this again
-        fAnonSendMaster = false;
 
         // Be shy and don't send version until we hear
         if (hSocket != INVALID_SOCKET && !fInbound)

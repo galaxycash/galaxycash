@@ -109,10 +109,15 @@ static QString seconds_to_DHMS(quint32 duration)
   return res.sprintf("%dd %02dh:%02dm:%02ds", days, hours, minutes, seconds);
 }
 
+#define MY_MASTERNODELIST_UPDATE_SECONDS 60
+
 void MasternodeManager::updateNodeList()
 {
     TRY_LOCK(cs_masternodes, lockMasternodes);
     if(!lockMasternodes)
+        return;
+
+    if (!ui->tableWidget->isVisible())
         return;
 
     ui->countLabel->setText("Updating...");
@@ -178,6 +183,12 @@ void MasternodeManager::on_createButton_clicked()
 
 void MasternodeManager::on_startButton_clicked()
 {
+    if(pwalletMain->IsLocked()) {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if(!ctx.isValid())
+            return;
+    }
+
     // start the node
     QItemSelectionModel* selectionModel = ui->tableWidget_2->selectionModel();
     QModelIndexList selected = selectionModel->selectedRows();
@@ -187,11 +198,6 @@ void MasternodeManager::on_startButton_clicked()
     QModelIndex index = selected.at(0);
     int r = index.row();
     std::string sAlias = ui->tableWidget_2->item(r, 0)->text().toStdString();
-
-
-
-    if(pwalletMain->IsLocked()) {
-    }
 
     std::string statusObj;
     statusObj += "<center>Alias: " + sAlias;
@@ -223,7 +229,10 @@ void MasternodeManager::on_startButton_clicked()
 
 void MasternodeManager::on_startAllButton_clicked()
 {
-    if(pwalletMain->IsLocked()) {
+    {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if(!ctx.isValid())
+            return;
     }
 
     std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;

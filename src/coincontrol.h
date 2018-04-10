@@ -8,7 +8,6 @@ class CCoinControl
 {
 public:
     CTxDestination destChange;
-    bool useAnonSend;
 
     CCoinControl()
     {
@@ -19,7 +18,6 @@ public:
     {
         destChange = CNoDestination();
         setSelected.clear();
-        useAnonSend = true;
     }
     
     bool HasSelected() const

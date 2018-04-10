@@ -344,7 +344,7 @@ CNode* FindNode(const CService& addr)
     return NULL;
 }
 
-CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool anonSendMaster)
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest)
 {
     if (pszDest == NULL) {
         if (IsLocal(addrConnect))
@@ -354,8 +354,6 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool anonSendMaste
         CNode* pnode = FindNode((CService)addrConnect);
         if (pnode)
         {
-            if(anonSendMaster)
-                    pnode->fAnonSendMaster = true;
             pnode->AddRef();
             return pnode;
         }

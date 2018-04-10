@@ -2,6 +2,7 @@ TEMPLATE = app
 TARGET = galaxycashd
 VERSION = 2.2.1.0
 INCLUDEPATH += src src/json
+DEFINES += GALAXYCASH_DAEMON
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
 CONFIG += console c++11
@@ -173,8 +174,6 @@ HEADERS += src/addrman.h \
     src/crypto/blake2.h \
     src/crypto/blake2-impl.h \
     src/masternode.h \
-    src/anonsend.h \
-    src/anonsend-relay.h \
     src/activemasternode.h \
     src/activemasternodeman.h \
     src/masternodeconfig.h \
@@ -221,9 +220,7 @@ SOURCES += src/galaxycashd.cpp \
     src/protocol.cpp \
     src/noui.cpp \
     src/masternode.cpp \
-    src/anonsend.cpp \
-    src/anonsend-relay.cpp \
-    src/rpcanonsend.cpp \
+    src/rpcmasternode.cpp \
     src/activemasternode.cpp \
     src/activemasternodeman.cpp \
     src/masternodeman.cpp \

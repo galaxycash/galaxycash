@@ -6,6 +6,7 @@ INCLUDEPATH += src src/json src/qt
 win32:QT +=   network
 linux:QT += network
 macx:QT +=   network
+DEFINES += GALAXYCASH_CLIENT
 DEFINES += QT_STATIC_BUILD
 DEFINES += ENABLE_WALLET
 DEFINES += BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_NO_CXX11_SCOPED_ENUMS BOOST_ASIO_ENABLE_OLD_SERVICES
@@ -258,15 +259,12 @@ HEADERS += src/qt/galaxycashgui.h \
     src/crypto/blake2.h \
     src/crypto/blake2-impl.h \
     src/masternode.h \
-    src/anonsend.h \
-    src/anonsend-relay.h \
     src/activemasternode.h \
     src/activemasternodeman.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
     src/spork.h \
-    src/qt/anonsendconfig.h \
     src/qt/masternodemanager.h \
     src/qt/galaxynodeconfigdialog.h \
     src/qt/addeditgalaxynode.h \
@@ -368,16 +366,13 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/crypto/skein.c \
     src/crypto/blake2s-ref.c \
     src/masternode.cpp \
-    src/anonsend.cpp \
-    src/anonsend-relay.cpp \
-    src/rpcanonsend.cpp \
+    src/rpcmasternode.cpp \
     src/activemasternode.cpp \
     src/activemasternodeman.cpp \
     src/masternodeman.cpp \
     src/masternode-payments.cpp \
     src/spork.cpp \
     src/masternodeconfig.cpp \
-    src/qt/anonsendconfig.cpp \
     src/qt/masternodemanager.cpp \
     src/qt/galaxynodeconfigdialog.cpp \
     src/qt/addeditgalaxynode.cpp \
@@ -398,7 +393,6 @@ FORMS += \
     src/qt/forms/overviewpage.ui \
     src/qt/forms/addeditgalaxynode.ui \
     src/qt/forms/galaxynodeconfigdialog.ui \
-    src/qt/forms/anonsendconfig.ui \
     src/qt/forms/masternodemanager.ui \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \

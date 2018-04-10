@@ -210,26 +210,6 @@ Value stop(const Array& params, bool fHelp)
 
 
 
-//
-// Call Table
-//
-extern Value getnetworkinfo(const Array& params, bool fHelp);
-extern Value getnetworkhashps(const Array& params, bool fHelp);
-extern Value getnetworkhashrate(const Array& params, bool fHelp);
-extern Value setbestblock(const Array& params, bool fHelp);
-extern Value setminingalgo(const Array &params, bool fHelp);
-extern Value getnodes(const Array &params, bool fHelp);
-extern Value masternodecount(const Array &params, bool fHelp);
-extern Value getmasternodesubsidy(const Array& params, bool fHelp);
-extern Value getstakemasternodesubsidy(const Array& params, bool fHelp);
-extern Value getsupply(const Array& params, bool fHelp);
-extern Value getmaxmoney(const Array& params, bool fHelp);
-extern Value getreward(const Array& params, bool fHelp);
-
-#ifdef ENABLE_WALLET
-extern Value sendfromaddress(const Array& params, bool fHelp);
-extern Value fixspendable(const Array& params, bool fHelp);
-#endif
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
@@ -277,7 +257,6 @@ static const CRPCCommand vRPCCommands[] =
     { "getreward",              &getreward,              true, 	    false,	   false },
 
 #ifdef ENABLE_WALLET
-    { "anonsend",               &anonsend,               false,     false,     true },
     { "getgenerate",            &getgenerate,            true, 	    false,	   true },
     { "setgenerate",            &setgenerate,            true, 	    false,	   true },
     { "getmininginfo",          &getmininginfo,          true,      false,     false },
@@ -322,8 +301,6 @@ static const CRPCCommand vRPCCommands[] =
     { "settxfee",               &settxfee,               false,     false,     true },
     { "getsubsidy",             &getsubsidy,             true,      true,      false },
     { "getstakesubsidy",        &getstakesubsidy,        true,      true,      false },
-    { "getmasternodesubsidy",   &getmasternodesubsidy,             true,      true,      false },
-    { "getstakemasternodesubsidy",&getstakemasternodesubsidy,        true,      true,      false },
     { "reservebalance",         &reservebalance,         false,     true,      true },
     { "checkwallet",            &checkwallet,            false,     true,      true },
     { "repairwallet",           &repairwallet,           false,     true,      true },

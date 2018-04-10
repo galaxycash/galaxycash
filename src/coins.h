@@ -14,7 +14,8 @@ public:
     unsigned int            nOutput;
     bool                    fActive, fCoinbase;
     CGalaxyCashAddress      holder;
-    uint256                 hash;
+    uint256                 prev;
+    uint256                 txid;
 
     inline CCoin() :
         nHeight(0),
@@ -28,7 +29,8 @@ public:
         fActive(coin.fActive),
         fCoinbase(coin.fCoinbase),
         holder(coin.holder),
-        hash(coin.hash)
+        prev(coin.prev),
+        txid(coin.txid)
     {}
 
     unsigned int            NumConfirmations() const {
@@ -56,7 +58,7 @@ public:
 
     bool                    IsBlockchainSynced() const;
 
-    void                    GetActiveCoins(const CGalaxyCashAddress &holder, std::vector <CCoin> &vCoins);
+    bool                    GetCoins(const CGalaxyCashAddress &holder, std::vector <CCoin> &vCoins);
 
     void                    ProcessInput(CTxIn &in);
     void                    ProcessOutput(CTxOut &out);

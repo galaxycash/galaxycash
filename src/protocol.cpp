@@ -15,7 +15,6 @@ static const char* ppszTypeName[] =
 {
     "ERROR",
     "tx",
-    "dstx",
     "block",
     "filtered block",
     "spork",

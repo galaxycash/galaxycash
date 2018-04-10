@@ -146,8 +146,8 @@ public:
 
     bool IsBlockchainSynced() const;
 
-    void ProcessMasternodeConnections();
-
+    void ProcessMessageAsync(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessages();
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 
     // Return the number of (unique) masternodes

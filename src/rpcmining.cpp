@@ -212,16 +212,6 @@ Value getsubsidy(const Array& params, bool fHelp)
     return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight);
 }
 
-Value getmasternodesubsidy(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 1)
-        throw runtime_error(
-            "getmasternodesubsidy [nTarget]\n"
-            "Returns proof-of-work masternode subsidy value for the specified value of target.");
-
-    return (uint64_t)GetProofOfWorkReward(0, pindexBest->nHeight) / 100 * MASTERNODE_REWARD;
-}
-
 Value getstakesubsidy(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -248,34 +238,6 @@ Value getstakesubsidy(const Array& params, bool fHelp)
 
     return (uint64_t)GetProofOfStakeReward(pindexBest, nCoinAge, 0);
 }
-
-Value getstakemasternodesubsidy(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "getstakesubsidy <hex string>\n"
-            "Returns proof-of-stake masternode subsidy value for the specified coinstake.");
-
-    RPCTypeCheck(params, list_of(str_type));
-
-    vector<unsigned char> txData(ParseHex(params[0].get_str()));
-    CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
-    try {
-        ssData >> tx;
-    }
-    catch (std::exception &e) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    }
-
-    uint64_t nCoinAge;
-    CTxDB txdb("r");
-    if (!tx.GetCoinAge(txdb, pindexBest, nCoinAge))
-        throw JSONRPCError(RPC_MISC_ERROR, "GetCoinAge failed");
-
-    return (uint64_t)GetProofOfStakeReward(pindexBest, nCoinAge, 0) / 100 * 10;
-}
-
 
 Value getmininginfo(const Array& params, bool fHelp)
 {

@@ -9,7 +9,7 @@
 #include "walletdb.h" // for BackupWallet
 #include "base58.h"
 #include "spork.h"
-
+#include "init.h"
 #include <QSet>
 #include <QTimer>
 #include <QDebug>
@@ -17,7 +17,7 @@
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
-    cachedBalance(0), cachedStake(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0), cachedAnonymizedBalance(0),
+    cachedBalance(0), cachedStake(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0), cachedLockedBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
 {
@@ -39,13 +39,13 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
-qint64 WalletModel::getBalance(const CCoinControl *coinControl, const AvailableCoinsType coinType) const
+qint64 WalletModel::getBalance(const CCoinControl *coinControl) const
 {
     if (coinControl)
     {
         qint64 nBalance = 0;
         std::vector<COutput> vCoins;
-        wallet->AvailableCoins(vCoins, true, coinControl, coinType);
+        wallet->AvailableCoins(vCoins, true, coinControl);
         BOOST_FOREACH(const COutput& out, vCoins)
             nBalance += out.tx->vout[out.i].nValue;
 
@@ -68,11 +68,6 @@ qint64 WalletModel::getStake() const
 qint64 WalletModel::getImmatureBalance() const
 {
     return wallet->GetImmatureBalance();
-}
-
-qint64 WalletModel::getAnonymizedBalance() const
-{
-    return wallet->GetAnonymizedBalance();
 }
 
 qint64 WalletModel::getLockedBalance() const
@@ -119,18 +114,16 @@ void WalletModel::checkBalanceChanged()
     qint64 newStake = getStake();
     qint64 newUnconfirmedBalance = getUnconfirmedBalance();
     qint64 newImmatureBalance = getImmatureBalance();
-    qint64 newAnonymizedBalance = getAnonymizedBalance();
     qint64 newLockedBalance = getLockedBalance();
 
-    if(cachedBalance != newBalance || cachedStake != newStake || cachedUnconfirmedBalance != newUnconfirmedBalance || cachedImmatureBalance != newImmatureBalance || cachedAnonymizedBalance != newAnonymizedBalance || cachedLockedBalance != newLockedBalance)
+    if(cachedBalance != newBalance || cachedStake != newStake || cachedUnconfirmedBalance != newUnconfirmedBalance || cachedImmatureBalance != newImmatureBalance || cachedLockedBalance != newLockedBalance)
     {
         cachedBalance = newBalance;
         cachedStake = newStake;
         cachedUnconfirmedBalance = newUnconfirmedBalance;
         cachedImmatureBalance = newImmatureBalance;
-        cachedAnonymizedBalance = newAnonymizedBalance;
         cachedLockedBalance = newLockedBalance;
-        emit balanceChanged(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance, newAnonymizedBalance, newLockedBalance);
+        emit balanceChanged(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance, newLockedBalance);
     }
 }
 
@@ -187,7 +180,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         return DuplicateAddress;
     }
 
-    qint64 nBalance = getBalance(coinControl, recipients[0].inputType);
+    qint64 nBalance = getBalance(coinControl);
 
     if(total > nBalance)
     {
@@ -214,7 +207,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         CWalletTx wtx;
         CReserveKey keyChange(wallet);
         int64_t nFeeRequired = 0;
-        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, coinControl, recipients[0].inputType);
+        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, coinControl);
 
         if(!fCreated)
         {

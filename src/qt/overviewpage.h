@@ -31,8 +31,7 @@ public:
     void showOutOfSyncWarning(bool fShow);
     void updateAnonsendProgress();
 public slots:
-    void anonSendStatus();
-    void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 anonymizedBalance, qint64 lockedBalance);
+    void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 lockedBalance);
 
 signals:
     void transactionClicked(const QModelIndex &index);
@@ -46,17 +45,11 @@ private:
     qint64 currentStake;
     qint64 currentUnconfirmedBalance;
     qint64 currentImmatureBalance;
-    qint64 currentAnonymizedBalance;
     qint64 currentLockedBalance;
     TxViewDelegate *txdelegate;
     TransactionFilterProxy *filter;
     int nDisplayUnit;
 private slots:
-    void toggleAnonsend();
-    void anonsendAuto();
-    void anonsendReset();
-    void anonsendRoundsChanged();
-    void anonsendAmountChanged();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);

@@ -42,23 +42,6 @@ SendCoinsDialog::SendCoinsDialog(QWidget *parent) :
 
     addEntry();
 
-    // Dash specific
-    QSettings settings;
-    if (!settings.contains("bUseAnonSend"))
-        settings.setValue("bUseAnonSend", false);
-
-    bool useAnonSend = settings.value("bUseAnonSend").toBool();
-
-    if(fLiteMode) {
-        ui->checkUseAnonsend->setChecked(false);
-        ui->checkUseAnonsend->setVisible(false);
-        CoinControlDialog::coinControl->useAnonSend = false;
-    }
-    else{
-        ui->checkUseAnonsend->setChecked(useAnonSend);
-        CoinControlDialog::coinControl->useAnonSend = useAnonSend;
-    }
-
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
 
@@ -67,7 +50,6 @@ SendCoinsDialog::SendCoinsDialog(QWidget *parent) :
     connect(ui->pushButtonCoinControl, SIGNAL(clicked()), this, SLOT(coinControlButtonClicked()));
     connect(ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)), this, SLOT(coinControlChangeChecked(int)));
     connect(ui->lineEditCoinControlChange, SIGNAL(textEdited(const QString &)), this, SLOT(coinControlChangeEdited(const QString &)));
-    connect(ui->checkUseAnonsend, SIGNAL(stateChanged ( int )), this, SLOT(updateDisplayUnit()));
 
     // Coin Control: clipboard actions
     QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
@@ -113,8 +95,8 @@ void SendCoinsDialog::setModel(WalletModel *model)
             }
         }
 
-        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getAnonymizedBalance(), model->getLockedBalance());
-        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64, qint64)));
+        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getLockedBalance());
+        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
         // Coin Control
@@ -159,24 +141,6 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(!valid || recipients.isEmpty())
     {
         return;
-    }
-
-    QString strFunds = tr("using") + " <b>" + tr("anonymous funds") + "</b>";
-    QString strFee = "";
-    recipients[0].inputType = ONLY_DENOMINATED;
-
-    if(ui->checkUseAnonsend->isChecked()) {
-        recipients[0].inputType = ONLY_DENOMINATED;
-        strFunds = tr("using") + " <b>" + tr("anonymous funds") + "</b>";
-        QString strNearestAmount(
-            GalaxyCashUnits::formatWithUnit(
-                model->getOptionsModel()->getDisplayUnit(), 0.1 * COIN));
-        strFee = QString(tr(
-            "(anonsend requires this amount to be rounded up to the nearest %1)."
-        ).arg(strNearestAmount));
-    } else {
-        recipients[0].inputType = ALL_COINS;
-        strFunds = tr("using") + " <b>" + tr("any available funds (not recommended)") + "</b>";
     }
 
     // Format confirmation message
@@ -384,7 +348,7 @@ bool SendCoinsDialog::handleURI(const QString &uri)
     return false;
 }
 
-void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 anonymizedBalance, qint64 lockedBalance)
+void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 lockedBalance)
 {
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(stake);
@@ -392,22 +356,14 @@ void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirme
 
     if(model && model->getOptionsModel())
     {
-        uint64_t bal = 0;
-        QSettings settings;
-        settings.setValue("bUseAnonSend", ui->checkUseAnonsend->isChecked());
-        if(ui->checkUseAnonsend->isChecked()) {
-            bal = anonymizedBalance;
-        } else {
-            bal = balance - lockedBalance;
-        }
-
+        uint64_t bal = balance - lockedBalance;
         ui->labelBalance->setText(GalaxyCashUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), bal));
     }
 }
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getAnonymizedBalance(), model->getLockedBalance());
+    setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getLockedBalance());
 }
 
 // Coin Control: copy label "Quantity" to clipboard

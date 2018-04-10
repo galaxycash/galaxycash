@@ -1,7 +1,7 @@
 #include "masternodeman.h"
 #include "masternode.h"
+#include "masternode-payments.h"
 #include "activemasternode.h"
-#include "anonsend.h"
 #include "core.h"
 #include "util.h"
 #include "addrman.h"
@@ -11,6 +11,7 @@
 
 /** Masternode manager */
 CMasternodeMan mnodeman;
+CCriticalSection cs_message_queue;
 CCriticalSection cs_process_message;
 
 struct CompareValueOnly
@@ -629,7 +630,7 @@ bool CMasternodeMan::VerifyMessage(CPubKey pubkey, vector<unsigned char>& vchSig
     }
 
     if (fDebug && (pubkey2.GetID() != pubkey.GetID()))
-        LogPrintf("CAnonSendSigner::VerifyMessage -- keys don't match: %s %s\n", pubkey2.GetID().ToString(), pubkey.GetID().ToString());
+        LogPrintf("CMasternodeMan::VerifyMessage -- keys don't match: %s %s\n", pubkey2.GetID().ToString(), pubkey.GetID().ToString());
 
     return (pubkey2.GetID() == pubkey.GetID());
 }
@@ -664,22 +665,37 @@ bool CMasternodeMan::IsBlockchainSynced() const
     return true;
 }
 
-void CMasternodeMan::ProcessMasternodeConnections()
+struct CMasternodeMessage {
+    CNode *pfrom;
+    std::string cmd;
+    CDataStream recv;
+
+    CMasternodeMessage() :
+        recv(0, 0)
+    {}
+    CMasternodeMessage(CNode *pfrom, std::string &strCommand, CDataStream &recv) :
+        pfrom(pfrom),
+        cmd(strCommand),
+        recv(recv.begin(), recv.end(), recv.nType, recv.nVersion)
+    {}
+};
+
+static std::vector <CMasternodeMessage> message_queue;
+
+void CMasternodeMan::ProcessMessageAsync(CNode* pfrom, std::string& strCommand, CDataStream& vRecv) {
+    LOCK(cs_message_queue);
+
+    message_queue.push_back(CMasternodeMessage(pfrom, strCommand, vRecv));
+}
+
+void CMasternodeMan::ProcessMessages()
 {
-    LOCK(cs_vNodes);
+    LOCK(cs_message_queue);
 
-    if(!anonSendPool.pSubmittedToMasternode) return;
-    
-    BOOST_FOREACH(CNode* pnode, vNodes)
-    {
-        if(anonSendPool.pSubmittedToMasternode->addr == pnode->addr) continue;
+    for (size_t i = 0; i < message_queue.size(); i++)
+        ProcessMessage(message_queue[i].pfrom, message_queue[i].cmd, message_queue[i].recv);
 
-        if(pnode->fAnonSendMaster){
-            LogPrintf("Closing masternode connection %s \n", pnode->addr.ToString().c_str());
-            pnode->CloseSocketDisconnect();
-        }
-    }
-
+    message_queue.clear();
 }
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
@@ -688,7 +704,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
     //Normally would disable functionality, NEED this enabled for staking.
     //if(fLiteMode) return;
 
-    if(!anonSendPool.IsBlockchainSynced()) return;
+    if(!IsBlockchainSynced()) return;
 
     LOCK(cs_process_message);
 
@@ -759,7 +775,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         }
 
         std::string errorMessage = "";
-        if(!anonSendSigner.VerifyMessage(pubkey, vchSig, strMessage, errorMessage)){
+        if(!VerifyMessage(pubkey, vchSig, strMessage, errorMessage)){
             LogPrintf("dsee - Got bad masternode address signature\n");
             pfrom->Misbehaving(100);
             return;
@@ -797,7 +813,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         // make sure the vout that was signed is related to the transaction that spawned the masternode
         //  - this is expensive, so it's only done once per masternode
-        if(!anonSendSigner.IsVinAssociatedWithPubkey(vin, pubkey)) {
+        if(!IsVinAssociatedWithPubkey(vin, pubkey)) {
             LogPrintf("dsee - Got mismatched pubkey and vin\n");
             pfrom->Misbehaving(100);
             return;
@@ -808,9 +824,13 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         // make sure it's still unspent
         //  - this is checked later by .check() in many places and by ThreadCheckAnonSendPool()
 
+        std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+        CGalaxyCashAddress gdevAddr;
+        gdevAddr.SetString(devAddr);
+
         CValidationState state;
         CTransaction tx = CTransaction();
-        CTxOut vout = CTxOut(ANONSEND_POOL_MAX, anonSendPool.collateralPubKey);
+        CTxOut vout = CTxOut(4999.99*COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
         bool fAcceptable = false;
@@ -913,7 +933,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
                 std::string strMessage = pmn->addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop);
 
                 std::string errorMessage = "";
-                if(!anonSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage))
+                if(!VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage))
                 {
                     LogPrintf("dseep - Got bad masternode address signature %s \n", vin.ToString().c_str());
                     //pfrom->Misbehaving(100);
@@ -969,7 +989,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
                 std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nVote);
 
                 std::string errorMessage = "";
-                if(!anonSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage))
+                if(!VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage))
                 {
                     LogPrintf("mvote - Got bad Masternode address signature %s \n", vin.ToString().c_str());
                     return;
@@ -1081,23 +1101,23 @@ std::string CMasternodeMan::ToString() const
 
 #include "activemasternodeman.h"
 
+static int RequestedMasterNodeList = 0;
+
 //TODO: Rename/move to core
 void ThreadMasternode()
 {
-    if(fLiteMode) return; //disable all Anonsend/Masternode related functionality
+    if(fLiteMode) return; //disable all Masternode related functionality
 
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("GalaxyCash-masternode");
 
     unsigned int c = 0;
 
+
     while (true)
     {
         MilliSleep(1000);
         //LogPrintf("ThreadCheckAnonSendPool::check timeout\n");
-
-        // try to sync from all available nodes, one step at a time
-        //masternodeSync.Process();
 
         if(mnodeman.IsBlockchainSynced()) {
 
@@ -1112,8 +1132,32 @@ void ThreadMasternode()
             {
 
                 mnodeman.CheckAndRemove();
-                mnodeman.ProcessMasternodeConnections();
                 masternodePayments.CleanPaymentList();
+            }
+
+            //try to sync the masternode list and payment list every 5 seconds from at least 3 nodes
+            if(c % 5 == 0 && RequestedMasterNodeList < 36){
+                bool fIsInitialDownload = IsInitialBlockDownload();
+                if(!fIsInitialDownload) {
+                    LOCK(cs_vNodes);
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                    {
+                        if (pnode->nVersion >= MIN_PEER_PROTO_VERSION) {
+
+                            //keep track of who we've asked for the list
+                            if(pnode->HasFulfilledRequest("mnsync")) continue;
+                            pnode->FulfilledRequest("mnsync");
+
+                            LogPrintf("Successfully synced, asking for Masternode list and payment list\n");
+
+                            pnode->PushMessage("dseg", CTxIn()); //request full mn list
+                            pnode->PushMessage("mnget"); //sync payees
+                            pnode->PushMessage("getsporks"); //get current network sporks
+
+                            RequestedMasterNodeList++;
+                        }
+                    }
+                }
             }
         }
     }

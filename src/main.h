@@ -53,12 +53,6 @@ static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 40;
 static const unsigned int MAX_INV_SZ = 50000;
 /** PoS Reward Fixed */
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
-/** MN Reward Fixed */
-static const int64_t MASTERNODE_REWARD = 15; // 15%
-/** Anonsend collateral */
-static const int64_t ANONSEND_COLLATERAL = (0.01*COIN);
-/** Anonsend pool values */
-static const int64_t ANONSEND_POOL_MAX = (4999.99*COIN);
 /** MasterNode required collateral */
 inline int64_t MasternodeCollateral(int nHeight) { return 5000; }
 /** No amount larger than this (in satoshi) is valid */
@@ -99,17 +93,12 @@ extern int nMiningAlgo;
 extern bool fUseDefaultKey;
 extern bool fMasterNode;
 extern bool fLiteMode;
-extern int nAnonsendRounds;
-extern int nAnonymizeAmount;
-extern int nLiquidityProvider;
-extern bool fEnableAnonsend;
 extern int64_t enforceMasternodePaymentsTime;
 extern std::string strMasterNodeAddr;
 extern int nMasternodeMinProtocol;
 extern bool fMasternodeSoftLock;
 extern int keysLoaded;
 extern bool fSucessfullyLoaded;
-extern std::vector<int64_t> anonSendDenominations;
 
 inline int64_t GetMinTransactionFee(int64_t nTime = 0)
 {
@@ -176,7 +165,7 @@ void ThreadStakeMiner(CWallet *pwallet);
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool ignoreFees=false);
 bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree,
-                        bool* pfMissingInputs, bool isDSTX=false);
+                        bool* pfMissingInputs);
 bool FindTransactionsByDestination(const CTxDestination &dest, std::vector<uint256> &vtxhash);
 
 

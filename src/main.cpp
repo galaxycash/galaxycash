@@ -20,7 +20,6 @@
 #include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
-#include "anonsend.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
 #include "spork.h"
@@ -945,10 +944,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
 
         // Don't accept it if it can't get into a block
         // but prioritise dstx and don't check fees for it
-        if(mapAnonsendBroadcastTxes.count(hash)) {
-            // Normally we would PrioritiseTransaction But currently it is unimplemented
-            // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
-        } else if(!ignoreFees){
+        if(!ignoreFees){
             int64_t txMinFee = GetMinFee(nBestHeight, tx, 1000, GMF_RELAY, nSize);
             if ((fLimitFree && nFees < txMinFee) || (!fLimitFree && nFees < GetMinTransactionFee(tx.nTime)))
                 return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
@@ -1014,8 +1010,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
     return true;
 }
 
-bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree,
-                         bool* pfMissingInputs, bool isDSTX)
+bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree, bool* pfMissingInputs)
 {
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
@@ -1089,10 +1084,7 @@ bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree
 
 
         // Don't accept it if it can't get into a block
-        if(isDSTX) {
-            // Normally we would PrioritiseTransaction But currently it is unimplemented
-            // mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
-        } else { // same as !ignoreFees for AcceptToMemoryPool
+        { // same as !ignoreFees for AcceptToMemoryPool
             if ((fLimitFree && nFees < txMinFee) || (!fLimitFree && nFees < GetMinTransactionFee(tx.nTime)))
                 return error("AcceptToMemoryPool : not enough fees %s, %d < %d",
                             hash.ToString(),
@@ -3138,23 +3130,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         CTxIn vin;
 
         // If we're in LiteMode disable anonsend features without disabling masternodes
-        if (!fLiteMode && !fImporting && !fReindex && pindexBest->nHeight > Checkpoints::GetTotalBlocksEstimate()){
-
-            if(masternodePayments.GetBlockPayee(pindexBest->nHeight, payee, vin)){
-                //UPDATE MASTERNODE LAST PAID TIME
-                CMasternode* pmn = mnodeman.Find(vin);
-                if(pmn != NULL) {
-                    pmn->nLastPaid = GetAdjustedTime();
-                }
-
-                LogPrintf("ProcessBlock() : Update Masternode Last Paid Time - %d\n", pindexBest->nHeight);
-            }
-
-            anonSendPool.CheckTimeout();
-            anonSendPool.NewBlock();
-            masternodePayments.ProcessBlock(GetHeight()+10);
-
-        } else if (fLiteMode && !fImporting && !fReindex && pindexBest->nHeight > Checkpoints::GetTotalBlocksEstimate())
+        if (!fImporting && !fReindex && pindexBest->nHeight > Checkpoints::GetTotalBlocksEstimate())
         {
             if(masternodePayments.GetBlockPayee(pindexBest->nHeight, payee, vin)){
                 //UPDATE MASTERNODE LAST PAID TIME
@@ -3537,8 +3513,6 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
 {
     switch (inv.type)
     {
-    case MSG_DSTX:
-        return mapAnonsendBroadcastTxes.count(inv.hash);
     case MSG_TX:
         {
         bool txInMap = false;
@@ -3642,20 +3616,6 @@ void static ProcessGetData(CNode* pfrom)
                         ss.reserve(1000);
                         ss << mapSeenMasternodeVotes[inv.hash];
                         pfrom->PushMessage("mnw", ss);
-                        pushed = true;
-                    }
-                }
-                if (!pushed && inv.type == MSG_DSTX) {
-                    if(mapAnonsendBroadcastTxes.count(inv.hash)){
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss <<
-                            mapAnonsendBroadcastTxes[inv.hash].tx <<
-                            mapAnonsendBroadcastTxes[inv.hash].vin <<
-                            mapAnonsendBroadcastTxes[inv.hash].vchSig <<
-                            mapAnonsendBroadcastTxes[inv.hash].sigTime;
-
-                        pfrom->PushMessage("dstx", ss);
                         pushed = true;
                     }
                 }
@@ -4028,7 +3988,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
     }
 
 
-    else if (strCommand == "tx"|| strCommand == "dstx")
+    else if (strCommand == "tx")
     {
         vector<uint256> vWorkQueue;
         vector<uint256> vEraseQueue;
@@ -4048,50 +4008,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             // Check for recently rejected (and do other quick existence checks)
             if (AlreadyHave(txdb, inv))
                 return true;
-        } else if (strCommand == "dstx") {
-            vRecv >> tx >> vin >> vchSig >> sigTime;
-            inv = CInv(MSG_DSTX, tx.GetHash());
-            // Check for recently rejected (and do other quick existence checks)
-            if (AlreadyHave(txdb, inv))
-                return true;
-            //these allow masternodes to publish a limited amount of free transactions
-            CMasternode* pmn = mnodeman.Find(vin);
-            if(pmn != NULL)
-            {
-                if(!pmn->allowFreeTx){
-                    //multiple peers can send us a valid masternode transaction
-                    if(fDebug) LogPrintf("dstx: Masternode sending too many transactions %s\n", tx.GetHash().ToString().c_str());
-                    return true;
-                }
-
-                std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
-
-                std::string errorMessage = "";
-                if(!anonSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, errorMessage)){
-                    LogPrintf("dstx: Got bad masternode address signature %s \n", vin.ToString().c_str());
-                    //pfrom->Misbehaving(20);
-                    return false;
-                }
-
-                LogPrintf("dstx: Got Masternode transaction %s\n", tx.GetHash().ToString().c_str());
-
-                ignoreFees = true;
-                pmn->allowFreeTx = false;
-
-                if(!mapAnonsendBroadcastTxes.count(tx.GetHash())){
-                    CAnonsendBroadcastTx dstx;
-                    dstx.tx = tx;
-                    dstx.vin = vin;
-                    dstx.vchSig = vchSig;
-                    dstx.sigTime = sigTime;
-
-                    mapAnonsendBroadcastTxes.insert(make_pair(tx.GetHash(), dstx));
-                }
-            }
         }
-
-
-
 
         pfrom->AddInventoryKnown(inv);
 
@@ -4121,11 +4038,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     CTransaction& orphanTx = mapOrphanTransactions[orphanTxHash];
                     bool fMissingInputs2 = false;
 
-
-
-
-
-
                     if (AcceptToMemoryPool(mempool, orphanTx, true, &fMissingInputs2))
                     {
                         LogPrint("mempool", "   accepted orphan tx %s\n", orphanTxHash.ToString());
@@ -4154,10 +4066,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             unsigned int nEvicted = LimitOrphanTxSize(MAX_ORPHAN_TRANSACTIONS);
             if (nEvicted > 0)
                 LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
-        }
-        if(strCommand == "dstx"){
-            inv = CInv(MSG_DSTX, tx.GetHash());
-            RelayInventory(inv);
         }
         if (tx.nDoS) pfrom->Misbehaving(tx.nDoS);
     }
@@ -4297,7 +4205,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     else
     {
-        anonSendPool.ProcessMessageAnonsend(pfrom, strCommand, vRecv);
         mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
         ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
         ProcessSpork(pfrom, strCommand, vRecv);

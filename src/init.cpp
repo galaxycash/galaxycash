@@ -17,7 +17,6 @@
 #include "walletdb.h"
 #include "miner.h"
 #endif
-#include "anonsend-relay.h"
 #include "activemasternode.h"
 #include "masternode-payments.h"
 #include "masternode.h"
@@ -857,7 +856,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     fMasterNode = GetBoolArg("-masternode", false);
     if(fMasterNode) {
-        LogPrintf("IS ANONSEND MASTER NODE\n");
+        LogPrintf("IS MASTER NODE\n");
         strMasterNodeAddr = GetArg("-masternodeaddr", "");
 
         LogPrintf(" addr %s\n", strMasterNodeAddr.c_str());
@@ -876,7 +875,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             CKey key;
             CPubKey pubkey;
 
-            if(!anonSendSigner.SetKey(strMasterNodePrivKey, errorMessage, key, pubkey))
+            if(!mnodeman.SetKey(strMasterNodePrivKey, errorMessage, key, pubkey))
             {
                 return InitError(_("Invalid masternodeprivkey. Please see documenation."));
             }
@@ -901,23 +900,6 @@ bool AppInit2(boost::thread_group& threadGroup)
         }
     }
 
-    fEnableAnonsend = GetBoolArg("-enableanonsend", false);
-
-    nAnonsendRounds = GetArg("-anonsendrounds", 2);
-    if(nAnonsendRounds > 16) nAnonsendRounds = 16;
-    if(nAnonsendRounds < 1) nAnonsendRounds = 1;
-
-    nLiquidityProvider = GetArg("-liquidityprovider", 0); //0-100
-    if(nLiquidityProvider != 0) {
-        anonSendPool.SetMinBlockSpacing(std::min(nLiquidityProvider,100)*15);
-        fEnableAnonsend = true;
-        nAnonsendRounds = 99999;
-    }
-
-    nAnonymizeAmount = GetArg("-anonymizeamount", 2);
-    if(nAnonymizeAmount > 999999) nAnonymizeAmount = 999999;
-    if(nAnonymizeAmount < 2) nAnonymizeAmount = 2;
-
     //lite mode disables all Masternode and Anonsend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
     if(fMasterNode && fLiteMode){
@@ -925,26 +907,8 @@ bool AppInit2(boost::thread_group& threadGroup)
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
-    LogPrintf("Anonsend rounds %d\n", nAnonsendRounds);
-    LogPrintf("Anonymize GalaxyCash Amount %d\n", nAnonymizeAmount);
 
-    /* Denominations
-       A note about convertability. Within Anonsend pools, each denomination
-       is convertable to another.
-    */
-    anonSendDenominations.push_back( (1000        * COIN)+1000000 );
-    anonSendDenominations.push_back( (100         * COIN)+100000 );
-    anonSendDenominations.push_back( (10          * COIN)+10000 );
-    anonSendDenominations.push_back( (1           * COIN)+1000 );
-    anonSendDenominations.push_back( (.1          * COIN)+100 );
-    /* Disabled till we need them
-    anonSendDenominations.push_back( (.01      * COIN)+10 );
-    anonSendDenominations.push_back( (.001     * COIN)+1 );
-    */
-
-    anonSendPool.InitCollateralAddress();
-
-    threadGroup.create_thread(boost::bind(&ThreadCheckAnonSendPool));
+    threadGroup.create_thread(boost::bind(&ThreadMasternode));
 
 
 
