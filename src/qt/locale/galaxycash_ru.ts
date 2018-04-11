@@ -3423,6 +3423,11 @@ for example: alertnotify=echo %%s | mail -s &quot;GalaxyCash Alert&quot; admin@f
     </message>
     <message>
         <location line="+2"/>
+        <source>Loading masternode cache...</source>
+        <translation>Загрузка кеша мастернод...</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Done loading</source>
         <translation>Загрузка завершена</translation>
     </message>
