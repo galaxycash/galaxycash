@@ -413,6 +413,14 @@
         </widget>
        </item>
        <item>
+         <widget class="QLabel" name="labelLocked">
+          <property name="text">
+           <string>(1 locked)</string>
+          </property>
+         </widget>
+        </item>
+      
+       <item>
         <widget class="QRadioButton" name="radioListMode">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">

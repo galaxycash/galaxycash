@@ -64,6 +64,10 @@ This product includes software developed by the OpenSSL Project for use in the O
         <translation>Это Ваши адреса для получения платежей. Вы можете дать разные адреса отправителям, чтобы отслеживать, кто именно вам платит.</translation>
     </message>
     <message>
+        <source>locked</source>
+        <translation>заблокировано</translation>
+    </message>
+    <message>
         <location line="+53"/>
         <source>&amp;Copy Address</source>
         <translation>&amp;Копировать адрес</translation>
@@ -862,6 +866,16 @@ Address: %4
         <location line="-25"/>
         <source>Copy transaction ID</source>
         <translation>Скопировать ID транзакции</translation>
+    </message>
+    <message>
+        <location line="-25"/>
+        <source>Lock unspent</source>
+        <translation>Заблокировать</translation>
+    </message>
+    <message>
+        <location line="-25"/>
+        <source>Unlock unspent</source>
+        <translation>Разблокировать</translation>
     </message>
     <message>
         <location line="+24"/>

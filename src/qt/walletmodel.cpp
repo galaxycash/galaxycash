@@ -443,6 +443,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
+    listLockedCoins(vLockedCoins);
 
     // add locked coins
     BOOST_FOREACH(const COutPoint& outpoint, vLockedCoins)
@@ -488,7 +489,7 @@ void WalletModel::unlockCoin(COutPoint& output)
     pwalletMain->UnlockCoin(output);
 }
 
-void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutputs)
+void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutputs) const
 {
     LOCK2(cs_main, wallet->cs_wallet);
     pwalletMain->ListLockedCoins(vOutputs);
