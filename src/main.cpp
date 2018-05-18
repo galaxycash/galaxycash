@@ -1535,12 +1535,12 @@ int GetRewardIndex()
 
 int64_t GetMNProofOfStakeReward(int64_t nReward, int nHeight)
 {
-    return (int64_t)((nReward / 100) * MN_Rewards_POS[GetRewardIndex()]);
+    return nReward * 0.75;
 }
 
 int64_t GetMNProofOfWorkReward(int64_t nReward, int nHeight)
 {
-    return (int64_t)((nReward / 100) * MN_Rewards_POW[GetRewardIndex()]);
+    return nReward * 0.80;
 }
 
 // ppcoin: find last block index up to pindex
