@@ -31,6 +31,8 @@ Block time:                                 10 Minutes
 
 PoW Block reward:                           10 GCH (Halving every 210k blocks)
 
+PoW Last Block:                             125000
+
 PoS First Block:                            61300
 
 PoS Block reward:                           10% per year
