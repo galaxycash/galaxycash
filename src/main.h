@@ -780,6 +780,11 @@ public:
         }
     }
 
+    uint256 GetShaHash() const
+    {
+        return Hash(BEGIN(nVersion), END(nNonce));
+    }
+
     uint256 GetPoWHash() const
     {
         return GetHash();

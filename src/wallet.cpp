@@ -1178,8 +1178,14 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN))
-                    continue;
+                if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN)) {
+                    if (coinControl && coinControl->HasSelected()) {
+                        if (!coinControl->IsSelected((*it).first, i))
+                            continue;
+                    }
+                    else
+                        continue;
+                }
 
                 if (!(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
                 (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
@@ -1247,8 +1253,14 @@ void CWallet::AvailableCoinsFrom(const CTxDestination &from, vector<COutput>& vC
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN))
-                    continue;
+                if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN)) {
+                    if (coinControl && coinControl->HasSelected()) {
+                        if (!coinControl->IsSelected((*it).first, i))
+                            continue;
+                    }
+                    else
+                        continue;
+                }
 
                 CTxDestination destination;
                 if (ExtractDestination(pcoin->vout[i].scriptPubKey, destination))
@@ -3340,11 +3352,8 @@ void CWallet::AvailableCoinsMN(vector<COutput>& vCoins, bool fOnlyConfirmed, con
                 if (pcoin->vout[i].nValue != (MasternodeCollateral(pindexBest->nHeight) * COIN))
                     continue;
 
-                if (!(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue > 0 &&
-                    (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
-                {
+                if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]))
                     vCoins.push_back(COutput(pcoin, i, nDepth));
-                }
             }
         }
     }

@@ -961,8 +961,21 @@ CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsign
 CScript GetScriptForDestination(const CTxDestination& dest);
 CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
 
-CScript GetScriptForDestination(const CTxDestination& dest);
-CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
+inline bool IsValidDestination(const CTxDestination& dest) {
+    return dest.which() != 0;
+}
+
+CKey DecodeSecret(const std::string& str);
+std::string EncodeSecret(const CKey& key);
+
+CExtKey DecodeExtKey(const std::string& str);
+std::string EncodeExtKey(const CExtKey& extkey);
+CExtPubKey DecodeExtPubKey(const std::string& str);
+std::string EncodeExtPubKey(const CExtPubKey& extpubkey);
+
+std::string EncodeDestination(const CTxDestination& dest);
+CTxDestination DecodeDestination(const std::string& str);
+bool IsValidDestinationString(const std::string& str);
 
 #endif
 

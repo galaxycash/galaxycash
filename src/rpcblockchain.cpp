@@ -432,3 +432,222 @@ Value getmaxmoney(const Array& params, bool fHelp)
 
     return ValueFromAmount(MAX_MONEY);
 }
+
+class CCoinInfo {
+public:
+    int32_t nHeight;
+    bool fCoinbase;
+    CTxOut out;
+    uint256 block;
+
+    CCoinInfo() :
+        nHeight(0),
+        fCoinbase(false)
+    {}
+
+    CCoinInfo(const CCoinInfo &info) :
+        nHeight(info.nHeight),
+        fCoinbase(info.fCoinbase),
+        out(info.out),
+        block(info.block)
+    {}
+};
+
+bool GetCoin(const COutPoint &coin, CCoinInfo &info) {
+    CTransaction tx;
+    uint256 block;
+
+    if (GetTransaction(coin.hash, tx, block)) {
+
+        CBlockIndex *pblock = mapBlockIndex[block];
+        if (!pblock)
+            return false;
+
+        info.block = block;
+        info.nHeight = pblock->nHeight;
+        info.fCoinbase = tx.IsCoinBase();
+        info.out = tx.vout[coin.n];
+
+        return true;
+    }
+
+    return false;
+}
+
+extern void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex);
+struct CCoinsStats
+{
+    int nHeight;
+    uint256 hashBlock;
+    uint64_t nTransactions;
+    uint64_t nTransactionOutputs;
+    uint64_t nBogoSize;
+    uint256 hashSerialized;
+    uint64_t nDiskSize;
+    uint64_t nTotalAmount;
+
+    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nBogoSize(0), nDiskSize(0), nTotalAmount(0) {}
+};
+
+static void ApplyStats(CCoinsStats &stats, CHashWriter& ss, const uint256& hash, const std::map<uint32_t, CCoinInfo>& outputs)
+{
+    assert(!outputs.empty());
+    ss << hash;
+    ss << VARINT(outputs.begin()->second.nHeight * 2 + outputs.begin()->second.fCoinbase ? 1u : 0u);
+    stats.nTransactions++;
+    for (const auto output : outputs) {
+        ss << VARINT(output.first + 1);
+        ss << output.second.out.scriptPubKey;
+        ss << VARINT(output.second.out.nValue);
+        stats.nTransactionOutputs++;
+        stats.nTotalAmount += output.second.out.nValue;
+        stats.nBogoSize += 32 /* txid */ + 4 /* vout index */ + 4 /* height + coinbase */ + 8 /* amount */ +
+                           2 /* scriptPubKey len */ + output.second.out.scriptPubKey.size() /* scriptPubKey */;
+    }
+    ss << VARINT(0u);
+}
+
+//! Calculate statistics about the unspent transaction output set
+static bool GetUTXOStats(CCoinsStats &stats)
+{
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    stats.hashBlock = pindexBest->GetBlockHash();
+    {
+        stats.nHeight = pindexBest->nHeight;
+    }
+    ss << stats.hashBlock;
+    uint256 prevkey;
+    std::map<uint32_t, CCoinInfo> outputs;
+
+    CBlock block;
+    if (!block.ReadFromDisk(pindexBest, true))
+        return false;
+
+    for (size_t i = 0; i < block.vtx.size(); i++) {
+        CTransaction &tx = block.vtx[i];
+
+        for (size_t j = 0; j < tx.vout.size(); j++) {
+            COutPoint key(tx.GetHash(), j);
+
+            CCoinInfo coin;
+            if (GetCoin(key, coin)) {
+                if (!outputs.empty() && key.hash != prevkey) {
+                    ApplyStats(stats, ss, prevkey, outputs);
+                    outputs.clear();
+                }
+                prevkey = key.hash;
+                outputs[key.n] = std::move(coin);
+            } else {
+                return error("%s: unable to read value", __func__);
+            }
+        }
+    }
+    if (!outputs.empty()) {
+        ApplyStats(stats, ss, prevkey, outputs);
+    }
+    stats.hashSerialized = ss.GetHash();
+    stats.nDiskSize = 9999;
+    return true;
+}
+
+Value gettxoutsetinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error(
+            "gettxoutsetinfo\n"
+            "\nReturns statistics about the unspent transaction output set.\n"
+            "Note this call may take some time.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"height\":n,     (numeric) The current block height (index)\n"
+            "  \"bestblock\": \"hex\",   (string) the best block hash hex\n"
+            "  \"transactions\": n,      (numeric) The number of transactions\n"
+            "  \"txouts\": n,            (numeric) The number of output transactions\n"
+            "  \"bogosize\": n,          (numeric) A meaningless metric for UTXO set size\n"
+            "  \"hash_serialized_2\": \"hash\", (string) The serialized hash\n"
+            "  \"disk_size\": n,         (numeric) The estimated size of the chainstate on disk\n"
+            "  \"total_amount\": x.xxx          (numeric) The total amount\n"
+            "}\n"
+        );
+
+    Object obj;
+
+    CCoinsStats stats;
+    if (GetUTXOStats(stats)) {
+        obj.push_back(Pair("height", (int64_t)stats.nHeight));
+        obj.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
+        obj.push_back(Pair("transactions", (int64_t)stats.nTransactions));
+        obj.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
+        obj.push_back(Pair("bogosize", (int64_t)stats.nBogoSize));
+        obj.push_back(Pair("hash_serialized_2", stats.hashSerialized.GetHex()));
+        obj.push_back(Pair("disk_size", stats.nDiskSize));
+        obj.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
+    } else {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+    }
+    return obj;
+}
+
+Value gettxout(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "gettxout \"txid\" n ( include_mempool )\n"
+            "\nReturns details about an unspent transaction output.\n"
+            "\nArguments:\n"
+            "1. \"txid\"             (string, required) The transaction id\n"
+            "2. \"n\"                (numeric, required) vout number\n"
+            "3. \"include_mempool\"  (boolean, optional) Whether to include the mempool. Default: true."
+            "     Note that an unspent output that is spent in the mempool won't appear.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"bestblock\" : \"hash\",    (string) the block hash\n"
+            "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
+            "  \"value\" : x.xxx,           (numeric) The transaction value\n"
+            "  \"scriptPubKey\" : {         (json object)\n"
+            "     \"asm\" : \"code\",       (string) \n"
+            "     \"hex\" : \"hex\",        (string) \n"
+            "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
+            "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
+            "     \"addresses\" : [          (array of string) array of bitcoin addresses\n"
+            "        \"address\"     (string) bitcoin address\n"
+            "        ,...\n"
+            "     ]\n"
+            "  },\n"
+            "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
+            "}\n"
+        );
+
+    Object obj;
+
+    std::string strHash = params[0].get_str();
+    uint256 hash(uint256S(strHash));
+    int n = params[1].get_int();
+    COutPoint out(hash, n);
+    bool fMempool = true;
+    if (params.size() > 2 && !params[2].is_null())
+        fMempool = params[2].get_bool();
+
+    CCoinInfo coin;
+    if (fMempool) {
+        if (!GetCoin(out, coin) || mempool.isSpent(out))
+            return Value::null;
+    } else {
+        if (!GetCoin(out, coin))
+            return Value::null;
+    }
+
+    obj.push_back(Pair("bestblock", coin.block.GetHex()));
+    if (coin.nHeight == pindexBest->nHeight || coin.nHeight <= 0) {
+        obj.push_back(Pair("confirmations", 0));
+    } else {
+        obj.push_back(Pair("confirmations", (int64_t)(pindexBest->nHeight - coin.nHeight + 1)));
+    }
+    obj.push_back(Pair("value", ValueFromAmount(coin.out.nValue)));
+    Object o;
+    ScriptPubKeyToJSON(coin.out.scriptPubKey, o, true);
+    obj.push_back(Pair("scriptPubKey", o));
+    obj.push_back(Pair("coinbase", (bool)coin.fCoinbase));
+
+    return obj;
+}

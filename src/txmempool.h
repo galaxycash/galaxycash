@@ -50,6 +50,12 @@ public:
         return (mapTx.count(hash) != 0);
     }
 
+    bool isSpent(const COutPoint& outpoint) const
+    {
+        LOCK(cs);
+        return mapNextTx.count(outpoint);
+    }
+
     bool lookup(uint256 hash, CTransaction& result) const;
 };
 

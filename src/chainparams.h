@@ -70,12 +70,14 @@ public:
     bool POWNoRetargeting() const { return fPOWNoRetargeting; }
     bool IsProtocolV1(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight <= 35000 : true; }
     bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > 35000 : true; }
-    int64_t PowTargetTimespan(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
-    int64_t PowTargetSpacing(int32_t nHeight) const { return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
+    bool IsProtocolV3(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > nLastPowBlock : true; }
+    int64_t PowTargetTimespan(int32_t nHeight) const { if (nHeight > nLastPowBlock) return nPowTargetTimespanPOS; return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
+    int64_t PowTargetSpacing(int32_t nHeight) const { if (nHeight > nLastPowBlock) return nPowTargetSpacingPOS; return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { return IsProtocolV2(nHeight) ? (nPowTargetTimespan2 / nPowTargetSpacing2) : (nPowTargetTimespan / nPowTargetSpacing); }
     int64_t POSStart() const { return nPOSFirstBlock; }
     int64_t MergeStart() const { return nMergeFirstBlock; }
     int64_t MergeEnd() const { return nMergeLastBlock; }
+    int32_t LastPowBlock() const { return nLastPowBlock; }
 
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     std::string AnonsendPoolDummyAddress() const { return strAnonsendPoolDummyAddress; }
@@ -87,8 +89,9 @@ protected:
     int nDefaultPort;
     int nRPCPort;
     int64_t nPOSFirstBlock, nMergeFirstBlock, nMergeLastBlock;
-    int64_t nPowTargetTimespan, nPowTargetTimespan2;
-    int64_t nPowTargetSpacing, nPowTargetSpacing2;
+    int64_t nPowTargetTimespan, nPowTargetTimespanPOS, nPowTargetTimespan2;
+    int64_t nPowTargetSpacing, nPowTargetSpacingPOS, nPowTargetSpacing2;
+    int32_t nLastPowBlock;
     bool fPOWNoRetargeting;
     uint256 stakeLimit;
     uint256 powLimit;

@@ -220,6 +220,8 @@ static const CRPCCommand vRPCCommands[] =
     { "stop",                   &stop,                   true,      true,      false },
     { "getbestblockhash",       &getbestblockhash,       true,      false,     false },
     { "getblockcount",          &getblockcount,          true,      false,     false },
+    { "gettxoutsetinfo",        &gettxoutsetinfo,        true,      false,     false },
+    { "gettxout",               &gettxout,               true,      false,     false },
     { "getconnectioncount",     &getconnectioncount,     true,      false,     false },
     { "getpeerinfo",            &getpeerinfo,            true,      false,     false },
     { "addnode",                &addnode,                true,      true,      false },
@@ -306,6 +308,7 @@ static const CRPCCommand vRPCCommands[] =
     { "makekeypair",            &makekeypair,            false,     true,      false },
     { "checkkernel",            &checkkernel,            true,      false,     true },
     { "fixspendable",           &fixspendable,           true,      false,     true },
+    { "importaddress",          &importaddress,          false,     false,     true },
 #endif
 };
 

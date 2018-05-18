@@ -33,13 +33,6 @@ SendCoinsEntry::SendCoinsEntry(QWidget *parent) :
     setFocusPolicy(Qt::TabFocus);
     setFocusProxy(ui->payTo);
 
-    if (GetBoolArg("-black", false))
-    {
-        ui->addressBookButton->setIcon(QIcon(":/icons/black/address-book"));
-        ui->pasteButton->setIcon(QIcon(":/icons/black/editpaste"));
-        ui->deleteButton->setIcon(QIcon(":/icons/black/remove"));
-    }
-
     GUIUtil::setupAddressWidget(ui->payTo, this);
 }
 

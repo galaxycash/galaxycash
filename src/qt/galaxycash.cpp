@@ -82,7 +82,7 @@ static void InitMessage(const std::string &message)
 {
     if(splashref)
     {
-        splashref->showMessage(QString::fromStdString(message), Qt::AlignBottom|Qt::AlignHCenter, GetBoolArg("-black", false) ? QColor(255, 255, 255) : QColor(0, 0, 0));//232,186,63));
+        splashref->showMessage(QString::fromStdString(message), Qt::AlignBottom|Qt::AlignHCenter, QColor(0, 0, 0));//232,186,63));
         QApplication::instance()->processEvents();
     }
     LogPrintf("init message: %s\n", message);
@@ -179,10 +179,7 @@ int main(int argc, char *argv[])
     else
         app.setApplicationName("GalaxyCash-Qt");
 
-    if (GetBoolArg("-black", false))
-        GUIUtil::SetBlackThemeQSS(app);
-    else
-        GUIUtil::SetWhiteThemeQSS(app);
+    GUIUtil::SetWhiteThemeQSS(app);
 
     // ... then GUI settings:
     OptionsModel optionsModel;
@@ -254,8 +251,8 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    QSplashScreen splash(QPixmap(GetBoolArg("-black", false) ? ":/images/black/splash" : (IsHNY() ? ":/images/splash_hny" : ":/images/splash")), 0);
-    if (GetBoolArg("-splash", true) && !GetBoolArg("-min", false))
+    QSplashScreen splash(QPixmap(":/images/splash"), 0);
+    if (GetBoolArg("-splash", true))
     {
         splash.show();
         splashref = &splash;

@@ -6,6 +6,8 @@
 #define GALAXYCASH_KEY_H
 
 #include <vector>
+#include <boost/variant/apply_visitor.hpp>
+#include <boost/variant/static_visitor.hpp>
 
 #include "allocators.h"
 #include "serialize.h"
@@ -272,6 +274,8 @@ public:
     static bool CheckSignatureElement(const unsigned char *vch, int len, bool half);
 };
 
+static const unsigned int BIP32_EXTKEY_SIZE = 74;
+
 struct CExtPubKey {
     unsigned char nDepth;
     unsigned char vchFingerprint[4];
@@ -312,6 +316,8 @@ struct CExtKey {
 bool ECC_InitSanityCheck(void);
 
 bool EnsureLowS(std::vector<unsigned char>& vchSig);
+
+
 
 #endif
 

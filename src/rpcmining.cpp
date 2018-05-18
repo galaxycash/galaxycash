@@ -443,6 +443,9 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "GalaxyCash is downloading blocks...");
 
+    if (nBestHeight > Params().LastPowBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK , "No more PoW blocks!");
+
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
@@ -624,6 +627,11 @@ Value submitblock(const Array& params, bool fHelp)
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
     }
+
+
+    if (block.IsProofOfWork() && nBestHeight > Params().LastPowBlock())
+        throw JSONRPCError(RPC_POW_LAST_BLOCK , "No more PoW blocks!");
+
 
     if (params.size() > 1)
     {

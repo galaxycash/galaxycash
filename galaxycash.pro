@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 2.2.1.0
+VERSION = 3.0.0.0
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network

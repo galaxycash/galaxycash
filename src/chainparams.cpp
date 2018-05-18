@@ -67,6 +67,9 @@ public:
         nMergeFirstBlock = nCoinbaseMaturity + 2;
         nMergeLastBlock = 95;
 
+        // Last PoW block
+        nLastPowBlock = 130000;
+
         // Ports
         nDefaultPort = 7604;
         nRPCPort = 4604;
@@ -75,8 +78,10 @@ public:
         powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
         nPowTargetSpacing = 3 * 60; // 3 minutes
         nPowTargetSpacing2 = 10 * 60; // 10 minutes
+        nPowTargetSpacingPOS = 2 * 60; // 2 minutes
         nPowTargetTimespan = 6 * 60 * 60; // 6 hours
         nPowTargetTimespan2 = 24 * 60 * 60; // 24 hours
+        nPowTargetTimespanPOS = 6 * 60 * 60; // 6 hours
         fPOWNoRetargeting = false;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot

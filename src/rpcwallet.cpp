@@ -1694,3 +1694,88 @@ Value fixspendable(const Array& params, bool fHelp)
     result.push_back(Pair("inquestion", inquestion));
     return result;
 }
+
+void ImportAddress(CWallet*, const CTxDestination& dest, const std::string& strLabel);
+void ImportScript(CWallet* const pwallet, const CScript& script, const std::string& strLabel, bool isRedeemScript)
+{
+    pwallet->MarkDirty();
+
+    pwallet->AddWatchOnly(script);
+
+    if (isRedeemScript) {
+        if (pwallet->AddCScript(script))
+            ImportAddress(pwallet, script.GetID(), strLabel);
+    } else {
+        CTxDestination destination;
+        if (ExtractDestination(script, destination)) {
+            pwallet->SetAddressBookName(destination, strLabel);
+        }
+    }
+}
+
+#include "key.h"
+
+void ImportAddress(CWallet* const pwallet, const CTxDestination& dest, const std::string& strLabel)
+{
+    CScript script = GetScriptForDestination(dest);
+    ImportScript(pwallet, script, strLabel, false);
+    // add to address book or update label
+    if (IsValidDestination(dest))
+        pwallet->SetAddressBookName(dest, strLabel);
+}
+
+Value importaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 4)
+        throw std::runtime_error(
+            "importaddress \"address\" ( \"label\" rescan p2sh )\n"
+            "\nAdds a script (in hex) or address that can be watched as if it were in your wallet but cannot be used to spend. Requires a new wallet backup.\n"
+            "\nArguments:\n"
+            "1. \"script\"           (string, required) The hex-encoded script (or address)\n"
+            "2. \"label\"            (string, optional, default=\"\") An optional label\n"
+            "3. rescan               (boolean, optional, default=true) Rescan the wallet for transactions\n"
+            "4. p2sh                 (boolean, optional, default=false) Add the P2SH version of the script as well\n"
+            "\nNote: This call can take minutes to complete if rescan is true, during that time, other rpc calls\n"
+            "may report that the imported address exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
+            "If you have the full public key, you should call importpubkey instead of this.\n"
+            "\nNote: If you import a non-standard raw script in hex form, outputs sending to it will be treated\n"
+            "as change, and not show up in many RPCs.\n"
+            "\nExamples:\n"
+            "\nImport a script with rescan\n");
+
+
+    std::string strLabel;
+    if (params.size() > 1 && !params[1].is_null())
+        strLabel = params[1].get_str();
+    // Whether to perform rescan after import
+    bool fRescan = true;
+    if (params.size() > 2 && !params[2].is_null())
+        fRescan = params[2].get_bool();
+
+    // Whether to import a p2sh version, too
+    bool fP2SH = false;
+    if (params.size() > 3 && !params[3].is_null())
+        fP2SH = params[3].get_bool();
+
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+
+
+        CGalaxyCashAddress address;
+        address.SetString(params[0].get_str());
+
+        if (address.IsValid()) {
+            ImportAddress(pwalletMain, address.Get(), strLabel);
+        } else if (IsHex(params[0].get_str())) {
+            std::vector<unsigned char> data(ParseHex(params[0].get_str()));
+            ImportScript(pwalletMain, CScript(data.begin(), data.end()), strLabel, fP2SH);
+        } else
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid GalaxyCash address or script");
+    }
+    if (fRescan)
+    {
+        pwalletMain->ScanForWalletTransactions(pindexGenesisBlock, true);
+        pwalletMain->ReacceptWalletTransactions();
+    }
+    return Value::null;
+}

@@ -1432,9 +1432,14 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
     if (pindexBest->nMoneySupply >= MAX_MONEY)
         return nFees;
 
+    int nHeight = (pindexPrev->nHeight + 1);
     int64_t nSubsidy = (pindexPrev->nMoneySupply / COIN) * COIN_YEAR_REWARD / (365 * 24 * (60 * 60 / 64));
 
+    if (nHeight > Params().LastPowBlock())
+        return GetProofOfWorkReward(nFees, nHeight);
+
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d nHeight=%d\n", FormatMoney(nSubsidy), nCoinAge);
+
 
     return nSubsidy+ nFees;
 }
@@ -2689,6 +2694,22 @@ bool CBlock::CheckBlockHeader(bool fCheckPOW, bool fCheckSig) const
 
 bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
+    // Get prev block index
+    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
+    if (mi == mapBlockIndex.end())
+        return DoS(10, error("CheckBlock() : prev block not found"));
+
+    CBlockIndex* pindexPrev = (*mi).second;
+    int nHeight = pindexPrev->nHeight+1;
+
+    // Check PoW
+    if (IsProofOfWork() && nHeight > Params().LastPowBlock())
+        return error("ProcessBlock() : PoW Wave ended!");
+
+    // Check PoS
+    if (IsProofOfStake() && nHeight < Params().POSStart())
+        return error("ProcessBlock() : PoS Wave not started!");
+
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
 
@@ -2865,8 +2886,17 @@ bool CBlock::AcceptBlock()
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
     if (mi == mapBlockIndex.end())
         return DoS(10, error("AcceptBlock() : prev block not found"));
+
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
+
+    // Check PoW
+    if (IsProofOfWork() && nHeight > Params().LastPowBlock())
+        return error("ProcessBlock() : PoW Wave ended!");
+
+    // Check PoS
+    if (IsProofOfStake() && nHeight < Params().POSStart())
+        return error("ProcessBlock() : PoS Wave not started!");
 
 
     // Check timestamp against prev
@@ -3010,9 +3040,13 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
+    // Check PoW
+    if (pblock->IsProofOfWork() && nBestHeight > Params().LastPowBlock())
+        return error("ProcessBlock() : PoW Wave ended!");
+
     // Check PoS
     if (pblock->IsProofOfStake() && nBestHeight < Params().POSStart())
-        return error("ProcessBlock() : POS Wave not started!");
+        return error("ProcessBlock() : PoS Wave not started!");
 
     // Check for duplicate
     uint256 hash = pblock->GetHash();
