@@ -2704,11 +2704,11 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
 
     // Check PoW
     if (IsProofOfWork() && nHeight > Params().LastPowBlock())
-        return error("ProcessBlock() : PoW Wave ended!");
+        return DoS(10, error("ProcessBlock() : PoW Wave ended!"));
 
     // Check PoS
     if (IsProofOfStake() && nHeight < Params().POSStart())
-        return error("ProcessBlock() : PoS Wave not started!");
+        return DoS(10, error("ProcessBlock() : PoS Wave not started!"));
 
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
@@ -2892,11 +2892,11 @@ bool CBlock::AcceptBlock()
 
     // Check PoW
     if (IsProofOfWork() && nHeight > Params().LastPowBlock())
-        return error("ProcessBlock() : PoW Wave ended!");
+        return DoS(10, error("ProcessBlock() : PoW Wave ended!"));
 
     // Check PoS
     if (IsProofOfStake() && nHeight < Params().POSStart())
-        return error("ProcessBlock() : PoS Wave not started!");
+        return DoS(10, error("ProcessBlock() : PoS Wave not started!"));
 
 
     // Check timestamp against prev
