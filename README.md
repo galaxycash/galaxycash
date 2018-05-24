@@ -27,9 +27,9 @@ Algorithm:                                  X12, X11, X13, Sha256d, Blake2s
 
 Difficulty retarget:                        Every block
 
-Block time:                                 10 Minutes
+Block time:                                 10 Minutes (2 minutes after hardfork on 125000 block)
 
-PoW Block reward:                           10 GCH (Halving every 210k blocks)
+Block reward:                               10 GCH (Halving every 210k blocks)
 
 PoW Last Block:                             125000
 
@@ -39,9 +39,9 @@ PoS Block reward:                           10% per year
 
 Masternode Price:                           5000 GCH
 
-Masternode PoW Reward:                      Complex 20%-80% 
+Masternode PoW Reward:                      80% 
 
-Masternode PoS Reward:                      Complex 13%-60%
+Masternode PoS Reward:                      75%
 
 
 Max supply:                                 30,000,000
