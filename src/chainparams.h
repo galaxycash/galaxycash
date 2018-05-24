@@ -71,8 +71,8 @@ public:
     bool IsProtocolV1(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight <= 35000 : true; }
     bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > 35000 : true; }
     bool IsProtocolV3(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > nLastPowBlock : true; }
-    int64_t PowTargetTimespan(int32_t nHeight) const { if (nHeight > nLastPowBlock) return nPowTargetTimespanPOS; return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
-    int64_t PowTargetSpacing(int32_t nHeight) const { if (nHeight > nLastPowBlock) return nPowTargetSpacingPOS; return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
+    int64_t PowTargetTimespan(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nPowTargetTimespanPOS; return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
+    int64_t PowTargetSpacing(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nPowTargetSpacingPOS; return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
     int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { return IsProtocolV2(nHeight) ? (nPowTargetTimespan2 / nPowTargetSpacing2) : (nPowTargetTimespan / nPowTargetSpacing); }
     int64_t POSStart() const { return nPOSFirstBlock; }
     int64_t MergeStart() const { return nMergeFirstBlock; }

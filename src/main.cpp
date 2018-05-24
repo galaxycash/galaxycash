@@ -2694,22 +2694,6 @@ bool CBlock::CheckBlockHeader(bool fCheckPOW, bool fCheckSig) const
 
 bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
-    // Get prev block index
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
-    if (mi == mapBlockIndex.end())
-        return DoS(10, error("CheckBlock() : prev block not found"));
-
-    CBlockIndex* pindexPrev = (*mi).second;
-    int nHeight = pindexPrev->nHeight+1;
-
-    // Check PoW
-    if (IsProofOfWork() && nHeight > Params().LastPowBlock())
-        return DoS(10, error("ProcessBlock() : PoW Wave ended!"));
-
-    // Check PoS
-    if (IsProofOfStake() && nHeight < Params().POSStart())
-        return DoS(10, error("ProcessBlock() : PoS Wave not started!"));
-
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
 
