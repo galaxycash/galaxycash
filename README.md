@@ -35,8 +35,6 @@ PoW Last Block:                             125000
 
 PoS First Block:                            61300
 
-PoS Block reward:                           10% per year
-
 Masternode Price:                           5000 GCH
 
 Masternode PoW Reward:                      80% 

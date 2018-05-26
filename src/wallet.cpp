@@ -1302,10 +1302,10 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins) const
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if (!GetBoolArg("-forcemnstake", false)) {
-                    if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN))
-                        continue;
-                }
+
+                if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN))
+                    continue;
+
                 if (!IsLockedCoin((*it).first, i) && !(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue)
                     vCoins.push_back(COutput(pcoin, i, nDepth));
             }

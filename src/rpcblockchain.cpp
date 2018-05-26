@@ -171,7 +171,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("height", (blockindex->GetBlockHash() != block.GetHash()) ? (blockindex->nHeight + 1) : blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-    result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
+    //result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
@@ -512,10 +512,10 @@ static bool GetUTXOStats(CCoinsStats &stats)
 {
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     stats.hashBlock = pindexBest->GetBlockHash();
-    {
-        stats.nHeight = pindexBest->nHeight;
-    }
+    stats.nHeight = pindexBest->nHeight;
+
     ss << stats.hashBlock;
+
     uint256 prevkey;
     std::map<uint32_t, CCoinInfo> outputs;
 
@@ -523,6 +523,7 @@ static bool GetUTXOStats(CCoinsStats &stats)
     if (!block.ReadFromDisk(pindexBest, true))
         return false;
 
+    stats.nDiskSize = 0;
     for (size_t i = 0; i < block.vtx.size(); i++) {
         CTransaction &tx = block.vtx[i];
 
@@ -537,16 +538,20 @@ static bool GetUTXOStats(CCoinsStats &stats)
                 }
                 prevkey = key.hash;
                 outputs[key.n] = std::move(coin);
+
+
             } else {
                 return error("%s: unable to read value", __func__);
             }
         }
+
+        stats.nDiskSize += tx.GetSerializeSize(SER_DISK, CLIENT_VERSION);
     }
     if (!outputs.empty()) {
         ApplyStats(stats, ss, prevkey, outputs);
     }
     stats.hashSerialized = ss.GetHash();
-    stats.nDiskSize = 9999;
+
     return true;
 }
 

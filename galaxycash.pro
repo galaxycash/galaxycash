@@ -42,6 +42,7 @@ macx:OBJECTS_DIR = build_macx
 macx:MOC_DIR = build_macx
 macx:UI_DIR = build_macx
 
+
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
     # Mac: compile for maximum compatibility (10.5, 32-bit)
