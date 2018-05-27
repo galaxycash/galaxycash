@@ -453,11 +453,16 @@ public:
     {}
 };
 
+static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
+
+
 bool GetCoin(const COutPoint &coin, CCoinInfo &info) {
     CTransaction tx;
     uint256 block;
 
     if (GetTransaction(coin.hash, tx, block)) {
+        if (coin.n >= tx.vout.size())
+            return false;
 
         CBlockIndex *pblock = mapBlockIndex[block];
         if (!pblock)
@@ -472,6 +477,22 @@ bool GetCoin(const COutPoint &coin, CCoinInfo &info) {
     }
 
     return false;
+}
+
+bool GetCoinMempool(const COutPoint &coin, CCoinInfo &info) {
+    CTransaction tx;
+    if (mempool.lookup(coin.hash, tx)) {
+        if (coin.n < tx.vout.size()) {
+            info.block = uint256(0);
+            info.fCoinbase = false;
+            info.nHeight = MEMPOOL_HEIGHT;
+            info.out = tx.vout[coin.n];
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return GetCoin(coin, info);
 }
 
 extern void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex);
@@ -635,7 +656,7 @@ Value gettxout(const Array& params, bool fHelp)
 
     CCoinInfo coin;
     if (fMempool) {
-        if (!GetCoin(out, coin) || mempool.isSpent(out))
+        if (!GetCoinMempool(out, coin) || mempool.isSpent(out))
             return Value::null;
     } else {
         if (!GetCoin(out, coin))

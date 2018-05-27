@@ -133,6 +133,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getblockbynumber", 0 },
     { "getblockbynumber", 1 },
     { "getblockhash", 0 },
+    { "gettxout", 1 },
+    { "gettxout", 2 },
     { "move", 2 },
     { "move", 3 },
     { "sendfrom", 2 },
