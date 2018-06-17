@@ -92,7 +92,20 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     //setPalette(pal);
 
     //this->setStyleSheet("QToolBar > QToolButton { Alignment: left;background-color: #ffffff;selection-background-color:transparent;border-left: 0px;border-right: 0px;border-top: 0px;min-height:2.5em;padding: 0em 0em;font-size: 11px;color:rgb(43, 43, 43);width: 82px;height: 32px;}QToolBar > QToolButton:checked {background-color: qlineargradient(x1:0, x2: 1, stop: 0 #ffffff, stop: 0.07 #ffffff, stop: 0.0701 rgb(132, 132, 132), stop: 1 rgb(110, 110, 110));color:#fff;}QToolBar > QToolButton:hover {background-color: qlineargradient(x1:0, x2: 1, stop: 0 #ffffff, stop: 0.07 #ffffff, stop: 0.0701 rgb(145, 145, 145), stop: 1 rgb(150, 150, 150));color:#fff;}QToolBar > QToolButton#ToolbarSpacer:hover:!selected {background-color: rgb(110, 110, 110);}QToolBar > QToolButton:pressed {background-color: qlineargradient(x1:0, x2: 1, stop: 0 #00a300, stop: 0.07 #00a300, stop: 0.0701 rgb(120, 120, 120), stop: 1 rgb(135, 135, 135));color:#fff;}");
-    this->setStyleSheet("QToolBar > QToolButton { Alignment: left;background-color: #ffffff;selection-background-color:transparent;border-left: 0px;border-right: 0px;border-top: 0px;min-height:2.5em;padding: 0em 0em;font-size: 11px;color:rgb(43, 43, 43);width: 82px;height: 32px;}QToolBar > QToolButton:checked {background-color: rgb(142, 142, 142);color:#fff;}QToolBar > QToolButton:hover {background-color: rgb(138, 138, 138);color:#fff;}QToolBar > QToolButton#ToolbarSpacer:hover:!selected {background-color: rgb(110, 110, 110);}QToolBar > QToolButton:pressed {background-color: qlineargradient(x1:0, x2: 1, stop: 0 #00a300, stop: 0.02 #00a300, stop: 0.0201 rgb(105, 105, 105), stop: 1 rgb(105, 105, 105));color:#fff;}");
+    if (GetArg("-ui", "default") == "dark") {
+
+        // Load an application style
+        QFile styleFile( ":styles/dark");
+        styleFile.open( QFile::ReadOnly );
+
+        // Apply the loaded stylesheet
+        QString style( styleFile.readAll() );
+        this->setStyleSheet( style );
+
+    }  else
+        this->setStyleSheet("QToolBar > QToolButton { Alignment: left;background-color: #ffffff;selection-background-color:transparent;border-left: 0px;border-right: 0px;border-top: 0px;min-height:2.5em;padding: 0em 0em;font-size: 11px;color:rgb(43, 43, 43);width: 82px;height: 32px;}QToolBar > QToolButton:checked {background-color: rgb(142, 142, 142);color:#fff;}QToolBar > QToolButton:hover {background-color: rgb(138, 138, 138);color:#fff;}QToolBar > QToolButton#ToolbarSpacer:hover:!selected {background-color: rgb(110, 110, 110);}QToolBar > QToolButton:pressed {background-color: qlineargradient(x1:0, x2: 1, stop: 0 #00a300, stop: 0.02 #00a300, stop: 0.0201 rgb(105, 105, 105), stop: 1 rgb(105, 105, 105));color:#fff;}"
+                        "QProgressBar {color: #AAAAAA;border:0px solid grey;border-radius:5px;background-color:transparent;padding-left:0px;padding-right:0px;} QProgressBar::chunk {background-color:rgb(72, 72, 72);width: 20px;} QLabel#progressBarLabel {background-color:transparent;color: rgb(64, 64, 64);padding-left:5px;padding-right:5px;}"
+                        "QPushButton {background-color: rgb(72, 72, 72); border-width: 1px;border-style: outset;border-color: rgb(64, 64, 64);border-radius: 2px;color:#ffffff;font-size:12px;font-weight:bold;padding-left:25px;padding-right:25px;padding-top:1px;padding-bottom:1px;height: 26px;margin: 2px;} QPushButton:hover {background-color: qlineargradient(y1:0, y2: 1, stop: 0 #ffffff, stop: 0.1 #ffffff, stop: 0.101 rgb(74, 74, 74), stop: 0.9 rgb(74, 74, 74), stop: 0.901 #ffffff, stop: 1 #ffffff);} QPushButton:pressed {background-color: rgb(72, 72, 72);border:1px solid #000000;background-color: qlineargradient(y1:0, y2: 1, stop: 0 #00ff00, stop: 0.1 #00ff00, stop: 0.101 rgb(74, 74, 74), stop: 0.9 rgb(74, 74, 74), stop: 0.901 #00ff00, stop: 1 #00ff00);}");
 
 #ifndef Q_OS_MAC
     qApp->setWindowIcon(QIcon(":icons/galaxycash"));
@@ -294,6 +307,26 @@ void GalaxyCashGUI::createActions()
     connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(gotoMasternodeManagerPage()));
 
+    cryptohubAction = new QAction(QIcon(":/icons/cryptohub"), tr("Cryptohub"), this);
+    cryptohubAction->setToolTip(tr("Open cryptohub market"));
+    crex24Action = new QAction(QIcon(":/icons/crex24"), tr("Crex24"), this);
+    crex24Action->setToolTip(tr("Open crex24 market"));
+
+    websiteAction = new QAction(QIcon(":/icons/galaxycash"), tr("Website"), this);
+    websiteAction->setToolTip(tr("Open GalaxyCash website"));
+
+    twitterAction = new QAction(QIcon(":/icons/twitter"), tr("Twitter"), this);
+    twitterAction->setToolTip(tr("Open GalaxyCash twitter"));
+
+    discordAction = new QAction(QIcon(":/icons/discord"), tr("Discord"), this);
+    discordAction->setToolTip(tr("Open GalaxyCash discord"));
+
+    telegramAction = new QAction(QIcon(":/icons/telegram"), tr("Telegram"), this);
+    telegramAction->setToolTip(tr("Open GalaxyCash telegram"));
+
+    githubAction = new QAction(QIcon(":/icons/github"), tr("Github"), this);
+    githubAction->setToolTip(tr("Open GalaxyCash github"));
+
     quitAction = new QAction(QIcon(":/icons/quit"), tr("E&xit"), this);
     quitAction->setToolTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
@@ -326,6 +359,13 @@ void GalaxyCashGUI::createActions()
     openRPCConsoleAction = new QAction(QIcon(":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
 
+    connect(cryptohubAction, SIGNAL(triggered()), this, SLOT(openCryptohub()));
+    connect(crex24Action, SIGNAL(triggered()), this, SLOT(openCrex24()));
+    connect(websiteAction, SIGNAL(triggered()), this, SLOT(openWebsite()));
+    connect(twitterAction, SIGNAL(triggered()), this, SLOT(openTwitter()));
+    connect(discordAction, SIGNAL(triggered()), this, SLOT(openDiscord()));
+    connect(telegramAction, SIGNAL(triggered()), this, SLOT(openTelegram()));
+    connect(githubAction, SIGNAL(triggered()), this, SLOT(openGithub()));
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
     connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
@@ -365,6 +405,19 @@ void GalaxyCashGUI::createMenuBar()
     settings->addSeparator();
     settings->addAction(optionsAction);
 
+    QMenu *web = appMenuBar->addMenu(tr("&Web"));
+    web->addAction(websiteAction);
+    web->addAction(githubAction);
+
+    QMenu *exchanges = appMenuBar->addMenu(tr("&Exchanges"));
+    exchanges->addAction(cryptohubAction);
+    exchanges->addAction(crex24Action);
+
+    QMenu *community = appMenuBar->addMenu(tr("&Community"));
+    community->addAction(discordAction);
+    community->addAction(twitterAction);
+    community->addAction(telegramAction);
+
     QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(openRPCConsoleAction);
     help->addSeparator();
@@ -391,8 +444,9 @@ void GalaxyCashGUI::createToolBars()
     header->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     header->setStyleSheet("QWidget { background-repeat: no-repeat; background-image: url(:/images/header); background-position: top center; }");
 
+
+    //toolbar->addWidget(makeToolBarSpacer());
     toolbar->addWidget(header);
-//    toolbar->addWidget(makeToolBarSpacer());
 
     toolbar->addAction(overviewAction);
     toolbar->addAction(receiveCoinsAction);
@@ -401,6 +455,8 @@ void GalaxyCashGUI::createToolBars()
     toolbar->addAction(addressBookAction);
     toolbar->addAction(openRPCConsoleAction);
     toolbar->addAction(masternodeManagerAction);
+    toolbar->addAction(cryptohubAction);
+    toolbar->addAction(crex24Action);
     toolbar->addWidget(makeToolBarSpacer());
 
     QWidget* mineWidget = new QWidget();
@@ -1104,3 +1160,47 @@ void GalaxyCashGUI::handleRestart(QStringList args)
     if (!ShutdownRequested())
         Q_EMIT requestedRestart(args);
 }
+
+
+#include <QDesktopServices>
+#include <QUrl>
+
+
+void GalaxyCashGUI::openWebsite()
+{
+    QDesktopServices::openUrl(QUrl("https://galaxycash.info"));
+}
+
+void GalaxyCashGUI::openTwitter()
+{
+    QDesktopServices::openUrl(QUrl("https://twitter.com/cash_galaxy"));
+}
+
+void GalaxyCashGUI::openDiscord()
+{
+    QDesktopServices::openUrl(QUrl("https://discord.gg/NseejAk"));
+}
+
+void GalaxyCashGUI::openTelegram()
+{
+    QDesktopServices::openUrl(QUrl("http://t.me/galaxycash"));
+}
+
+void GalaxyCashGUI::openGithub()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/galaxycash/galaxycash"));
+}
+
+void GalaxyCashGUI::openCryptohub()
+{
+    QDesktopServices::openUrl(QUrl("https://cryptohub.online/market/GCH/"));
+}
+
+void GalaxyCashGUI::openCrex24()
+{
+    QDesktopServices::openUrl(QUrl("https://crex24.com/ru/exchange/GCH-BTC"));
+}
+
+
+
+

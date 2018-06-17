@@ -2,7 +2,13 @@
     <qresource prefix="/sounds">
         <file alias="notification">res/sounds/notification.wav</file>
     </qresource>
+    <qresource prefix="/styles">
+        <file alias="dark">res/qss/dark.qss</file>
+    </qresource>
     <qresource prefix="/icons">
+        <file alias="checkbox.png">res/icons/checkbox.png</file>
+        <file alias="down_arrow.png">res/icons/down_arrow.png</file>
+        <file alias="handle.png">res/icons/handle.png</file>
         <file alias="galaxycash">res/icons/galaxycash.png</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="quit">res/icons/quit.png</file>
@@ -47,6 +53,12 @@
         <file alias="staking_off">res/icons/staking_off.png</file>
         <file alias="staking_on">res/icons/staking_on.png</file>
         <file alias="mnnodes">res/icons/mnnodes.png</file>
+        <file alias="cryptohub">res/icons/cryptohub.png</file>
+        <file alias="crex24">res/icons/crex24.png</file>
+        <file alias="discord">res/icons/discord.png</file>
+        <file alias="twitter">res/icons/twitter.png</file>
+        <file alias="telegram">res/icons/telegram.png</file>
+        <file alias="github">res/icons/github.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>

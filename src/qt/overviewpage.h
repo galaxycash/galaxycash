@@ -50,6 +50,7 @@ private:
     TransactionFilterProxy *filter;
     int nDisplayUnit;
 private slots:
+    void updatePrices();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);

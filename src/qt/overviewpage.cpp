@@ -112,7 +112,14 @@ OverviewPage::OverviewPage(QWidget *parent) :
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
-    fLiteMode = GetBoolArg("-litemode", false);
+
+
+    QTimer *timer = new QTimer(this);
+    timer->setSingleShot(true);
+    connect(timer, SIGNAL(timeout()), this, SLOT(updatePrices()));
+
+    timer->start(1000);
+
 
     // init "out of sync" warning labels
     ui->labelWalletStatus->setText("(" + tr("out of sync") + ")");
@@ -191,7 +198,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
         setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getLockedBalance());
         connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
-        connect(model->getOptionsModel(), SIGNAL(transactionFeeChanged(int)), this, SLOT(coinControlUpdateLabels()));
+        connect(model->getOptionsModel(), SIGNAL(transactionFeeChanged(qint64)), this, SLOT(coinControlUpdateLabels()));
     }
 
     // update the display unit, to not use the default ("GCH")
@@ -222,4 +229,144 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+#include <QtNetwork>
+
+QJsonDocument callGetJson(const char *url, QWidget *parent) {
+    QNetworkRequest req;
+    req.setUrl(QUrl(url));
+
+    QNetworkAccessManager nam(parent);
+    QEventLoop loop;
+    nam.connect(&nam, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+    QNetworkReply *reply = nam.get(req);
+    loop.exec();
+
+    QByteArray response_data = reply->readAll();
+    QJsonDocument response = QJsonDocument::fromJson(response_data);
+    reply->deleteLater();
+    return response;
+}
+
+QJsonDocument callJson(const char *url, QWidget *parent) {
+    QNetworkRequest req;
+    req.setUrl(QUrl(url));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
+
+    QString header = "{}";
+    req.setHeader(QNetworkRequest::ContentLengthHeader,QByteArray::number(header.size()));
+
+    QNetworkAccessManager nam(parent);
+    QEventLoop loop;
+    nam.connect(&nam, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+    QNetworkReply *reply = nam.post(req, header.toUtf8());
+    loop.exec();
+
+    QByteArray response_data = reply->readAll();
+    QJsonDocument response = QJsonDocument::fromJson(response_data);
+    reply->deleteLater();
+    return response;
+}
+void OverviewPage::updatePrices()
+{
+    const char *cryptohubStats = "https://cryptohub.online/api/market/ticker/GCH/";
+    const char *crexUSDBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=USD_BTC]";
+    const char *crexRUBBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=RUB_BTC]";
+    const char *crexBTCGCH = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=BTC_GCH]";
+    const char *crexBTCETH = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=BTC_ETH]";
+    std::string stats;
+
+
+    double GCH_BTC = 0.0;
+    double GCH_ETH = 0.0;
+    double GCH_USD = 0.0;
+    double GCH_RUB = 0.0;
+    double BTC_USD = 0.0;
+    double BTC_RUB = 0.0;
+    double ETH_BTC = 0.0;
+    double BTC_VOL = 0.0;
+    double ETH_VOL = 0.0;
+
+    QJsonDocument res = callGetJson(crexUSDBTC, this);
+
+    res = callGetJson(crexUSDBTC, this);
+    if (!res.isEmpty()) {
+        const QJsonValue val = res["Tickers"][0];
+        if (val["Last"].toDouble() > BTC_USD)
+            BTC_USD = val["Last"].toDouble();
+    }
+
+    res = callGetJson(crexRUBBTC, this);
+    if (!res.isEmpty()) {
+        const QJsonValue val = res["Tickers"][0];
+        if (val["Last"].toDouble() > BTC_RUB)
+            BTC_RUB = val["Last"].toDouble();
+    }
+
+    res = callGetJson(crexBTCETH, this);
+    if (!res.isEmpty()) {
+        const QJsonValue val = res["Tickers"][0];
+        if (val["Last"].toDouble() > ETH_BTC)
+            ETH_BTC = val["Last"].toDouble();
+    }
+
+    res = callGetJson(cryptohubStats, this);
+    if (!res.isEmpty()) {
+        const QJsonValue btc = res["BTC_GCH"];
+        if (btc["last"].toDouble() > GCH_BTC)
+            GCH_BTC = btc["last"].toDouble();
+
+        BTC_VOL += btc["baseVolume"].toDouble();
+
+        const QJsonValue eth = res["ETH_GCH"];
+        if (eth["last"].toDouble() > GCH_ETH)
+            GCH_ETH = eth["last"].toDouble();
+
+        ETH_VOL += eth["baseVolume"].toDouble();
+    }
+
+    res = callGetJson(crexBTCGCH, this);
+    if (!res.isEmpty()) {
+        const QJsonValue btc = res["Tickers"][0];
+        if (btc["Last"].toDouble() > GCH_BTC)
+            GCH_BTC = btc["Last"].toDouble();
+
+        BTC_VOL += btc["VolumeInBtc"].toDouble();
+    }
+
+    //if (GCH_ETH * ETH_BTC > GCH_BTC)
+    //    GCH_BTC = GCH_ETH * ETH_BTC;
+
+    if (GCH_ETH * ETH_BTC > GCH_BTC && ETH_VOL > 0) {
+        const double dEthPrice = (GCH_ETH * ETH_BTC);
+        GCH_USD = dEthPrice * BTC_USD;
+        GCH_RUB = dEthPrice * BTC_RUB;
+    } else {
+        GCH_USD = GCH_BTC * BTC_USD;
+        GCH_RUB = GCH_BTC * BTC_RUB;
+    }
+    std::stringstream btcvol;
+    btcvol << std::fixed << setprecision(8) << BTC_VOL;
+
+    std::stringstream ethvol;
+    ethvol << std::fixed << setprecision(8) << ETH_VOL;
+
+    std::stringstream btcval;
+    btcval << std::fixed << setprecision(8) << GCH_BTC;
+    stats += std::string("GCH/BTC:") + btcval.str() + std::string(",Vol:") + btcvol.str() + std::string(" ");
+
+    std::stringstream ethval;
+    ethval << std::fixed << setprecision(8) << GCH_ETH;
+    stats += std::string("GCH/ETH:") + ethval.str() + std::string(",Vol:") + ethvol.str() + std::string(" ");
+
+    std::stringstream usdval;
+    usdval << std::fixed << setprecision(8) << GCH_USD;
+    stats += std::string("GCH/USD:") + usdval.str() + std::string(" ");
+
+    std::stringstream rubval;
+    rubval << std::fixed << setprecision(8) << GCH_RUB;
+    stats += std::string("GCH/RUB:") + rubval.str() + std::string(" ");
+
+    ui->priceStats->setText(QString::fromStdString(stats));
 }

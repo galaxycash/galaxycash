@@ -2876,11 +2876,11 @@ bool CBlock::AcceptBlock()
 
     // Check PoW
     if (IsProofOfWork() && nHeight > Params().LastPowBlock())
-        return DoS(10, error("ProcessBlock() : PoW Wave ended!"));
+        return error("ProcessBlock() : PoW Wave ended!");
 
     // Check PoS
     if (IsProofOfStake() && nHeight < Params().POSStart())
-        return DoS(10, error("ProcessBlock() : PoS Wave not started!"));
+        return error("ProcessBlock() : PoS Wave not started!");
 
 
     // Check timestamp against prev

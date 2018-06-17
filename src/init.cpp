@@ -901,7 +901,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     }
 
     //lite mode disables all Masternode and Anonsend related functionality
-    fLiteMode = GetBoolArg("-litemode", false);
+    fLiteMode = false; //GetBoolArg("-litemode", false);
     if(fMasterNode && fLiteMode){
         return InitError("You can not start a masternode in litemode");
     }

@@ -20,6 +20,12 @@ AskPassphraseDialog::AskPassphraseDialog(Mode mode, QWidget *parent) :
     ui->passEdit1->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit2->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit3->setMaxLength(MAX_PASSPHRASE_SIZE);
+
+    if (mode == Mode::Unlock) {
+        ui->stakingCheckBox->setChecked(fWalletUnlockStakingOnly);
+        ui->stakingCheckBox->setVisible(true);
+    } else
+        ui->stakingCheckBox->setVisible(false);
     
     // Setup Caps Lock detection.
     ui->passEdit1->installEventFilter(this);
@@ -139,16 +145,19 @@ void AskPassphraseDialog::accept()
         }
         } break;
     case Unlock:
-        if(!model->setWalletLocked(false, oldpass))
         {
-            QMessageBox::critical(this, tr("Wallet unlock failed"),
-                                  tr("The passphrase entered for the wallet decryption was incorrect."));
-        }
-        else
-        {
-            QDialog::accept(); // Success
-        }
-        break;
+            if(!model->setWalletLocked(false, oldpass))
+            {
+
+                QMessageBox::critical(this, tr("Wallet unlock failed"),
+                                      tr("The passphrase entered for the wallet decryption was incorrect."));
+            }
+            else
+            {
+                fWalletUnlockStakingOnly = ui->stakingCheckBox->isChecked();
+                QDialog::accept(); // Success
+            }
+        }break;
     case Decrypt:
         if(!model->setWalletEncrypted(false, oldpass))
         {

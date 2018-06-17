@@ -383,6 +383,24 @@
      </item>
     </layout>
    </item>
+   <item>
+    <widget class="QLabel" name="priceStats">
+     <property name="font">
+      <font>
+       <family>Miriam Mono CLM</family>
+       <pointsize>10</pointsize>
+       <weight>75</weight>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;GCH/BTC: 0 GCH/ETH: 0 GCH/USD: 0 GCH/RUB: 0&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

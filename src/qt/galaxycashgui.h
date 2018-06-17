@@ -102,6 +102,13 @@ private:
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
     QAction *masternodeManagerAction;
+    QAction *cryptohubAction;
+    QAction *crex24Action;
+    QAction *websiteAction;
+    QAction *twitterAction;
+    QAction *discordAction;
+    QAction *telegramAction;
+    QAction *githubAction;
     QPushButton *stakingButton;
 
     QSystemTrayIcon *trayIcon;
@@ -179,6 +186,17 @@ private slots:
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
 
+    /** Website, socials and blockexplorer */
+    void openWebsite();
+    void openTwitter();
+    void openDiscord();
+    void openTelegram();
+    void openGithub();
+
+    /** Exchanges */
+    void openCryptohub();
+    void openCrex24();
+
     /** Show configuration dialog */
     void optionsClicked();
     /** Show about dialog */
@@ -207,6 +225,7 @@ private slots:
     void showNormalIfMinimized(bool fToggleHidden = false);
     /** simply calls showNormalIfMinimized(true) for use in SLOT() macro */
     void toggleHidden();
+
 
     void updateWeight();
     void updateStakingIcon();

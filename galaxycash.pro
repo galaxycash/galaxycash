@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 3.0.0.0
+VERSION = 3.1.0.0
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network
@@ -488,7 +488,7 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-LIBS += -lgmp -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
+LIBS += -lgmp -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX -lcurl
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 
@@ -508,4 +508,7 @@ contains(RELEASE, 1) {
 }
 
 system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
+
+DISTFILES += \
+    src/qt/res/css/dark.css
 

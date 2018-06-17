@@ -316,24 +316,71 @@ Value getnetworkinfo(const Array& params, bool fHelp)
     return obj;
 }
 
+#include "masternodeman.h"
+
 Value getnodes(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
-            "getnodes\n"
+            "getnodes [addnode]\n"
             "Returns all connected nodes.\n"
         );
 
     std::string res;
 
+    bool addnode = params.size() > 0 ? params[0].get_int() == 1 : false;
+    bool seednode = params.size() > 0 ? params[0].get_int() == 2 : false;
+
+    std::map<std::string, bool> addrMap;
+    size_t nodes = 2;
+
     LOCK(cs_vNodes);
     for (size_t i = 0; i < vNodes.size(); i++)
     {
         CNode *pNode = vNodes[i];
+
+        if (!pNode->addr.IsValid())
+            continue;
+
         std::string sAddress = pNode->addr.ToString();
-        res += std::string("addnode=") + sAddress + "\n";
+        if (addrMap.find(sAddress) != addrMap.end())
+            continue;
+
+        addrMap[sAddress] = true;
+
+        nodes++;
+
+        if (addnode)
+            res += std::string("addnode=") + sAddress + "\n";
+        else if (seednode) {
+            res += std::string("vSeeds.push_back(CDNSSeedData(\"galaxycash.node") + std::to_string(nodes) + "\",\"" + sAddress + "\"));\n";
+        } else
+            res += sAddress + "\n";
     }
 
+    for (size_t i = 0; i < mnodeman.GetFullMasternodeVector().size(); i++) {
+        CMasternode *mn = &mnodeman.GetFullMasternodeVector()[i];
+
+        if (!mn->IsEnabled())
+            continue;
+        if (!mn->addr.IsValid())
+            continue;
+
+        std::string sAddress = mn->addr.ToString();
+        if (addrMap.find(sAddress) != addrMap.end())
+            continue;
+
+        addrMap[sAddress] = true;
+
+        nodes++;
+
+        if (addnode)
+            res += std::string("addnode=") + sAddress + "\n";
+        else if (seednode) {
+            res += std::string("vSeeds.push_back(CDNSSeedData(\"galaxycash.node") + std::to_string(nodes) + "\",\"" + sAddress + "\"));\n";
+        } else
+            res += sAddress + "\n";
+    }
 
     return res;
 }

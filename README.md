@@ -3,7 +3,7 @@ GalaxyCash
 Copyright (C) 2017-2018 The GalaxyCash developers
 
 
-Site:                                       https://galaxycash.info
+Website:                                    https://galaxycash.info
 
 Pool:                                       https://galaxypool.info
 
@@ -27,19 +27,17 @@ Algorithm:                                  X12, X11, X13, Sha256d, Blake2s
 
 Difficulty retarget:                        Every block
 
-Block time:                                 10 Minutes (2 minutes after hardfork on 125000 block)
+Block time:                                 120 seconds
 
 Block reward:                               10 GCH (Halving every 210k blocks)
 
-PoW Last Block:                             125000
+PoW Last Block:                             130000
 
 PoS First Block:                            61300
 
 Masternode Price:                           5000 GCH
 
-Masternode PoW Reward:                      80% 
-
-Masternode PoS Reward:                      75%
+Masternode Reward:                          75%
 
 
 Max supply:                                 30,000,000

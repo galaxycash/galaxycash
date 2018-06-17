@@ -21,17 +21,6 @@ static CCriticalSection cs_nWalletUnlockTime;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
 
-static void accountingDeprecationCheck()
-{
-    if (!GetBoolArg("-enableaccounts", false))
-        throw runtime_error(
-            "Accounting API is deprecated and will be removed in future.\n"
-            "It can easily result in negative or odd balances if misused or misunderstood, which has happened in the field.\n"
-            "If you still want to enable it, add to your config file enableaccounts=1\n");
-
-    if (GetBoolArg("-staking", true))
-        throw runtime_error("If you want to use accounting API, staking must be disabled, add to your config file staking=0\n");
-}
 
 std::string HelpRequiringPassphrase()
 {
@@ -460,8 +449,6 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
             "getreceivedbyaccount <account> [minconf=1]\n"
             "Returns the total amount received by addresses with <account> in transactions with at least [minconf] confirmations.");
 
-    accountingDeprecationCheck();
-
     // Minimum confirmations
     int nMinDepth = 1;
     if (params.size() > 1)
@@ -568,8 +555,6 @@ Value getbalance(const Array& params, bool fHelp)
         return  ValueFromAmount(nBalance);
     }
 
-    accountingDeprecationCheck();
-
     string strAccount = AccountFromValue(params[0]);
 
     int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
@@ -584,8 +569,6 @@ Value movecmd(const Array& params, bool fHelp)
         throw runtime_error(
             "move <fromaccount> <toaccount> <amount> [minconf=1] [comment]\n"
             "Move from one account in your wallet to another.");
-
-    accountingDeprecationCheck();
 
     string strFrom = AccountFromValue(params[0]);
     string strTo = AccountFromValue(params[1]);
@@ -975,8 +958,6 @@ Value listreceivedbyaccount(const Array& params, bool fHelp)
             "  \"amount\" : total amount received by addresses with this account\n"
             "  \"confirmations\" : number of confirmations of the most recent transaction included");
 
-    accountingDeprecationCheck();
-
     return ListReceived(params, true);
 }
 
@@ -1140,8 +1121,6 @@ Value listaccounts(const Array& params, bool fHelp)
         throw runtime_error(
             "listaccounts [minconf=1]\n"
             "Returns Object that has account names as keys, account balances as values.");
-
-    accountingDeprecationCheck();
 
     int nMinDepth = 1;
     if (params.size() > 0)
@@ -1385,6 +1364,12 @@ Value walletpassphrase(const Array& params, bool fHelp)
     // Alternately, find a way to make params[0] mlock()'d to begin with.
     strWalletPass = params[0].get_str().c_str();
 
+    //   if user OS account compromised prevent trivial sendmoney commands
+    if (params.size() > 2)
+        fWalletUnlockStakingOnly = params[2].get_bool();
+    else
+        fWalletUnlockStakingOnly = false;
+
     if (strWalletPass.length() > 0)
     {
         if (!pwalletMain->Unlock(strWalletPass))
@@ -1400,15 +1385,13 @@ Value walletpassphrase(const Array& params, bool fHelp)
     int64_t nSleepTime = params[1].get_int64();
     LOCK(cs_nWalletUnlockTime);
     nWalletUnlockTime = GetTime() + nSleepTime;
+
     RPCRunLater("lockwallet", boost::bind(LockWallet, pwalletMain), nSleepTime);
 
-    //   if user OS account compromised prevent trivial sendmoney commands
-    if (params.size() > 2)
-        fWalletUnlockStakingOnly = params[2].get_bool();
-    else
-        fWalletUnlockStakingOnly = false;
+    Object ret;
+    ret.push_back(Pair("Unlocked for staking only", fWalletUnlockStakingOnly));
 
-    return Value::null;
+    return ret;
 }
 
 
