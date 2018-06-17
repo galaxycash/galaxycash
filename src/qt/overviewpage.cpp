@@ -271,6 +271,7 @@ QJsonDocument callJson(const char *url, QWidget *parent) {
 void OverviewPage::updatePrices()
 {
     const char *cryptohubStats = "https://cryptohub.online/api/market/ticker/GCH/";
+    const char *cryptohubBTCETH = "https://cryptohub.online/api/market/ticker/ETH/";
     const char *crexUSDBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=USD_BTC]";
     const char *crexRUBBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=RUB_BTC]";
     const char *crexBTCGCH = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=BTC_GCH]";
@@ -309,6 +310,13 @@ void OverviewPage::updatePrices()
         const QJsonValue val = res["Tickers"][0];
         if (val["Last"].toDouble() > ETH_BTC)
             ETH_BTC = val["Last"].toDouble();
+    }
+
+    res = callGetJson(cryptohubBTCETH, this);
+    if (!res.isEmpty()) {
+        const QJsonValue btc = res["BTC_ETH"];
+        if (btc["last"].toDouble() > ETH_BTC)
+            ETH_BTC = btc["last"].toDouble();
     }
 
     res = callGetJson(cryptohubStats, this);
