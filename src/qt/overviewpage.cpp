@@ -118,7 +118,7 @@ OverviewPage::OverviewPage(QWidget *parent) :
     timer->setSingleShot(true);
     connect(timer, SIGNAL(timeout()), this, SLOT(updatePrices()));
 
-    timer->start(1000);
+    timer->start(10000);
 
 
     // init "out of sync" warning labels
@@ -273,7 +273,9 @@ void OverviewPage::updatePrices()
     const char *cryptohubStats = "https://cryptohub.online/api/market/ticker/GCH/";
     const char *cryptohubBTCETH = "https://cryptohub.online/api/market/ticker/ETH/";
     const char *crexUSDBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=USD_BTC]";
+    const char *crexEURBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=EUR_BTC]";
     const char *crexRUBBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=RUB_BTC]";
+    const char *crexCNYBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=CNY_BTC]";
     const char *crexBTCGCH = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=BTC_GCH]";
     const char *crexBTCETH = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=BTC_ETH]";
     std::string stats;
@@ -282,13 +284,18 @@ void OverviewPage::updatePrices()
     double GCH_BTC = 0.0;
     double GCH_ETH = 0.0;
     double GCH_USD = 0.0;
+    double GCH_EUR = 0.0;
     double GCH_RUB = 0.0;
+    double GCH_CNY = 0.0;
     double BTC_USD = 0.0;
+    double BTC_EUR = 0.0;
     double BTC_RUB = 0.0;
+    double BTC_CNY = 0.0;
     double ETH_BTC = 0.0;
     double BTC_VOL = 0.0;
     double ETH_VOL = 0.0;
 
+#if defined(_WIN32) || defined(WIN32)
     QJsonDocument res = callGetJson(crexUSDBTC, this);
 
     res = callGetJson(crexUSDBTC, this);
@@ -303,6 +310,20 @@ void OverviewPage::updatePrices()
         const QJsonValue val = res["Tickers"][0];
         if (val["Last"].toDouble() > BTC_RUB)
             BTC_RUB = val["Last"].toDouble();
+    }
+
+    res = callGetJson(crexEURBTC, this);
+    if (!res.isEmpty()) {
+        const QJsonValue val = res["Tickers"][0];
+        if (val["Last"].toDouble() > BTC_EUR)
+            BTC_EUR = val["Last"].toDouble();
+    }
+
+    res = callGetJson(crexCNYBTC, this);
+    if (!res.isEmpty()) {
+        const QJsonValue val = res["Tickers"][0];
+        if (val["Last"].toDouble() > BTC_CNY)
+            BTC_CNY = val["Last"].toDouble();
     }
 
     res = callGetJson(crexBTCETH, this);
@@ -343,16 +364,19 @@ void OverviewPage::updatePrices()
         BTC_VOL += btc["VolumeInBtc"].toDouble();
     }
 
-    //if (GCH_ETH * ETH_BTC > GCH_BTC)
-    //    GCH_BTC = GCH_ETH * ETH_BTC;
+#endif
 
     if (GCH_ETH * ETH_BTC > GCH_BTC && ETH_VOL > 0) {
         const double dEthPrice = (GCH_ETH * ETH_BTC);
         GCH_USD = dEthPrice * BTC_USD;
+        GCH_EUR = dEthPrice * BTC_EUR;
         GCH_RUB = dEthPrice * BTC_RUB;
+        GCH_CNY = dEthPrice * BTC_CNY;
     } else {
         GCH_USD = GCH_BTC * BTC_USD;
+        GCH_EUR = GCH_BTC * BTC_EUR;
         GCH_RUB = GCH_BTC * BTC_RUB;
+        GCH_CNY = GCH_BTC * BTC_CNY;
     }
     std::stringstream btcvol;
     btcvol << std::fixed << setprecision(8) << BTC_VOL;
@@ -370,11 +394,19 @@ void OverviewPage::updatePrices()
 
     std::stringstream usdval;
     usdval << std::fixed << setprecision(8) << GCH_USD;
-    stats += std::string("GCH/USD:") + usdval.str() + std::string(" ");
+    stats += std::string("\nGCH/USD:") + usdval.str() + std::string(" ");
+
+    std::stringstream eurval;
+    eurval << std::fixed << setprecision(8) << GCH_EUR;
+    stats += std::string("GCH/EUR:") + eurval.str() + std::string(" ");
 
     std::stringstream rubval;
     rubval << std::fixed << setprecision(8) << GCH_RUB;
     stats += std::string("GCH/RUB:") + rubval.str() + std::string(" ");
+
+    std::stringstream cnyval;
+    cnyval << std::fixed << setprecision(8) << GCH_CNY;
+    stats += std::string("GCH/CNY:") + cnyval.str() + std::string(" ");
 
     ui->priceStats->setText(QString::fromStdString(stats));
 }
