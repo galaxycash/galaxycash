@@ -1455,6 +1455,8 @@ int static generateMTRandom(unsigned int s, int range)
 // miner's coin base reward
 int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
 {
+    // 0.10 after denomination with halving
+
     if (pindexBest->nMoneySupply >= MAX_MONEY)
         return nFees;
 
@@ -1540,8 +1542,9 @@ int64_t GetMNProofOfStakeReward(int64_t nReward, int nHeight)
 
 int64_t GetMNProofOfWorkReward(int64_t nReward, int nHeight)
 {
-    return nReward * 0.80;
+    return nReward * 0.65;
 }
+
 
 // ppcoin: find last block index up to pindex
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, const int32_t nAlgo, const bool fProofOfStake)
@@ -2230,7 +2233,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     }
 
     // ppcoin: track money supply and mint amount info
-    pindex->nMint = nValueOut - nValueIn + nFees;
+    int64_t nTotalValue = nValueOut - nValueIn + nFees;
+    pindex->nMint = IsProofOfWork() ? (nTotalValue - GetMNProofOfWorkReward(nTotalValue, pindex->pprev->nHeight + 1)) : (nTotalValue - GetMNProofOfStakeReward(nTotalValue, pindex->pprev->nHeight + 1));
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
@@ -3102,8 +3106,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                     setStakeSeenOrphan.insert(pblock->GetProofOfStake());
 
                 // Ask this guy to fill in what we're missing
-                //PushGetBlocks(pfrom, pindexBest, GetOrphanRoot(hash));
-                PushGetBlocks(pfrom, FindBlockByHeight(pindexBest->nHeight - (int) (GetArg("-maxreorganize", int64_t(6)))), GetOrphanRoot(hash)); // Hack
+                PushGetBlocks(pfrom, pindexBest, GetOrphanRoot(hash));
                 // ppcoin: getblocks may not obtain the ancestor block rejected
                 // earlier by duplicate-stake check so we ask for it again directly
                 if (!IsInitialBlockDownload())
