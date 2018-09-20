@@ -115,11 +115,13 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("galaxycash.1main","195.133.201.213:7604"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.2main","195.133.201.213:7605"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.4main","195.133.147.242:9992"));
-        vSeeds.push_back(CDNSSeedData("galaxycash.5main","195.133.147.242:3626"));
-
+        vSeeds.push_back(CDNSSeedData("node1.galaxycash.info","195.133.201.213"));
+        vSeeds.push_back(CDNSSeedData("node2.galaxycash.info","195.133.145.160"));
+        vSeeds.push_back(CDNSSeedData("192.157.58.110","192.157.58.110"));
+        vSeeds.push_back(CDNSSeedData("206.189.213.239","206.189.213.239"));
+        vSeeds.push_back(CDNSSeedData("159.65.165.97","159.65.165.97"));
+        vSeeds.push_back(CDNSSeedData("195.201.20.101","195.201.20.101"));
+        vSeeds.push_back(CDNSSeedData("188.166.244.88","188.166.244.88"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,99);

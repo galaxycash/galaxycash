@@ -474,9 +474,9 @@ bool CNode::Misbehaving(int howmuch)
     }
 
     nMisbehavior += howmuch;
-    if (nMisbehavior >= GetArg("-banscore", 100))
+    if (nMisbehavior >= GetArg("-banscore", 1000))
     {
-        int64_t banTime = GetTime()+GetArg("-bantime", 60*60*24);  // Default 24-hour ban
+        int64_t banTime = GetTime()+GetArg("-bantime", 60*24);  // Default 24-min ban
         LogPrintf("Misbehaving: %s (%d -> %d) DISCONNECTING\n", addr.ToString(), nMisbehavior-howmuch, nMisbehavior);
         {
             LOCK(cs_setBanned);
@@ -1077,23 +1077,20 @@ void MapPort(bool)
 
 
 
+unsigned int GetNodeConnections() {
+    LOCK(cs_vNodes);
+    unsigned int found = 0;
+    for (int i = 0; i < vNodes.size(); i++) {
+        if (vNodes[i]->fDisconnect) continue;
+        found++;
+    }
+    return found;
+}
 
-
+#include "masternodeman.h"
 
 void ThreadDNSAddressSeed()
 {
-    // goal: only query DNS seeds if address need is acute
-    if ((addrman.size() > 0) &&
-        (!GetBoolArg("-forcednsseed", false))) {
-        MilliSleep(11 * 1000);
-
-        LOCK(cs_vNodes);
-        if (vNodes.size() >= 2) {
-            LogPrintf("P2P peers available. Skipped DNS seeding.\n");
-            return;
-        }
-    }
-
     const vector<CDNSSeedData> &vSeeds = Params().DNSSeeds();
     int found = 0;
 
@@ -1189,6 +1186,27 @@ void ThreadOpenConnections()
 
         MilliSleep(500);
 
+
+        // Masternodes
+        unsigned int nNumNodes = GetNodeConnections();
+        if (nNumNodes < 12) {
+            std::vector <CMasternode> vMns = mnodeman.GetFullMasternodeVector();
+            BOOST_FOREACH(CMasternode &mn, vMns) {
+
+                std::string sIP = mn.addr.ToStringIPPort();
+                if (HaveNameProxy()) {
+                    AddOneShot(sIP);
+                } else {
+                    CAddress addr;
+                    CSemaphoreGrant grant(*semOutbound);
+                    OpenNetworkConnection(addr, &grant, sIP.c_str());
+                }
+
+                if (GetNodeConnections() >= 12)
+                    break;
+            }
+        }
+
         CSemaphoreGrant grant(*semOutbound);
         boost::this_thread::interruption_point();
 
@@ -1247,7 +1265,7 @@ void ThreadOpenConnections()
                 continue;
 
             // do not allow non-default ports, unless after 50 invalid addresses selected already
-            if (addr.GetPort() != Params().GetDefaultPort() && nTries < 2) //50)
+            if (addr.GetPort() != Params().GetDefaultPort() && nTries < 50)
                 continue;
 
             addrConnect = addr;
@@ -1257,6 +1275,8 @@ void ThreadOpenConnections()
         if (addrConnect.IsValid())
             OpenNetworkConnection(addrConnect, &grant);
     }
+
+
 }
 
 void ThreadOpenAddedConnections()

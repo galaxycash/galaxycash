@@ -307,8 +307,6 @@ void GalaxyCashGUI::createActions()
     connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(masternodeManagerAction, SIGNAL(triggered()), this, SLOT(gotoMasternodeManagerPage()));
 
-    cryptohubAction = new QAction(QIcon(":/icons/cryptohub"), tr("Cryptohub"), this);
-    cryptohubAction->setToolTip(tr("Open cryptohub market"));
     crex24Action = new QAction(QIcon(":/icons/crex24"), tr("Crex24"), this);
     crex24Action->setToolTip(tr("Open crex24 market"));
 
@@ -359,7 +357,6 @@ void GalaxyCashGUI::createActions()
     openRPCConsoleAction = new QAction(QIcon(":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
 
-    connect(cryptohubAction, SIGNAL(triggered()), this, SLOT(openCryptohub()));
     connect(crex24Action, SIGNAL(triggered()), this, SLOT(openCrex24()));
     connect(websiteAction, SIGNAL(triggered()), this, SLOT(openWebsite()));
     connect(twitterAction, SIGNAL(triggered()), this, SLOT(openTwitter()));
@@ -410,7 +407,6 @@ void GalaxyCashGUI::createMenuBar()
     web->addAction(githubAction);
 
     QMenu *exchanges = appMenuBar->addMenu(tr("&Exchanges"));
-    exchanges->addAction(cryptohubAction);
     exchanges->addAction(crex24Action);
 
     QMenu *community = appMenuBar->addMenu(tr("&Community"));
@@ -455,7 +451,6 @@ void GalaxyCashGUI::createToolBars()
     toolbar->addAction(addressBookAction);
     toolbar->addAction(openRPCConsoleAction);
     toolbar->addAction(masternodeManagerAction);
-    toolbar->addAction(cryptohubAction);
     toolbar->addAction(crex24Action);
     toolbar->addWidget(makeToolBarSpacer());
 
@@ -1189,11 +1184,6 @@ void GalaxyCashGUI::openTelegram()
 void GalaxyCashGUI::openGithub()
 {
     QDesktopServices::openUrl(QUrl("https://github.com/galaxycash/galaxycash"));
-}
-
-void GalaxyCashGUI::openCryptohub()
-{
-    QDesktopServices::openUrl(QUrl("https://cryptohub.online/market/GCH/"));
 }
 
 void GalaxyCashGUI::openCrex24()

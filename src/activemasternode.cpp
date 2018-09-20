@@ -212,12 +212,14 @@ bool CActiveMasternode::Dseep(CTxIn vin, CService service, CKey keyMasternode, C
         else
             pmn->UpdateLastSeen();
     } else {
-    	// Seems like we are trying to send a ping while the masternode is not registered in the network
-    	retErrorMessage = "Anonsend Masternode List doesn't include our masternode, Shutting down masternode pinging service! " + vin.ToString();
-    	LogPrintf("CActiveMasternode::Dseep() - Error: %s\n", retErrorMessage.c_str());
-        status = MASTERNODE_NOT_CAPABLE;
-        notCapableReason = retErrorMessage;
-        return false;
+        if (!stop) {
+            // Seems like we are trying to send a ping while the masternode is not registered in the network
+            retErrorMessage = "Masternode List doesn't include our masternode, Shutting down masternode pinging service! " + vin.ToString();
+            LogPrintf("CActiveMasternode::Dseep() - Error: %s\n", retErrorMessage.c_str());
+            status = MASTERNODE_NOT_CAPABLE;
+            notCapableReason = retErrorMessage;
+            return false;
+        }
     }
 
     //send to all peers
@@ -287,6 +289,12 @@ bool CActiveMasternode::Register(CTxIn vin, CService service, CKey keyCollateral
     std::string vchPubKey2(pubKeyMasternode.begin(), pubKeyMasternode.end());
 
     std::string strMessage = service.ToString() + boost::lexical_cast<std::string>(masterNodeSignatureTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(PROTOCOL_VERSION) + donationAddress.ToString() + boost::lexical_cast<std::string>(donationPercentage);
+
+    if(service.GetPort() != Params().GetDefaultPort()) {
+        retErrorMessage = "Bad port";
+        LogPrintf("CActiveMasternode::Register() - Error: %s\n", retErrorMessage.c_str());
+        return false;
+    }
 
     if(!mnodeman.SignMessage(strMessage, errorMessage, vchMasterNodeSignature, keyCollateralAddress)) {
 		retErrorMessage = "sign message failed: " + errorMessage;

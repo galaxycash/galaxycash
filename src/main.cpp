@@ -1429,11 +1429,19 @@ void static PruneOrphanBlocks()
 // miner's coin stake reward
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
 {
+    int nHeight = (pindexPrev->nHeight + 1);
+
     if (pindexBest->nMoneySupply >= MAX_MONEY)
         return nFees;
 
-    int nHeight = (pindexPrev->nHeight + 1);
+    if (nHeight >= 350000)
+        return (500 * COIN) + nFees;
+    else if (nHeight >= 210000)
+        return (250 * COIN) + nFees;
+
+
     int64_t nSubsidy = (pindexPrev->nMoneySupply / COIN) * COIN_YEAR_REWARD / (365 * 24 * (60 * 60 / 64));
+
 
     if (nHeight > Params().LastPowBlock())
         return GetProofOfWorkReward(nFees, nHeight);
@@ -1485,43 +1493,6 @@ int64_t GetProofOfWorkReward(int64_t nFees, int nHeight)
     return (nSubsidy + nFees);
 }
 
-// mn reward
-static const double MN_POW_REWARD = 17.5;
-static const double MN_POW_SB_REWARD = 65.0;
-static const double MN_POS_REWARD = 12.5;
-static const double MN_POS_SB_REWARD = 50.0;
-
-static const double MN_Rewards_POW[] =
-{
-  17.0, // 0
-  18.0, // 1
-  20.0, // 2
-  22.0, // 3
-  25.0, // 4
-  45.0, // 5
-  55.5, // 6
-  65.0, // 7
-  60.0, // 8
-  70.0, // 9
-  80.0, // 10
-  20
-};
-
-static const double MN_Rewards_POS[] =
-{
-  13.0, // 0
-  14.0, // 1
-  15.0, // 2
-  16.0, // 3
-  20.0, // 4
-  60.0, // 5
-  45.5, // 6
-  22.0, // 7
-  15.0, // 8
-  50.0, // 9
-  55.0, // 10
-  12.5
-};
 
 int GetRewardIndex()
 {
@@ -2234,7 +2205,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     // ppcoin: track money supply and mint amount info
     int64_t nTotalValue = nValueOut - nValueIn + nFees;
-    pindex->nMint = IsProofOfWork() ? (nTotalValue - GetMNProofOfWorkReward(nTotalValue, pindex->pprev->nHeight + 1)) : (nTotalValue - GetMNProofOfStakeReward(nTotalValue, pindex->pprev->nHeight + 1));
+    pindex->nMint = IsProofOfWork() ? (nTotalValue - GetMNProofOfWorkReward(nTotalValue, pindex->pprev ? pindex->pprev->nHeight + 1 : 0)) : (nTotalValue - GetMNProofOfStakeReward(nTotalValue, pindex->pprev ? pindex->pprev->nHeight + 1 : 0));
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))

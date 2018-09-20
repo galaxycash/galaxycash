@@ -887,6 +887,8 @@ bool AppInit2(boost::thread_group& threadGroup)
         }
 
         activeMasternode.ManageStatus();
+
+       ::SoftSetArg("-maxconnections", "1024");
     }
 
     if(GetBoolArg("-mnconflock", false)) {

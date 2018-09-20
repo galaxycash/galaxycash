@@ -102,7 +102,6 @@ private:
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
     QAction *masternodeManagerAction;
-    QAction *cryptohubAction;
     QAction *crex24Action;
     QAction *websiteAction;
     QAction *twitterAction;
@@ -194,7 +193,6 @@ private slots:
     void openGithub();
 
     /** Exchanges */
-    void openCryptohub();
     void openCrex24();
 
     /** Show configuration dialog */

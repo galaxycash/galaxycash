@@ -388,10 +388,6 @@ void OverviewPage::updatePrices()
     btcval << std::fixed << setprecision(8) << GCH_BTC;
     stats += std::string("GCH/BTC:") + btcval.str() + std::string(",Vol:") + btcvol.str() + std::string(" ");
 
-    std::stringstream ethval;
-    ethval << std::fixed << setprecision(8) << GCH_ETH;
-    stats += std::string("GCH/ETH:") + ethval.str() + std::string(",Vol:") + ethvol.str() + std::string(" ");
-
     std::stringstream usdval;
     usdval << std::fixed << setprecision(8) << GCH_USD;
     stats += std::string("\nGCH/USD:") + usdval.str() + std::string(" ");

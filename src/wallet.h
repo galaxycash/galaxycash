@@ -688,7 +688,7 @@ public:
         int64_t nCredit = 0;
         for (unsigned int i = 0; i < vout.size(); i++)
         {
-            if (!IsSpent(i))
+            if (!IsSpent(i) && !pwallet->IsLockedCoin(GetHash(), i))
             {
                 const CTxOut &txout = vout[i];
                 nCredit += pwallet->GetCredit(txout);

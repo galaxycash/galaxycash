@@ -732,7 +732,10 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             LogPrintf("dsee - Signature rejected, too far into the future %s\n", vin.ToString().c_str());
             return;
         }
-
+        if(addr.GetPort() != Params().GetDefaultPort()) {
+            LogPrintf("dsee - Bad masternode port %s\n", vin.ToString().c_str());
+            return;
+        }
 
         bool isLocal = addr.IsRFC1918() || addr.IsLocal();
         //if(RegTest()) isLocal = false;
@@ -830,7 +833,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         CValidationState state;
         CTransaction tx = CTransaction();
-        CTxOut vout = CTxOut(4999.99*COIN, GetScriptForDestination(gdevAddr.Get()));
+        CTxOut vout = CTxOut((MasternodeCollateral(0) * 0.99)*COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
         bool fAcceptable = false;

@@ -1136,7 +1136,6 @@ int64_t CWallet::GetLockedBalance() const
                 uint256 hashTx = pcoin->GetHash();
                 for (unsigned int i = 0; i < pcoin->vout.size(); i++)
                 {
-                    if (pcoin->IsSpent(i))
                     {
                         const CTxOut &txout = pcoin->vout[i];
                         if (!IsLockedCoin(hashTx, i)) continue;
@@ -2407,19 +2406,18 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     if(bMasterNodePayment) {
         //spork
         if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin)){
-            CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
-            if(winningNode){
-                payee = GetScriptForDestination(winningNode->pubkey.GetID());
-            } else {
-               std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
-               CGalaxyCashAddress gdevAddr;
-               gdevAddr.SetString(devAddr);
-               payee = GetScriptForDestination(gdevAddr.Get());
-            }
+                CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
+                if(winningNode){
+                    payee = GetScriptForDestination(winningNode->pubkey.GetID());
+                } else {
+                   std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+                   CGalaxyCashAddress gdevAddr;
+                   gdevAddr.SetString(devAddr);
+                   payee = GetScriptForDestination(gdevAddr.Get());
+                }
         }
-    } else {
+    } else
         hasPayment = false;
-    }
 
 
     int64_t blockValue = nCredit;

@@ -196,7 +196,7 @@ void CMasternode::Check()
         std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
         CGalaxyCashAddress gdevAddr;
         gdevAddr.SetString(devAddr);
-        CTxOut vout = CTxOut(4999.99*COIN, GetScriptForDestination(gdevAddr.Get()));
+        CTxOut vout = CTxOut((MasternodeCollateral(nBestHeight) * 0.99)*COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
 

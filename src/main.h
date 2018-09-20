@@ -54,9 +54,11 @@ static const unsigned int MAX_INV_SZ = 50000;
 /** PoS Reward Fixed */
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 /** MasterNode required collateral */
-inline int64_t MasternodeCollateral(int nHeight) { return 5000; }
+inline int64_t MasternodeCollateral(int nHeight) {
+    return 100000;
+}
 /** No amount larger than this (in satoshi) is valid */
-static const int64_t MAX_MONEY = 30000000 * COIN; // 30M COINS
+static const int64_t MAX_MONEY = std::numeric_limits<int64_t>::max();
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
