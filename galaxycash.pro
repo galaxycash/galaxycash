@@ -43,6 +43,8 @@ macx:MOC_DIR = build_macx
 macx:UI_DIR = build_macx
 
 
+QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.11
+
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
     # Mac: compile for maximum compatibility (10.11, 64-bit)
@@ -55,6 +57,7 @@ contains(RELEASE, 1) {
         LIBS += -Wl,-Bstatic
     }
 }
+
 
 QMAKE_CFLAGS += -std=c99
 QMAKE_CFLAGS_RELEASE += -std=c99
