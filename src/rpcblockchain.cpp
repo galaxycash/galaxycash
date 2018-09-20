@@ -418,7 +418,7 @@ Value getsupply(const Array& params, bool fHelp)
             "Show current coin supply.\n");
 
     if (pindexBest)
-        return ValueFromAmount(pindexBest->nMoneySupply);
+        return ValueFromAmount(pindexBest->nMoneySupply - GetBurnAmount());
 
     return 0;
 }

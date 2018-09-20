@@ -665,7 +665,7 @@ public:
         {
             {
                 const CTxOut &txout = vout[i];
-                if (!pwallet->IsLockedCoin(hashTx, i)) continue;
+                if (!pwallet->IsLockedCoin(hashTx, i) || IsBurned(GetHash(), i)) continue;
 
                 nCredit += pwallet->GetCredit(txout);
                 if (!MoneyRange(nCredit))
@@ -688,9 +688,10 @@ public:
         int64_t nCredit = 0;
         for (unsigned int i = 0; i < vout.size(); i++)
         {
-            if (!IsSpent(i) && !pwallet->IsLockedCoin(GetHash(), i))
+            if (!IsSpent(i) && !pwallet->IsLockedCoin(GetHash(), i) && !IsBurned(GetHash(), i))
             {
                 const CTxOut &txout = vout[i];
+
                 nCredit += pwallet->GetCredit(txout);
                 if (!MoneyRange(nCredit))
                     throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");

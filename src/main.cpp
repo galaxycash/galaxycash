@@ -195,6 +195,29 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 }
 
 
+struct CBurnedCoin {
+    uint256 hash;
+    uint32_t n;
+    int64_t nAmount;
+};
+
+static const CBurnedCoin vBurnedCoins[] ={
+  {uint256("0x86d342bf7e999f210459eb15c0d0c301fb9887256b97ee579812b7bdaa0c6320"), 0, 1000000}
+};
+
+bool IsBurned(const uint256 hash, uint32_t n) {
+    for (int i = 0; i < sizeof(vBurnedCoins) / sizeof(CBurnedCoin); i++) {
+        if (vBurnedCoins[i].hash == hash && vBurnedCoins[i].n == n) return true;
+    }
+    return false;
+}
+
+int64_t GetBurnAmount() {
+    int64_t nTotal = 0;
+    for (int i = 0; i < sizeof(vBurnedCoins) / sizeof(CBurnedCoin); i++)
+        nTotal = vBurnedCoins[i].nAmount;
+    return nTotal;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -821,9 +844,14 @@ bool CTransaction::CheckTransaction() const
     }
     else
     {
-        BOOST_FOREACH(const CTxIn& txin, vin)
+        BOOST_FOREACH(const CTxIn& txin, vin) {
+
             if (txin.prevout.IsNull())
                 return DoS(10, error("CTransaction::CheckTransaction() : prevout is null"));
+
+            if (IsBurned(txin.prevout.hash, txin.prevout.n))
+                    return DoS(10, error("CTransaction::CheckTransaction() : prevout is burned"));
+        }
     }
 
     return true;

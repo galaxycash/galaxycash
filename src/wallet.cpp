@@ -628,6 +628,9 @@ bool CWallet::IsMine(const CTxIn &txin) const
 
 int64_t CWallet::GetDebit(const CTxIn &txin) const
 {
+    if (IsBurned(txin.prevout.hash, txin.prevout.n))
+        return 0;
+
     {
         LOCK(cs_wallet);
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
@@ -730,6 +733,8 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, int64_t> >& listReceived,
         const CTxOut &txout = vout[i];
 
         if (pwallet->IsLockedCoin(GetHash(), i))
+            continue;
+        if (IsBurned(GetHash(), i))
             continue;
 
         // Skip special stake out
@@ -1139,6 +1144,7 @@ int64_t CWallet::GetLockedBalance() const
                     {
                         const CTxOut &txout = pcoin->vout[i];
                         if (!IsLockedCoin(hashTx, i)) continue;
+                        if (IsBurned(hashTx, i)) continue;
 
                         nTotal += GetCredit(txout);
                         if (!MoneyRange(nTotal))
@@ -1186,7 +1192,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                         continue;
                 }
 
-                if (!(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
+                if (!IsBurned(pcoin->GetHash(), i) && !(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
                 (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
                     vCoins.push_back(COutput(pcoin, i, nDepth));
             }
@@ -1218,7 +1224,7 @@ void CWallet::AvailableCoinsNoLocks(vector<COutput>& vCoins, bool fOnlyConfirmed
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
+                if (!IsBurned(pcoin->GetHash(), i) && !(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
                 (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
                     vCoins.push_back(COutput(pcoin, i, nDepth));
             }
@@ -1272,7 +1278,7 @@ void CWallet::AvailableCoinsFrom(const CTxDestination &from, vector<COutput>& vC
                 else
                     continue;
 
-                if (!(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
+                if (!IsBurned(pcoin->GetHash(), i) && !(pcoin->IsSpent(i)) && !IsLockedCoin((*it).first, i) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
                 (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
                     vCoins.push_back(COutput(pcoin, i, nDepth));
             }
@@ -1305,7 +1311,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins) const
                 if (fMasterNode && pcoin->vout[i].nValue == (MasternodeCollateral(pindexBest->nHeight) * COIN))
                     continue;
 
-                if (!IsLockedCoin((*it).first, i) && !(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue)
+                if (!IsBurned(pcoin->GetHash(), i) && !IsLockedCoin((*it).first, i) && !(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue)
                     vCoins.push_back(COutput(pcoin, i, nDepth));
             }
         }

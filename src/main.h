@@ -174,6 +174,9 @@ bool FindTransactionsByDestination(const CTxDestination &dest, std::vector<uint2
 int GetInputAge(CTxIn& vin);
 
 
+bool IsBurned(const uint256 hash, uint32_t n);
+int64_t GetBurnAmount();
+
 
 /** Position on disk for a particular transaction. */
 class CDiskTxPos
