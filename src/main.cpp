@@ -3027,14 +3027,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
-    // Check PoW
-    if (pblock->IsProofOfWork() && nBestHeight > Params().LastPowBlock())
-        return error("ProcessBlock() : PoW Wave ended!");
-
-    // Check PoS
-    if (pblock->IsProofOfStake() && nBestHeight < Params().POSStart())
-        return error("ProcessBlock() : PoS Wave not started!");
-
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
