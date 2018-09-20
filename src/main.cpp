@@ -215,7 +215,7 @@ bool IsBurned(const uint256 hash, uint32_t n) {
 int64_t GetBurnAmount() {
     int64_t nTotal = 0;
     for (int i = 0; i < sizeof(vBurnedCoins) / sizeof(CBurnedCoin); i++)
-        nTotal = vBurnedCoins[i].nAmount;
+        nTotal += vBurnedCoins[i].nAmount;
     return nTotal;
 }
 
