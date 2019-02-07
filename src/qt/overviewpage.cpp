@@ -381,7 +381,7 @@ void OverviewPage::updatePrices()
     cnyval << std::fixed << setprecision(8) << GCH_CNY;
     stats += std::string("GCH/CNY:") + cnyval.str() + std::string(" ");
 
-    double GCH_BALANCE = (pwalletMain->GetBalance() / (double) COIN);
+    double GCH_BALANCE = (pwalletMain->GetBalance() / (double) COIN) + (pwalletMain->GetUnconfirmedBalance() / (double) COIN);
     double TOTAL_BTC = GCH_BALANCE * GCH_BTC;
     double TOTAL_USD = GCH_BALANCE * GCH_USD;
     double TOTAL_EUR = GCH_BALANCE * GCH_EUR;
@@ -393,7 +393,7 @@ void OverviewPage::updatePrices()
 
     std::stringstream toteurval;
     toteurval << std::fixed << setprecision(8) << TOTAL_EUR;
-    stats += std::string("USD Value:") + toteurval.str() + std::string(" ");
+    stats += std::string("EUR Value:") + toteurval.str() + std::string(" ");
 
     std::stringstream totusdval;
     totusdval << std::fixed << setprecision(8) << TOTAL_USD;
