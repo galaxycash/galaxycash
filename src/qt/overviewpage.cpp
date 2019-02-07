@@ -270,8 +270,6 @@ QJsonDocument callJson(const char *url, QWidget *parent) {
 }
 void OverviewPage::updatePrices()
 {
-    const char *cryptohubStats = "https://cryptohub.online/api/market/ticker/GCH/";
-    const char *cryptohubBTCETH = "https://cryptohub.online/api/market/ticker/ETH/";
     const char *crexUSDBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=USD_BTC]";
     const char *crexEURBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=EUR_BTC]";
     const char *crexRUBBTC = "https://api.crex24.com/CryptoExchangeService/BotPublic/ReturnTicker?request=[NamePairs=RUB_BTC]";
@@ -282,7 +280,6 @@ void OverviewPage::updatePrices()
 
 
     double GCH_BTC = 0.0;
-    double GCH_ETH = 0.0;
     double GCH_USD = 0.0;
     double GCH_EUR = 0.0;
     double GCH_RUB = 0.0;
@@ -293,7 +290,8 @@ void OverviewPage::updatePrices()
     double BTC_CNY = 0.0;
     double ETH_BTC = 0.0;
     double BTC_VOL = 0.0;
-    double ETH_VOL = 0.0;
+    double GCH_CNG = 0.0;
+
 
 #if defined(_WIN32) || defined(WIN32)
     QJsonDocument res = callGetJson(crexUSDBTC, this);
@@ -333,28 +331,6 @@ void OverviewPage::updatePrices()
             ETH_BTC = val["Last"].toDouble();
     }
 
-    res = callGetJson(cryptohubBTCETH, this);
-    if (!res.isEmpty()) {
-        const QJsonValue btc = res["BTC_ETH"];
-        if (btc["last"].toDouble() > ETH_BTC)
-            ETH_BTC = btc["last"].toDouble();
-    }
-
-    res = callGetJson(cryptohubStats, this);
-    if (!res.isEmpty()) {
-        const QJsonValue btc = res["BTC_GCH"];
-        if (btc["last"].toDouble() > GCH_BTC)
-            GCH_BTC = btc["last"].toDouble();
-
-        BTC_VOL += btc["baseVolume"].toDouble();
-
-        const QJsonValue eth = res["ETH_GCH"];
-        if (eth["last"].toDouble() > GCH_ETH)
-            GCH_ETH = eth["last"].toDouble();
-
-        ETH_VOL += eth["baseVolume"].toDouble();
-    }
-
     res = callGetJson(crexBTCGCH, this);
     if (!res.isEmpty()) {
         const QJsonValue btc = res["Tickers"][0];
@@ -364,29 +340,30 @@ void OverviewPage::updatePrices()
         BTC_VOL += btc["VolumeInBtc"].toDouble();
     }
 
+    res = callGetJson(crexBTCGCH, this);
+    if (!res.isEmpty()) {
+        const QJsonValue btc = res["Tickers"][0];
+        if (btc["Last"].toDouble() > GCH_BTC)
+            GCH_BTC = btc["Last"].toDouble();
+
+        GCH_CNG = btc["PercentChange"].toDouble();
+    }
 #endif
 
-    if (GCH_ETH * ETH_BTC > GCH_BTC && ETH_VOL > 0) {
-        const double dEthPrice = (GCH_ETH * ETH_BTC);
-        GCH_USD = dEthPrice * BTC_USD;
-        GCH_EUR = dEthPrice * BTC_EUR;
-        GCH_RUB = dEthPrice * BTC_RUB;
-        GCH_CNY = dEthPrice * BTC_CNY;
-    } else {
-        GCH_USD = GCH_BTC * BTC_USD;
-        GCH_EUR = GCH_BTC * BTC_EUR;
-        GCH_RUB = GCH_BTC * BTC_RUB;
-        GCH_CNY = GCH_BTC * BTC_CNY;
-    }
+    GCH_USD = GCH_BTC * BTC_USD;
+    GCH_EUR = GCH_BTC * BTC_EUR;
+    GCH_RUB = GCH_BTC * BTC_RUB;
+    GCH_CNY = GCH_BTC * BTC_CNY;
+
     std::stringstream btcvol;
     btcvol << std::fixed << setprecision(8) << BTC_VOL;
 
-    std::stringstream ethvol;
-    ethvol << std::fixed << setprecision(8) << ETH_VOL;
+    std::stringstream gchcng;
+    gchcng << std::fixed << setprecision(2) << GCH_CNG;
 
     std::stringstream btcval;
     btcval << std::fixed << setprecision(8) << GCH_BTC;
-    stats += std::string("GCH/BTC:") + btcval.str() + std::string(",Vol:") + btcvol.str() + std::string(" ");
+    stats += std::string("GCH/BTC:") + btcval.str() + std::string(", Vol:") + btcvol.str() + std::string(", Change: ") + (GCH_CNG > 0.0 ? "+" : "") +  gchcng.str() + std::string("% ") + std::string(" ");;
 
     std::stringstream usdval;
     usdval << std::fixed << setprecision(8) << GCH_USD;
@@ -403,6 +380,28 @@ void OverviewPage::updatePrices()
     std::stringstream cnyval;
     cnyval << std::fixed << setprecision(8) << GCH_CNY;
     stats += std::string("GCH/CNY:") + cnyval.str() + std::string(" ");
+
+    double GCH_BALANCE = (pwalletMain->GetBalance() / (double) COIN);
+    double TOTAL_BTC = GCH_BALANCE * GCH_BTC;
+    double TOTAL_USD = GCH_BALANCE * GCH_USD;
+    double TOTAL_EUR = GCH_BALANCE * GCH_EUR;
+    double TOTAL_RUB = GCH_BALANCE * GCH_RUB;
+
+    std::stringstream totbtcval;
+    totbtcval << std::fixed << setprecision(8) << TOTAL_BTC;
+    stats += std::string("\nBitcoin Value:") + totbtcval.str() + std::string(" ");
+
+    std::stringstream toteurval;
+    toteurval << std::fixed << setprecision(8) << TOTAL_EUR;
+    stats += std::string("USD Value:") + toteurval.str() + std::string(" ");
+
+    std::stringstream totusdval;
+    totusdval << std::fixed << setprecision(8) << TOTAL_USD;
+    stats += std::string("USD Value:") + totusdval.str() + std::string(" ");
+
+    std::stringstream totrubval;
+    totrubval << std::fixed << setprecision(8) << TOTAL_RUB;
+    stats += std::string("RUB Value:") + totrubval.str() + std::string(" ");
 
     ui->priceStats->setText(QString::fromStdString(stats));
 }

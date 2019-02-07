@@ -111,6 +111,58 @@ static QString seconds_to_DHMS(quint32 duration)
 
 #define MY_MASTERNODELIST_UPDATE_SECONDS 60
 
+uint32_t GetBlocksPerHourItr(CBlockIndex *pbest, uint32_t iterations) {
+    uint32_t blocks = 1;
+
+    time_t t = pbest->nTime;
+    struct tm *tm = localtime(&t);
+    uint32_t hour = tm->tm_hour;
+
+    CBlockIndex *pindex = pbest;
+    while (pindex) {
+        time_t t = pindex->nTime;
+        struct tm *tm = localtime(&t);
+        if (tm->tm_hour != hour) {
+            blocks = 1;
+            hour = tm->tm_hour;
+            pindex = pindex->pprev;
+            break;
+        }
+        pindex = pindex->pprev;
+    }
+
+    while (pindex) {
+        time_t t = pindex->nTime;
+        struct tm *tm = localtime(&t);
+        uint32_t h = tm->tm_hour;
+        if (tm->tm_hour != hour)
+            break;
+        blocks++;
+        pindex = pindex->pprev;
+    }
+
+
+    if (iterations >= 1) {
+        uint32_t iteration = GetBlocksPerHourItr(pindex, iterations - 1);
+        return iteration > blocks ? iteration : blocks;
+    }
+    return blocks;
+}
+
+uint32_t GetBlocksPerHour() {
+    static uint32_t bestBlocks = 0;
+
+    uint32_t blocks = GetBlocksPerHourItr(pindexBest, 8);
+    if (blocks > bestBlocks)
+        bestBlocks = blocks;
+
+    return bestBlocks;
+}
+
+uint32_t GetBlocksPerDay() {
+    return GetBlocksPerHour() * 24;
+}
+
 void MasternodeManager::updateNodeList()
 {
     TRY_LOCK(cs_masternodes, lockMasternodes);
@@ -155,6 +207,40 @@ void MasternodeManager::updateNodeList()
 
     ui->countLabel->setText(QString::number(ui->tableWidget->rowCount()));
     on_UpdateButton_clicked();
+
+    uint32_t nodes = mnodeman.CountEnabled() ? mnodeman.CountEnabled() : 1;
+    uint32_t blocksHour = GetBlocksPerHour();
+    uint32_t blocks = blocksHour * 24;
+    uint32_t blocksPerNode = blocks / nodes;
+    double dailyIncome = blocksPerNode * (double)(GetMNProofOfStakeReward(GetProofOfStakeReward(pindexBest->pprev, 0, 0), pindexBest->nHeight) / COIN);
+    double ROI = (dailyIncome / (double) MasternodeCollateral(pindexBest->nHeight)) * 100.0;
+
+
+    std::string roi;
+
+    std::stringstream val0, val1, val2, val3, val4, val5;
+
+    val0 << blocksHour;
+    roi += std::string("Blocks per hour: ") + val0.str() + std::string(" blocks\n");
+
+    val1 << blocks;
+    roi += std::string("Blocks per day: ") + val1.str() + std::string(" blocks\n");
+
+    val2 << std::fixed << setprecision(6) << dailyIncome;
+    roi += std::string("Daily income: ") + val2.str() + std::string(" TGCH\n");
+
+    val3 << std::fixed << setprecision(2) << ROI;
+    roi += std::string("ROI: Daily ") + val3.str() + std::string("% ");
+
+    val4 << std::fixed << setprecision(2) << (ROI * 30);
+    roi += std::string("Monthly ") + val4.str() + std::string("% ");
+
+
+    val5 << std::fixed << setprecision(2) << (ROI * 30 * 12);
+    roi += std::string("Yearly ") + val5.str() + std::string("%");
+
+
+    ui->roi->setText(QString::fromStdString(roi));
 }
 
 

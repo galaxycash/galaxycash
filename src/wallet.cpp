@@ -1303,7 +1303,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins) const
             if (nDepth < nStakeMinConfirmations)
                 continue;
 
-            if (pcoin->GetBlocksToMaturity() > 0)
+            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity() > 0)
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
@@ -2408,7 +2408,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     CScript payee;
     CTxIn vin;
-    bool hasPayment = true;
+    bool hasPayment = false;/*true;
     if(bMasterNodePayment) {
         //spork
         if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin)){
@@ -2423,7 +2423,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 }
         }
     } else
-        hasPayment = false;
+        hasPayment = false;*/
 
 
     int64_t blockValue = nCredit;

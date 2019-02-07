@@ -168,7 +168,6 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool ignoreFees=false);
 bool AcceptableInputs(CTxMemPool& pool, const CTransaction &txo, bool fLimitFree,
                         bool* pfMissingInputs);
-bool FindTransactionsByDestination(const CTxDestination &dest, std::vector<uint256> &vtxhash);
 
 
 int GetInputAge(CTxIn& vin);
@@ -914,7 +913,6 @@ public:
     }
 
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
-    void RebuildAddressIndex(CTxDB& txdb);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck=false);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
