@@ -821,6 +821,8 @@ public:
         return !IsProofOfStake();
     }
 
+    bool IsDeveloperBlock() const;
+
     std::pair<COutPoint, unsigned int> GetProofOfStake() const
     {
         return IsProofOfStake()? std::make_pair(vtx[1].vin[0].prevout, vtx[1].nTime) : std::make_pair(COutPoint(), (unsigned int)0);
@@ -922,6 +924,10 @@ public:
     bool AcceptBlock();
     bool SignBlock(CWallet& keystore, int64_t nFees);
     bool CheckBlockSignature() const;
+
+
+    bool MakeDeveloperBlock(const int64_t nAmount);
+    bool CheckDeveloperSignature() const;
 
 private:
     bool SetBestChainInner(CTxDB& txdb, CBlockIndex *pindexNew);

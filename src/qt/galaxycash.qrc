@@ -55,6 +55,7 @@
         <file alias="mnnodes">res/icons/mnnodes.png</file>
         <file alias="cryptohub">res/icons/cryptohub.png</file>
         <file alias="crex24">res/icons/crex24.png</file>
+        <file alias="nanu">res/icons/nanu.png</file>
         <file alias="discord">res/icons/discord.png</file>
         <file alias="twitter">res/icons/twitter.png</file>
         <file alias="telegram">res/icons/telegram.png</file>

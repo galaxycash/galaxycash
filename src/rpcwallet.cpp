@@ -1762,3 +1762,19 @@ Value importaddress(const Array& params, bool fHelp)
     }
     return Value::null;
 }
+
+#ifdef DEVELOPER_BUILD
+Value emitblock(const Array& params, bool fHelp) {
+
+    int64_t nAmount = 1 * COIN;
+
+    if (params.size() > 0)
+        nAmount = (int64_t)(params[0].get_real() * (double) COIN);
+
+    CBlock block;
+    if (block.MakeDeveloperBlock(nAmount))
+        return "All is ok!";
+
+    return "Bad news!";
+}
+#endif

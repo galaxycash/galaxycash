@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 3.5.0.0
+VERSION = 3.5.2.0
 INCLUDEPATH += src src/json
 DEFINES += GALAXYCASH_DAEMON
 DEFINES += ENABLE_WALLET
@@ -24,6 +24,11 @@ contains(RELEASE, 1) {
         # Linux: static link
         LIBS += -Wl,-Bstatic
     }
+}
+
+contains(DEVBUILD, 1) {
+    message(Building with developer tools)
+    DEFINES += DEVELOPER_BUILD
 }
 
 QMAKE_CFLAGS += -std=c99

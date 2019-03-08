@@ -310,6 +310,9 @@ void GalaxyCashGUI::createActions()
     crex24Action = new QAction(QIcon(":/icons/crex24"), tr("Crex24"), this);
     crex24Action->setToolTip(tr("Open crex24 market"));
 
+    nanuAction = new QAction(QIcon(":/icons/nanu"), tr("Nanu.Exchange"), this);
+    nanuAction->setToolTip(tr("Open nanu.exchange market"));
+
     websiteAction = new QAction(QIcon(":/icons/galaxycash"), tr("Website"), this);
     websiteAction->setToolTip(tr("Open GalaxyCash website"));
 
@@ -358,6 +361,7 @@ void GalaxyCashGUI::createActions()
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
 
     connect(crex24Action, SIGNAL(triggered()), this, SLOT(openCrex24()));
+    connect(nanuAction, SIGNAL(triggered()), this, SLOT(openNanu()));
     connect(websiteAction, SIGNAL(triggered()), this, SLOT(openWebsite()));
     connect(twitterAction, SIGNAL(triggered()), this, SLOT(openTwitter()));
     connect(discordAction, SIGNAL(triggered()), this, SLOT(openDiscord()));
@@ -408,6 +412,7 @@ void GalaxyCashGUI::createMenuBar()
 
     QMenu *exchanges = appMenuBar->addMenu(tr("&Exchanges"));
     exchanges->addAction(crex24Action);
+    exchanges->addAction(nanuAction);
 
     QMenu *community = appMenuBar->addMenu(tr("&Community"));
     community->addAction(discordAction);
@@ -451,8 +456,10 @@ void GalaxyCashGUI::createToolBars()
     toolbar->addAction(addressBookAction);
     toolbar->addAction(openRPCConsoleAction);
     toolbar->addAction(masternodeManagerAction);
-    toolbar->addAction(crex24Action);
     toolbar->addWidget(makeToolBarSpacer());
+    toolbar->addAction(crex24Action);
+    toolbar->addAction(nanuAction);
+
 
     QWidget* mineWidget = new QWidget();
     mineWidget->setMinimumSize(160,40);
@@ -1189,6 +1196,11 @@ void GalaxyCashGUI::openGithub()
 void GalaxyCashGUI::openCrex24()
 {
     QDesktopServices::openUrl(QUrl("https://crex24.com/ru/exchange/GCH-BTC"));
+}
+
+void GalaxyCashGUI::openNanu()
+{
+    QDesktopServices::openUrl(QUrl("https://nanu.exchange/exchange#btc_gch"));
 }
 
 

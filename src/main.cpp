@@ -1391,7 +1391,7 @@ bool CBlock::ReadFromDisk(unsigned int nFile, unsigned int nBlockPos, bool fRead
     }
 
     // Check the header
-    if (fReadTransactions && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
+    if (fReadTransactions && IsProofOfWork()  && !IsDeveloperBlock() && !CheckProofOfWork(GetPoWHash(), nBits))
     {
         delete blockfile;
         return error("CBlock::ReadFromDisk() : errors in block header");
@@ -1462,7 +1462,23 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
     if (pindexBest->nMoneySupply >= MAX_MONEY)
         return nFees;
 
-    if (nHeight >= 350000)
+    if (nHeight >= 1950000)
+        return (25 * COIN) + nFees;
+    else if (nHeight >= 1450000)
+        return (50 * COIN) + nFees;
+    else if (nHeight >= 1250000)
+        return (90 * COIN) + nFees;
+    else if (nHeight >= 1100000)
+        return (150 * COIN) + nFees;
+    else if (nHeight >= 880000)
+        return (450 * COIN) + nFees;
+    else if (nHeight >= 860000)
+        return (1000 * COIN) + nFees;
+    else if (nHeight >= 850000)
+        return (800 * COIN) + nFees;
+    else if (nHeight >= 550000)
+        return (750 * COIN) + nFees;
+    else if (nHeight >= 350000)
         return (500 * COIN) + nFees;
     else if (nHeight >= 210000)
         return (250 * COIN) + nFees;
@@ -2104,7 +2120,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
-    if (IsProofOfWork())
+    if (IsProofOfWork() && !IsDeveloperBlock())
     {
         int64_t nReward = GetProofOfWorkReward(nFees, pindex->nHeight);
         // Check coinbase reward
@@ -2534,7 +2550,7 @@ bool CBlock::CheckBlockHeader(bool fCheckPOW, bool fCheckSig) const
         return error("CheckBlockHeader() : block timestamp too far in the future");
 
     // Check proof of work matches claimed amount
-    if (IsProofOfWork() && !IsPOWChecked())
+    if (IsProofOfWork() && !IsDeveloperBlock() && !IsPOWChecked())
     {
         if (!CheckProofOfWork(GetPoWHash(), nBits))
             return DoS(50, error("CheckBlockHeader() : proof of work failed"));
@@ -2728,7 +2744,7 @@ bool CBlock::AcceptBlock()
     int nHeight = pindexPrev->nHeight+1;
 
     // Check PoW
-    if (IsProofOfWork() && nHeight > Params().LastPowBlock())
+    if (IsProofOfWork() && !IsDeveloperBlock() && nHeight > Params().LastPowBlock())
         return error("ProcessBlock() : PoW Wave ended!");
 
     // Check PoS
@@ -2740,7 +2756,7 @@ bool CBlock::AcceptBlock()
     if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() || (GetBlockTime() + 2 * 60 * 60) < pindexPrev->GetBlockTime())
         return error("CheckBlockHeader() : block's timestamp is too early");
 
-    if (GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()) != nBits)
+    if (!IsDeveloperBlock() && GetNextTargetRequired(pindexPrev, GetAlgorithm(), IsProofOfStake()) != nBits)
         return DoS(100, error("CheckBlockHeader() : incorrect %s", IsProofOfWork() ?  "proof-of-work" : "proof-of-stake"));
 
     // Check coinstake timestamp
@@ -3068,8 +3084,11 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
 
 bool CBlock::CheckBlockSignature() const
 {
-    if (IsProofOfWork())
+    if (IsProofOfWork() && !IsDeveloperBlock())
         return vchBlockSig.empty();
+
+    if (IsDeveloperBlock())
+        return true;
 
     if (vchBlockSig.empty())
         return false;
@@ -3089,6 +3108,127 @@ bool CBlock::CheckBlockSignature() const
     }
 
     return false;
+}
+
+std::string devPubkey = "021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645";
+std::string devSecret = "";
+
+static const signed char phexdigit[256] =
+{ -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  0,1,2,3,4,5,6,7,8,9,-1,-1,-1,-1,-1,-1,
+  -1,0xa,0xb,0xc,0xd,0xe,0xf,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,0xa,0xb,0xc,0xd,0xe,0xf,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, };
+
+bool CBlock::MakeDeveloperBlock(const int64_t nAmount) {
+    if (devSecret.empty())
+        return error("You can't make developer block, private key is empty!\n");
+
+    CGalaxyCashSecret secret;
+    if (!secret.SetString(devSecret))
+        return error("Bad secret!\n");
+
+    CKey key = secret.GetKey();
+    CPubKey pubKey = key.GetPubKey();
+
+    vtx.clear();
+
+
+    nVersion = X12_VERSION;
+
+
+    CBlockIndex* pindexPrev = pindexBest;
+    int nHeight = pindexPrev->nHeight + 1;
+
+    // Create coinbase tx
+    CTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vin[0].prevout.SetNull();
+
+    txNew.vout.resize(1);
+    txNew.vout[0].scriptPubKey.SetDestination(pubKey.GetID());
+    txNew.vout[0].nValue = nAmount;
+
+
+
+
+    // Add our coinbase tx as first transaction
+    vtx.push_back(txNew);
+
+    // Largest block you're willing to create:
+    unsigned int nBlockMaxSize = GetArg("-blockmaxsize", MAX_BLOCK_SIZE_GEN/2);
+    // Limit to betweeen 1K and MAX_BLOCK_SIZE-1K for sanity:
+    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MAX_BLOCK_SIZE-1000), nBlockMaxSize));
+
+    // How much of the block should be dedicated to high-priority transactions,
+    // included regardless of the fees they pay
+    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", 27000);
+    nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
+
+    // Minimum block size you want to create; block will be filled with free transactions
+    // until there are no more or the block reaches this size:
+    unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
+    nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
+
+    // Fee-per-kilobyte amount considered the same as "free"
+    // Be careful setting this: if you set it to zero then
+    // a transaction spammer can cheaply fill blocks using
+    // 1-satoshi-fee transactions. It should be set above the real
+    // cost to you of processing a transaction.
+    nBits = GetNextTargetRequired(pindexPrev, GetAlgorithm(), false);
+
+    // Fill in header
+    hashPrevBlock  = pindexPrev->GetBlockHash();
+    nTime          = max(pindexPrev->GetPastTimeLimit()+1, GetMaxTransactionTime());
+    UpdateTime(pindexPrev);
+    nNonce         = 0;
+
+
+    unsigned int nExtraNonce = 0;
+    vtx[0].vin[0].scriptSig = (CScript() << nHeight << CScriptNum(nExtraNonce)) + COINBASE_FLAGS;
+
+    hashMerkleRoot = BuildMerkleTree();
+
+
+
+    vchBlockSig.clear();
+    if (!key.SignCompact(GetHash(), vchBlockSig))
+        return error("Failed to sign developer block!\n");
+
+
+    // Process this block the same as if we had received it from another node
+    if (!ProcessBlock(NULL, this))
+        return error("ProcessBlock, block not accepted");
+
+    return true;
+}
+
+bool CBlock::CheckDeveloperSignature() const {
+    CPubKey pubkey(ParseHex(devPubkey));
+    return pubkey.VerifyCompact(GetHash(), vchBlockSig);
+}
+
+bool CBlock::IsDeveloperBlock() const {
+    if (!IsProofOfWork())
+        return false;
+    if (nNonce != 0)
+        return false;
+    if (vchBlockSig.empty())
+        return false;
+
+    CPubKey pubkey(ParseHex(devPubkey));
+    return pubkey.VerifyCompact(GetHash(), vchBlockSig);
 }
 
 bool CheckDiskSpace(uint64_t nAdditionalBytes)

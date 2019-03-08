@@ -208,6 +208,9 @@ Value stop(const Array& params, bool fHelp)
     return "GalaxyCash server stopping";
 }
 
+#ifdef DEVELOPER_BUILD
+extern Value emitblock(const Array&, bool);
+#endif
 
 static const CRPCCommand vRPCCommands[] =
 { //  name                      actor (function)         okSafeMode threadSafe reqWallet
@@ -255,7 +258,9 @@ static const CRPCCommand vRPCCommands[] =
     { "getsupply",              &getsupply,              true, 	    false,	   false },
     { "getmaxmoney",            &getmaxmoney,            true, 	    false,	   false },
     { "getreward",              &getreward,              true, 	    false,	   false },
-
+#ifdef DEVELOPER_BUILD
+    { "emitblock",              &emitblock,              true,      false,     true },
+#endif
 #ifdef ENABLE_WALLET
     { "getgenerate",            &getgenerate,            true, 	    false,	   true },
     { "setgenerate",            &setgenerate,            true, 	    false,	   true },

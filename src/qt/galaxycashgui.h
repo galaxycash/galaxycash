@@ -103,6 +103,7 @@ private:
     QAction *openRPCConsoleAction;
     QAction *masternodeManagerAction;
     QAction *crex24Action;
+    QAction *nanuAction;
     QAction *websiteAction;
     QAction *twitterAction;
     QAction *discordAction;
@@ -194,6 +195,7 @@ private slots:
 
     /** Exchanges */
     void openCrex24();
+    void openNanu();
 
     /** Show configuration dialog */
     void optionsClicked();

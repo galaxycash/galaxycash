@@ -262,7 +262,9 @@ Value dumpprivkey(const Array& params, bool fHelp)
     CKey vchSecret;
     if (!pwalletMain->GetKey(keyID, vchSecret))
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
-    return CGalaxyCashSecret(vchSecret).ToString();
+
+    CPubKey pubkey = vchSecret.GetPubKey();
+    return CGalaxyCashSecret(vchSecret).ToString() + "\n" + HexStr(pubkey.begin(), pubkey.end());
 }
 
 Value dumpwallet(const Array& params, bool fHelp)

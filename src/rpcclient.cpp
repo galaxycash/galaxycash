@@ -172,6 +172,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "checkkernel", 1 },
     { "submitblock", 1 },
     { "getnodes", 0 },
+#ifdef DEVELOPER_BUILD
+    { "emitblock", 0 },
+#endif
 };
 
 class CRPCConvertTable

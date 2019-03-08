@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 3.5.0.0
+VERSION = 3.5.2.0
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network
@@ -17,6 +17,11 @@ CONFIG += thread static
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += widgets
     DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0
+}
+
+contains(DEVBUILD, 1) {
+    message(Building with developer tools)
+    DEFINES += DEVELOPER_BUILD
 }
 
 # for boost 1.37, add -mt to the boost libraries
