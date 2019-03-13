@@ -1,13 +1,13 @@
 GalaxyCash
 ======
-Copyright (C) 2017-2018 The GalaxyCash developers
+Copyright (C) 2017-2019 The GalaxyCash developers
 
 
 Website:                                    https://galaxycash.info
 
 Pool:                                       https://galaxypool.info
 
-Explorer:                                   http://explorer.galaxypool.info
+Explorer:                                   http://explorer.galaxypool.info http://107.191.39.190:3001/
 
 Discord:                                    https://discord.gg/NseejAk
 
@@ -35,12 +35,12 @@ PoW Last Block:                             130000
 
 PoS First Block:                            61300
 
-Masternode Price:                           5000 GCH
+Masternode Price:                           100000 GCH
 
 Masternode Reward:                          75%
 
 
-Max supply:                                 30,000,000
+Max supply:                                 Infinite on PoS
 
 Fee:                                        0.00000100
 
@@ -67,14 +67,7 @@ Donate for development
 --------------
 
 GCH:                                        GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC
-
-BTC:                                        12AVNXAP72cXez9JN7F4FQZy6Vtf5DzVJR
-
-BCH:                                        qqxv8rtf8l6wr7upz9apmtq7zk3yl732wqwyc9sje0
-
-DASH:                                       XqnsZkSFcdmjXwcokPyWGq1wZaoVkGxkBL
-
-LTC:                                        LRWxNrvfKJVTABW9c9v8xJjMjPy9EB35SP
+Payeer:                                     P61160417
 
 
 
