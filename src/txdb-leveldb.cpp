@@ -20,6 +20,7 @@
 #include "chainparams.h"
 #include "key.h"
 #include "base58.h"
+#include "coins.h"
 
 using namespace std;
 using namespace boost;
@@ -29,7 +30,7 @@ leveldb::DB *txdb; // global pointer for LevelDB object instance
 static leveldb::Options GetOptions() {
     leveldb::Options options;
 
-    size_t nCacheSize = GetArg("-dbcache", 25) << 20;
+    size_t nCacheSize = GetArg("-dbcache", nDefaultDbCache) << 20;
     if (nCacheSize < (1 << 22))
         nCacheSize = (1 << 22); // total cache cannot be less than 4 MiB
     nCacheSize = nCacheSize / 8;
@@ -582,7 +583,169 @@ bool CTxDB::LoadBlockIndex()
         block.SetBestChain(txdb, pindexFork);
     }
 
+    if (fReindex) {
+
+
+
+        pcoinsTip->SetBestBlock(pindexGenesisBlock->GetBlockHash());
+        {
+            CBlockIndex *pindex = pindexGenesisBlock->pnext;
+
+            while (pindex != NULL) {
+
+                {
+                    CBlock block;
+                    if (block.ReadFromDisk(pindex)) {
+
+                        for (int i = 0; i < block.vtx.size(); i++) {
+                            CTransaction &tx = block.vtx[i];
+                            uint256 hashTx = tx.GetHash();
+
+                            for (int j = 0; j < tx.vin.size(); j++) {
+                                CTxIn vin = tx.vin[j];
+                                if (vin.prevout.IsNull())
+                                    continue;
+
+                                CCoinsModifier modifier = pcoinsTip->ModifyCoins(vin.prevout.hash);
+
+                                if (vin.prevout.n >= modifier->vout.size())
+                                    modifier->vout.resize(vin.prevout.n + 1);
+
+                                modifier->vout[vin.prevout.n].SetNull();
+                            }
+
+                            CCoinsModifier modifier = pcoinsTip->ModifyCoins(hashTx);
+                            modifier->FromTx(tx, pindex->nHeight);
+                        }
+                    }
+                }
+
+                pcoinsTip->SetBestBlock(pindex->GetBlockHash());
+                pcoinsTip->Flush();
+
+                if (pindex->GetBlockHash() == hashBestChain)
+                    break;
+
+                pindex = pindex->pnext;
+            }
+        }
+    }
+
     return true;
 }
 
+void static BatchWriteCoins(CLevelDBBatch& batch, const uint256& hash, const CCoins& coins)
+{
+    if (coins.IsPruned())
+        batch.Erase(make_pair('c', hash));
+    else
+        batch.Write(make_pair('c', hash), coins);
+}
+
+void static BatchWriteHashBestChain(CLevelDBBatch& batch, const uint256& hash)
+{
+    batch.Write('B', hash);
+}
+
+CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe)
+{
+}
+
+bool CCoinsViewDB::GetCoins(const uint256& txid, CCoins& coins) const
+{
+    return db.Read(make_pair('c', txid), coins);
+}
+
+bool CCoinsViewDB::HaveCoins(const uint256& txid) const
+{
+    return db.Exists(make_pair('c', txid));
+}
+
+uint256 CCoinsViewDB::GetBestBlock() const
+{
+    uint256 hashBestChain;
+    if (!db.Read('B', hashBestChain))
+        return uint256(0);
+    return hashBestChain;
+}
+
+bool CCoinsViewDB::BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock)
+{
+    CLevelDBBatch batch;
+    size_t count = 0;
+    size_t changed = 0;
+    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
+        if (it->second.flags & CCoinsCacheEntry::DIRTY) {
+            BatchWriteCoins(batch, it->first, it->second.coins);
+            changed++;
+        }
+        count++;
+        CCoinsMap::iterator itOld = it++;
+        mapCoins.erase(itOld);
+    }
+    if (hashBlock != uint256(0))
+        BatchWriteHashBestChain(batch, hashBlock);
+
+    LogPrint("coindb", "Committing %u changed transactions (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
+    return db.WriteBatch(batch);
+}
+
+bool CCoinsViewDB::GetStats(CCoinsStats& stats) const
+{
+    /* It seems that there are no "const iterators" for LevelDB.  Since we
+       only need read operations on it, use a const-cast to get around
+       that restriction.  */
+    boost::scoped_ptr<leveldb::Iterator> pcursor(const_cast<CLevelDBWrapper*>(&db)->NewIterator());
+    pcursor->SeekToFirst();
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    stats.hashBlock = GetBestBlock();
+    ss << stats.hashBlock;
+    int64_t nTotalAmount = 0;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        try {
+            leveldb::Slice slKey = pcursor->key();
+            CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+            char chType;
+            ssKey >> chType;
+            if (chType == 'c') {
+                leveldb::Slice slValue = pcursor->value();
+                CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+                CCoins coins;
+                ssValue >> coins;
+                uint256 txhash;
+                ssKey >> txhash;
+                ss << txhash;
+                ss << VARINT(coins.nVersion);
+                ss << (coins.fCoinBase ? 'c' : 'n');
+                ss << VARINT(coins.nHeight);
+                stats.nTransactions++;
+                for (unsigned int i = 0; i < coins.vout.size(); i++) {
+                    const CTxOut& out = coins.vout[i];
+                    if (!out.IsNull()) {
+                        stats.nTransactionOutputs++;
+                        ss << VARINT(i + 1);
+                        ss << out;
+                        nTotalAmount += out.nValue;
+                    }
+                }
+                stats.nSerializedSize += 32 + slValue.size();
+                ss << VARINT(0);
+            }
+            pcursor->Next();
+        } catch (std::exception& e) {
+            return error("%s : Deserialize or I/O error - %s", __func__, e.what());
+        }
+    }
+    std::map<uint256, CBlockIndex*>::iterator it = mapBlockIndex.find(GetBestBlock());
+    if (it != mapBlockIndex.end())
+        stats.nHeight = (*it).second->nHeight;
+    else
+        stats.nHeight = -1;
+
+    stats.hashSerialized = ss.GetHash();
+    stats.nTotalAmount = nTotalAmount;
+    return true;
+}
 

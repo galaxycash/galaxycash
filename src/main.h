@@ -19,6 +19,7 @@
 #include <list>
 #include "blockfile.h"
 
+
 class CBlock;
 class CBlockIndex;
 class CInv;
@@ -303,6 +304,32 @@ public:
     {
         // ppcoin: the coin stake transaction is marked with the first output empty
         return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+    }
+
+    unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const
+    {
+        // In order to avoid disincentivizing cleaning up the UTXO set we don't count
+        // the constant overhead for each txin and up to 110 bytes of scriptSig (which
+        // is enough to cover a compressed pubkey p2sh redemption) for priority.
+        // Providing any more cleanup incentive than making additional inputs free would
+        // risk encouraging people to create junk outputs to redeem later.
+        if (nTxSize == 0)
+            nTxSize = ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+        for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
+        {
+            unsigned int offset = 41U + std::min(110U, (unsigned int)it->scriptSig.size());
+            if (nTxSize > offset)
+                nTxSize -= offset;
+        }
+        return nTxSize;
+    }
+
+    double ComputePriority(double dPriorityInputs, unsigned int nTxSize=0) const
+    {
+        nTxSize = CalculateModifiedSize(nTxSize);
+        if (nTxSize == 0) return 0.0;
+
+        return dPriorityInputs / nTxSize;
     }
 
     /** Amount of galaxycashs spent by this transaction.
@@ -1513,6 +1540,7 @@ protected:
     friend void ::UnregisterWallet(CWalletInterface*);
     friend void ::UnregisterAllWallets();
 };
+
 
 #endif
 

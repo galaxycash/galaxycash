@@ -8,6 +8,9 @@
 #include "core.h"
 #include "sync.h"
 
+/** Fake height value used in CCoins to signify they are only in the memory pool (since 0.8) */
+static const unsigned int MEMPOOL_HEIGHT = 0x7FFFFFFF;
+
 /*
  * CTxMemPool stores valid-according-to-the-current-best-chain
  * transactions that may be included in the next block.
@@ -37,6 +40,7 @@ public:
     void queryHashes(std::vector<uint256>& vtxid);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
+    void pruneSpent(const uint256& hash, class CCoins *coins);
 
     unsigned long size() const
     {
@@ -58,6 +62,7 @@ public:
 
     bool lookup(uint256 hash, CTransaction& result) const;
 };
+
 
 #endif /* GALAXYCASH_TXMEMPOOL_H */
 

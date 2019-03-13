@@ -17,6 +17,8 @@
 #include <boost/version.hpp>
 #include <openssl/rand.h>
 
+#include "txdb.h"
+
 using namespace std;
 using namespace boost;
 
@@ -79,13 +81,13 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
     if (GetBoolArg("-privdb", true))
         nEnvFlags |= DB_PRIVATE;
 
-    int nDbCache = GetArg("-dbcache", 25);
+    int nDbCache = GetArg("-dbcache", nDefaultDbCache);
     dbenv.set_lg_dir(pathLogDir.string().c_str());
-    dbenv.set_cachesize(nDbCache / 1024, (nDbCache % 1024)*1048576, 1);
-    dbenv.set_lg_bsize(1048576);
-    dbenv.set_lg_max(10485760);
-    dbenv.set_lk_max_locks(10000);
-    dbenv.set_lk_max_objects(10000);
+    dbenv.set_cachesize(0, 0x100000, 1); // 1 MiB should be enough for just the wallet
+    dbenv.set_lg_bsize(0x10000);
+    dbenv.set_lg_max(1048576);
+    dbenv.set_lk_max_locks(40000);
+    dbenv.set_lk_max_objects(40000);
     dbenv.set_errfile(fopen(pathErrorFile.string().c_str(), "a")); /// debug
     dbenv.set_flags(DB_AUTO_COMMIT, 1);
     dbenv.set_flags(DB_TXN_WRITE_NOSYNC, 1);

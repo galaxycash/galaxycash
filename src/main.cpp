@@ -22,6 +22,7 @@
 #include "ui_interface.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
+#include "coins.h"
 
 using namespace std;
 using namespace boost;
@@ -80,7 +81,8 @@ int64_t enforceMasternodePaymentsTime = 4085657524;
 int nMasternodeMinProtocol = 0;
 bool fMasternodeSoftLock = false;
 std::set<COutPoint> netLockedCoins;
-
+unsigned int nCoinCacheSize = 5000;
+CCoinsViewCache* pcoinsTip = NULL;
 
 struct COrphanBlock {
     uint256 hashBlock;
@@ -2000,7 +2002,41 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     for (int i = vtx.size()-1; i >= 0; i--)
     {
         if (!vtx[i].DisconnectInputs(txdb))
-            return false;
+            return false; 
+    }
+
+    for (int i = 0; i < vtx.size(); i++) {
+        if (GetHash() != Params().GenesisBlock().GetHash()) {
+            for (int j = 0; j < vtx[i].vin.size(); j++) {
+                CTxIn vin = vtx[i].vin[j];
+                if (vin.prevout.IsNull())
+                    continue;
+
+                CTransaction tx; uint256 block;
+                GetTransaction(vin.prevout.hash, tx, block);
+
+
+
+                CCoinsModifier modifier = pcoinsTip->ModifyCoins(tx.GetHash());
+
+                if (modifier->IsPruned()) {
+                    modifier->fCoinBase = tx.IsCoinBase();
+                    modifier->fCoinStake = tx.IsCoinStake();
+                    modifier->nVersion = tx.nVersion;
+                    std::map<uint256, CBlockIndex*>::iterator it = mapBlockIndex.find(block);
+                    modifier->nHeight = (it == mapBlockIndex.end()) ? 0 : (*it).second->nHeight;
+                }
+
+
+                if (vin.prevout.n >= modifier->vout.size())
+                    modifier->vout.resize(vin.prevout.n + 1);
+
+                modifier->vout.resize(vin.prevout.n + 1);
+            }
+
+            CCoinsModifier modifier = pcoinsTip->ModifyCoins(vtx[i].GetHash());
+            modifier->Clear();
+        }
     }
 
     // Update block index on disk without changing it in memory.
@@ -2012,6 +2048,11 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
         if (!txdb.WriteBlockIndex(blockindexPrev))
             return error("DisconnectBlock() : WriteBlockIndex failed");
     }
+
+    if (pindex->pprev)
+        pcoinsTip->SetBestBlock(pindex->pprev->GetBlockHash());
+
+    pcoinsTip->Flush();
 
     // ppcoin: clean up wallet after disconnecting coinstake
     BOOST_FOREACH(CTransaction& tx, vtx)
@@ -2035,6 +2076,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                          SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
 
 
+
+
     //// issue here: it doesn't know the version
     unsigned int nTxPos;
     if (fJustCheck)
@@ -2050,8 +2093,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     int64_t nValueOut = 0;
     int64_t nStakeReward = 0;
     unsigned int nSigOps = 0;
-    BOOST_FOREACH(CTransaction& tx, vtx)
-    {
+
+
+    for (unsigned int i = 0; i < vtx.size(); i++) {
+        CTransaction& tx = vtx[i];
         uint256 hashTx = tx.GetHash();
 
         // Do not allow blocks that contain transactions which 'overwrite' older transactions,
@@ -2110,7 +2155,27 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 return false;
         }
 
+
+
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
+
+        if (GetHash() != Params().GenesisBlock().GetHash()) {
+            for (int j = 0; j < tx.vin.size(); j++) {
+                CTxIn vin = tx.vin[j];
+                if (vin.prevout.IsNull())
+                    continue;
+
+                CCoinsModifier modifier = pcoinsTip->ModifyCoins(vin.prevout.hash);
+
+                if (vin.prevout.n >= modifier->vout.size())
+                    modifier->vout.resize(vin.prevout.n + 1);
+
+                modifier->vout[vin.prevout.n].SetNull();
+            }
+
+            CCoinsModifier modifier = pcoinsTip->ModifyCoins(hashTx);
+            modifier->FromTx(tx, pindex->nHeight);
+        }
     }
 
     if (IsProofOfWork() && !IsDeveloperBlock())
@@ -2163,9 +2228,13 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
 
+    pcoinsTip->SetBestBlock(pindex->GetBlockHash());
+    pcoinsTip->Flush();
+
     // Watch for transactions paying to me
     BOOST_FOREACH(CTransaction& tx, vtx)
         SyncWithWallets(tx, this);
+
 
     return true;
 }
@@ -2881,6 +2950,7 @@ int GetHeight()
         return pindexBest->nHeight;
     }
 }
+
 
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {

@@ -31,6 +31,8 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <openssl/crypto.h>
 
+#include "coins.h"
+
 #ifndef WIN32
 #include <signal.h>
 #endif
@@ -81,6 +83,30 @@ bool fUseFastIndex;
 
 volatile bool fRequestShutdown = false;
 
+class CCoinsViewErrorCatcher : public CCoinsViewBacked
+{
+public:
+    CCoinsViewErrorCatcher(CCoinsView* view) : CCoinsViewBacked(view) {}
+    bool GetCoins(const uint256& txid, CCoins& coins) const
+    {
+        try {
+            return CCoinsViewBacked::GetCoins(txid, coins);
+        } catch (const std::runtime_error& e) {
+            uiInterface.ThreadSafeMessageBox(_("Error reading from database, shutting down."), "", CClientUIInterface::MSG_ERROR);
+            LogPrintf("Error reading from database: %s\n", e.what());
+            // Starting the shutdown sequence and returning false to the caller would be
+            // interpreted as 'entry not found' (as opposed to unable to read data), and
+            // could lead to invalid interpration. Just exit immediately, as we can't
+            // continue anyway, and all writes should be atomic.
+            abort();
+        }
+    }
+    // Writes do not need similar protection, as failure to write is handled by the caller.
+};
+
+static CCoinsViewDB* pcoinsdbview = NULL;
+static CCoinsViewErrorCatcher* pcoinscatcher = NULL;
+
 void StartShutdown()
 {
     fRequestShutdown = true;
@@ -117,6 +143,16 @@ void Shutdown()
 #endif
     }
     DumpMasternodes();
+
+    if (pcoinsTip != NULL) {
+        pcoinsTip->Flush();
+        delete pcoinsTip;
+        pcoinsTip = NULL;
+        delete pcoinscatcher;
+        pcoinscatcher = NULL;
+        delete pcoinsdbview;
+        pcoinsdbview = NULL;
+    }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         bitdb.Flush(true);
@@ -351,6 +387,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     nNodeLifespan = GetArg("-addrlifespan", 7);
     fUseFastIndex = GetBoolArg("-fastindex", true);
     nMinerSleep = GetArg("-minersleep", 500);
+    fReindex = GetBoolArg("-reindex", false);
 
     nDerivationMethodIndex = 0;
 
@@ -483,6 +520,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     if (fDaemon)
         fprintf(stdout, "GalaxyCash server starting\n");
+
 
     int64_t nStart;
 
@@ -644,6 +682,27 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     BOOST_FOREACH(string strDest, mapMultiArgs["-seednode"])
         AddOneShot(strDest);
+
+
+    // cache size calculations
+    size_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
+    if (nTotalCache < (nMinDbCache << 20))
+       nTotalCache = (nMinDbCache << 20); // total cache cannot be less than nMinDbCache
+    else if (nTotalCache > (nMaxDbCache << 20))
+       nTotalCache = (nMaxDbCache << 20); // total cache cannot be greater than nMaxDbCache
+    size_t nBlockTreeDBCache = nTotalCache / 8;
+    nTotalCache -= nBlockTreeDBCache;
+    size_t nCoinDBCache = nTotalCache / 2; // use half of the remaining cache for coindb cache
+    nTotalCache -= nCoinDBCache;
+    nCoinCacheSize = nTotalCache / 300; // coins in memory require around 300 bytes
+
+    if (fReindex)
+        filesystem::remove_all(GetDataDir() / "chainstate");
+
+    pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, false);
+    pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
+    pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+
 
     // ********************************************************* Step 7: load blockchain
 

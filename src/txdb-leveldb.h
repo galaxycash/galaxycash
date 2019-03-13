@@ -14,6 +14,14 @@
 
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
+#include "leveldbwrapper.h"
+
+//! -dbcache default (MiB)
+static const int64_t nDefaultDbCache = 100;
+//! max. -dbcache in (MiB)
+static const int64_t nMaxDbCache = sizeof(void*) > 4 ? 4096 : 1024;
+//! min. -dbcache in (MiB)
+static const int64_t nMinDbCache = 4;
 
 // Class that provides access to a LevelDB. Note that this class is frequently
 // instantiated on the stack and then destroyed again, so instantiation has to
@@ -206,7 +214,6 @@ public:
 private:
     bool LoadBlockIndexGuts();
 };
-
 
 #endif // GALAXYCASH_DB_H
 

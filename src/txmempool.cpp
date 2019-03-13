@@ -6,6 +6,7 @@
 #include "core.h"
 #include "txmempool.h"
 #include "main.h" // for CTransaction
+#include "coins.h"
 
 using namespace std;
 
@@ -106,3 +107,36 @@ bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const
     return true;
 }
 
+
+void CTxMemPool::pruneSpent(const uint256& hashTx, CCoins *coins)
+{
+    LOCK(cs);
+
+    std::map<COutPoint, CInPoint>::iterator it = mapNextTx.lower_bound(COutPoint(hashTx, 0));
+
+    // iterate over all COutPoints in mapNextTx whose hash equals the provided hashTx
+    while (it != mapNextTx.end() && it->first.hash == hashTx) {
+        coins->Spend(it->first.n); // and remove those outputs from coins
+        it++;
+    }
+}
+
+CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) {}
+
+bool CCoinsViewMemPool::GetCoins(const uint256& txid, CCoins& coins) const
+{
+    // If an entry in the mempool exists, always return that one, as it's guaranteed to never
+    // conflict with the underlying cache, and it cannot have pruned entries (as it contains full)
+    // transactions. First checking the underlying cache risks returning a pruned entry instead.
+    CTransaction tx;
+    if (mempool.lookup(txid, tx)) {
+        coins = CCoins(tx, MEMPOOL_HEIGHT);
+        return true;
+    }
+    return (base->GetCoins(txid, coins) && !coins.IsPruned());
+}
+
+bool CCoinsViewMemPool::HaveCoins(const uint256& txid) const
+{
+    return mempool.exists(txid) || base->HaveCoins(txid);
+}
