@@ -8,7 +8,6 @@
 #include "wallet.h"
 #include "walletdb.h" // for BackupWallet
 #include "base58.h"
-#include "spork.h"
 #include "init.h"
 #include <QSet>
 #include <QTimer>

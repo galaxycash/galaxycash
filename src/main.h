@@ -94,7 +94,6 @@ extern bool fHaveGUI;
 extern int nMiningAlgo;
 extern bool fUseDefaultKey;
 extern bool fMasterNode;
-extern bool fLiteMode;
 extern int64_t enforceMasternodePaymentsTime;
 extern std::string strMasterNodeAddr;
 extern int nMasternodeMinProtocol;

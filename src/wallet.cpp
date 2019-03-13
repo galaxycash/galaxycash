@@ -13,7 +13,6 @@
 #include "txdb.h"
 #include "ui_interface.h"
 #include "walletdb.h"
-#include "spork.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
 
@@ -2410,7 +2409,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     CTxIn vin;
     bool hasPayment = true;
     if(bMasterNodePayment) {
-        //spork
+
         if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin)){
                 CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
                 if(winningNode){

@@ -12,7 +12,6 @@
 #include "miner.h"
 #include "kernel.h"
 #include "base58.h"
-#include "spork.h"
 
 #include <boost/assign/list_of.hpp>
 
@@ -292,7 +291,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     Object obj;
 
-    obj.push_back(Pair("enabled", GetBoolArg("-staking", true)));
+    obj.push_back(Pair("enabled", GetBoolArg("-staking", false)));
     obj.push_back(Pair("staking", staking));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
 
@@ -572,7 +571,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         result.push_back(Pair("payee_amount", (int64_t)pblock->vtx[0].vout[1].nValue));
         result.push_back(Pair("payee_script", HexStr(payee.begin(), payee.end())));
         result.push_back(Pair("masternode_payments", true));
-        result.push_back(Pair("enforce_masternode_payments", IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
+        result.push_back(Pair("enforce_masternode_payments", true));
 
         // Masternode reward like Dash
         Object masternode;
@@ -582,7 +581,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
         result.push_back(Pair("masternode", masternode));
         result.push_back(Pair("masternode_payments_started", true));
-        result.push_back(Pair("masternode_payments_enforced", IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
+        result.push_back(Pair("masternode_payments_enforced", true));
 
     } else {
         Array votes;

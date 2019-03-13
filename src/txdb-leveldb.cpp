@@ -28,9 +28,23 @@ leveldb::DB *txdb; // global pointer for LevelDB object instance
 
 static leveldb::Options GetOptions() {
     leveldb::Options options;
-    int nCacheSizeMB = GetArg("-dbcache", 25);
-    options.block_cache = leveldb::NewLRUCache(nCacheSizeMB * 1048576);
+
+    size_t nCacheSize = GetArg("-dbcache", 25) << 20;
+    if (nCacheSize < (1 << 22))
+        nCacheSize = (1 << 22); // total cache cannot be less than 4 MiB
+    nCacheSize = nCacheSize / 8;
+
+    options.block_cache = leveldb::NewLRUCache(nCacheSize / 2);
+    options.write_buffer_size = nCacheSize / 4; // up to two write buffers may be held in memory simultaneously
     options.filter_policy = leveldb::NewBloomFilterPolicy(10);
+    options.compression = leveldb::kNoCompression;
+    options.max_open_files = 64;
+    if (leveldb::kMajorVersion > 1 || (leveldb::kMajorVersion == 1 && leveldb::kMinorVersion >= 16)) {
+        // LevelDB versions before 1.16 consider short writes to be corruption. Only trigger error
+        // on corruption in later versions.
+        options.paranoid_checks = true;
+    }
+
     return options;
 }
 
@@ -207,32 +221,6 @@ bool CTxDB::ScanBatch(const CDataStream &key, string *value, bool *deleted) cons
     return scanner.foundEntry;
 }
 
-bool CTxDB::WriteAddrIndex(uint160 addrHash, uint256 txHash)
-{
-    std::vector<uint256> txHashes;
-    if(!ReadAddrIndex(addrHash, txHashes))
-    {
-    txHashes.push_back(txHash);
-        return Write(make_pair(string("adr"), addrHash), txHashes);
-    }
-    else
-    {
-    if(std::find(txHashes.begin(), txHashes.end(), txHash) == txHashes.end())
-        {
-            txHashes.push_back(txHash);
-            return Write(make_pair(string("adr"), addrHash), txHashes);
-    }
-    else
-    {
-        return true; // already have this tx hash
-    }
-    }
-}
-
-bool CTxDB::ReadAddrIndex(uint160 addrHash, std::vector<uint256>& txHashes)
-{
-    return Read(make_pair(string("adr"), addrHash), txHashes);
-}
 
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 {

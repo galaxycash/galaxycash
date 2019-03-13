@@ -420,6 +420,54 @@ public:
 typedef CGalaxyCashExtKeyBase<CExtKey, 74, CChainParams::EXT_SECRET_KEY> CGalaxyCashExtKey;
 typedef CGalaxyCashExtKeyBase<CExtPubKey, 74, CChainParams::EXT_PUBLIC_KEY> CGalaxyCashExtPubKey;
 
+
+
+/** A base58-encoded Bitcoin secret key */
+class CBitcoinSecret : public CBase58Data
+{
+public:
+    void SetKey(const CKey& vchSecret)
+    {
+        assert(vchSecret.IsValid());
+        SetData(std::vector<unsigned char>(1,128), vchSecret.begin(), vchSecret.size());
+        if (vchSecret.IsCompressed())
+            vchData.push_back(1);
+    }
+
+    CKey GetKey()
+    {
+        CKey ret;
+        ret.Set(&vchData[0], &vchData[32], vchData.size() > 32 && vchData[32] == 1);
+        return ret;
+    }
+
+    bool IsValid() const
+    {
+        bool fExpectedFormat = vchData.size() == 32 || (vchData.size() == 33 && vchData[32] == 1);
+        bool fCorrectVersion = vchVersion == std::vector<unsigned char>(1,128);
+        return fExpectedFormat && fCorrectVersion;
+    }
+
+    bool SetString(const char* pszSecret)
+    {
+        return CBase58Data::SetString(pszSecret) && IsValid();
+    }
+
+    bool SetString(const std::string& strSecret)
+    {
+        return SetString(strSecret.c_str());
+    }
+
+    CBitcoinSecret(const CKey& vchSecret)
+    {
+        SetKey(vchSecret);
+    }
+
+    CBitcoinSecret()
+    {
+    }
+};
+
 /** base58-encoded Bitcoin addresses.
  * Public-key-hash-addresses have version 0 (or 111 testnet).
  * The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.

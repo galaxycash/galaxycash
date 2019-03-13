@@ -22,7 +22,6 @@
 #include "ui_interface.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
-#include "spork.h"
 
 using namespace std;
 using namespace boost;
@@ -77,14 +76,8 @@ bool fUseDefaultKey = false;
 bool fMasterNode = false;
 string strMasterNodePrivKey = "";
 string strMasterNodeAddr = "";
-bool fLiteMode = false;
-int nAnonsendRounds = 2;
-int nAnonymizeAmount = 1000;
-int nLiquidityProvider = 0;
 int64_t enforceMasternodePaymentsTime = 4085657524;
 int nMasternodeMinProtocol = 0;
-bool fEnableAnonsend = false;
-std::vector<int64_t> anonSendDenominations;
 bool fMasternodeSoftLock = false;
 std::set<COutPoint> netLockedCoins;
 
@@ -3527,8 +3520,6 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
     case MSG_BLOCK:
         return mapBlockIndex.count(inv.hash) ||
                mapOrphanBlocks.count(inv.hash);
-    case MSG_SPORK:
-        return mapSporks.count(inv.hash);
     case MSG_MASTERNODE_WINNER:
         return mapSeenMasternodeVotes.count(inv.hash);
     }
@@ -3600,15 +3591,6 @@ void static ProcessGetData(CNode* pfrom)
                         ss.reserve(1000);
                         ss << tx;
                         pfrom->PushMessage("tx", ss);
-                        pushed = true;
-                    }
-                }
-                if (!pushed && inv.type == MSG_SPORK) {
-                    if(mapSporks.count(inv.hash)){
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << mapSporks[inv.hash];
-                        pfrom->PushMessage("spork", ss);
                         pushed = true;
                     }
                 }
@@ -4209,7 +4191,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
     {
         mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
         ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
-        ProcessSpork(pfrom, strCommand, vRecv);
     }
 
     // Update the last seen time for this node's address

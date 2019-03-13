@@ -180,7 +180,7 @@ extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool f
 extern json_spirit::Value gettxoutsetinfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value spork(const json_spirit::Array& params, bool fHelp);
+
 extern json_spirit::Value masternode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodelist(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodecount(const json_spirit::Array& params, bool fHelp);

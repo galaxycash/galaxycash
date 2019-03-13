@@ -146,7 +146,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, bool fProofOfStake, int64_t* pFe
             CScript payee;
             CTxIn vin;
 
-            //spork
+
             if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin))
             {
                 //no masternode detected

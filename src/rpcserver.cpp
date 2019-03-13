@@ -248,8 +248,6 @@ static const CRPCCommand vRPCCommands[] =
     { "validateaddress",        &validateaddress,        true,      false,     false },
     { "validatepubkey",         &validatepubkey,         true,      false,     false },
     { "verifymessage",          &verifymessage,          false,     false,     false },
-    /* Anon features */
-    { "spork",                  &spork,                  true,      false,     false },
     { "masternode",             &masternode,             true,      false,     true },
     { "masternodelist",         &masternodelist,         true,      false,     false },
     { "masternodecount",        &masternodecount,        true,      false,     false },

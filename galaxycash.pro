@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycash-qt
-VERSION = 3.5.2.0
+VERSION = 3.6.0.0
 INCLUDEPATH += src src/json src/qt
 
 win32:QT +=   network
@@ -156,7 +156,7 @@ contains(USE_O3, 1) {
     QMAKE_CFLAGS += -msse2
 }
 
-QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector
+QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector -Wimplicit-fallthrough=0 -Wno-deprecated-declarations -Wno-char-subscripts -Wno-unused-variable -Wno-sign-compare
 
 # Input
 DEPENDPATH += src src/json src/qt
@@ -275,12 +275,15 @@ HEADERS += src/qt/galaxycashgui.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
-    src/spork.h \
     src/qt/masternodemanager.h \
     src/qt/galaxynodeconfigdialog.h \
     src/qt/addeditgalaxynode.h \
     src/blockfile.h \
-    src/coins.h
+    src/coins.h \
+    src/bloom.h \
+    src/assets.h \
+    src/leveldbwrapper.h \
+    src/lightwallet.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -382,13 +385,16 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/activemasternodeman.cpp \
     src/masternodeman.cpp \
     src/masternode-payments.cpp \
-    src/spork.cpp \
     src/masternodeconfig.cpp \
     src/qt/masternodemanager.cpp \
     src/qt/galaxynodeconfigdialog.cpp \
     src/qt/addeditgalaxynode.cpp \
     src/blockfile.cpp \
-    src/coins.cpp
+    src/coins.cpp \
+    src/bloom.cpp \
+    src/assets.cpp \
+    src/leveldbwrapper.cpp \
+    src/lightwallet.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc

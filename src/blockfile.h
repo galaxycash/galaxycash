@@ -63,14 +63,14 @@ public:
 
     CBlockFile& read(char* pch, size_t nSize)
     {
-        if (readbytes(pch, nSize) != nSize)
+        if (readbytes((void *) pch,  (long) nSize) != (long) nSize)
             setstate(std::ios::failbit, "CBlockFile::read : readbytes failed");
         return (*this);
     }
 
     CBlockFile& write(const char* pch, size_t nSize)
     {
-        if (writebytes(pch, nSize) != nSize)
+        if (writebytes((const void *) pch, (long) nSize) != (long) nSize)
             setstate(std::ios::failbit, "CBlockFile::write : writebytes failed");
         return (*this);
     }

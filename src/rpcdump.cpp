@@ -120,14 +120,20 @@ Value importprivkey(const Array& params, bool fHelp)
     if (params.size() > 2)
         fRescan = params[2].get_bool();
 
+    CKey key;
     CGalaxyCashSecret vchSecret;
-    bool fGood = vchSecret.SetString(strSecret);
+    if (!vchSecret.SetString(strSecret)) {
+        CBitcoinSecret secret;
+        if (!secret.SetString(strSecret))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
+        key = vchSecret.GetKey();
+    } else
+        key = vchSecret.GetKey();
 
-    if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
     if (fWalletUnlockStakingOnly)
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is unlocked for staking only.");
 
-    CKey key = vchSecret.GetKey();
+
     CPubKey pubkey = key.GetPubKey();
     CKeyID vchAddress = pubkey.GetID();
     {
@@ -185,12 +191,25 @@ Value importwallet(const Array& params, bool fHelp)
         boost::split(vstr, line, boost::is_any_of(" "));
         if (vstr.size() < 2)
             continue;
+
+        CKey key;
+        CPubKey pubkey;
+        CKeyID keyid;
+
         CGalaxyCashSecret vchSecret;
-        if (!vchSecret.SetString(vstr[0]))
-            continue;
-        CKey key = vchSecret.GetKey();
-        CPubKey pubkey = key.GetPubKey();
-        CKeyID keyid = pubkey.GetID();
+        if (!vchSecret.SetString(vstr[0])) {
+            CBitcoinSecret secret;
+            if (!secret.SetString(vstr[0]))
+                continue;
+            key = secret.GetKey();
+        } else {
+            key = vchSecret.GetKey();
+
+        }
+
+        pubkey = key.GetPubKey();
+        keyid = pubkey.GetID();
+
         if (pwalletMain->HaveKey(keyid)) {
             LogPrintf("Skipping import of %s (key already present)\n", CGalaxyCashAddress(keyid).ToString());
             continue;

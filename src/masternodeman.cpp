@@ -1109,8 +1109,6 @@ static int RequestedMasterNodeList = 0;
 //TODO: Rename/move to core
 void ThreadMasternode()
 {
-    if(fLiteMode) return; //disable all Masternode related functionality
-
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("GalaxyCash-masternode");
 
@@ -1155,7 +1153,6 @@ void ThreadMasternode()
 
                             pnode->PushMessage("dseg", CTxIn()); //request full mn list
                             pnode->PushMessage("mnget"); //sync payees
-                            pnode->PushMessage("getsporks"); //get current network sporks
 
                             RequestedMasterNodeList++;
                         }

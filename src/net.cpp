@@ -27,7 +27,7 @@
 using namespace std;
 using namespace boost;
 
-static const int MAX_OUTBOUND_CONNECTIONS = 32;
+static const int MAX_OUTBOUND_CONNECTIONS = 64;
 
 bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false);
 
@@ -476,7 +476,7 @@ bool CNode::Misbehaving(int howmuch)
     nMisbehavior += howmuch;
     if (nMisbehavior >= GetArg("-banscore", 1000))
     {
-        int64_t banTime = GetTime()+GetArg("-bantime", 60*24);  // Default 24-min ban
+        int64_t banTime = GetTime()+GetArg("-bantime", 60*5);  // Default 5-min ban
         LogPrintf("Misbehaving: %s (%d -> %d) DISCONNECTING\n", addr.ToString(), nMisbehavior-howmuch, nMisbehavior);
         {
             LOCK(cs_setBanned);
@@ -821,7 +821,7 @@ void ThreadSocketHandler()
                 if (nErr != WSAEWOULDBLOCK)
                     LogPrintf("socket error accept failed: %d\n", nErr);
             }
-            else if (nInbound >= GetArg("-maxconnections", 125) - MAX_OUTBOUND_CONNECTIONS)
+            else if (nInbound >= GetArg("-maxconnections", 256) - MAX_OUTBOUND_CONNECTIONS)
             {
                 closesocket(hSocket);
             }
@@ -1643,7 +1643,7 @@ void StartNode(boost::thread_group& threadGroup)
 {
     if (semOutbound == NULL) {
         // initialize semaphore
-        int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, (int)GetArg("-maxconnections", 125));
+        int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, (int)GetArg("-maxconnections", 256));
         semOutbound = new CSemaphore(nMaxOutbound);
     }
 

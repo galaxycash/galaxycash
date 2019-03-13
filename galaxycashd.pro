@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = galaxycashd
-VERSION = 3.5.2.0
+VERSION = 3.6.0.0
 INCLUDEPATH += src src/json
 DEFINES += GALAXYCASH_DAEMON
 DEFINES += ENABLE_WALLET
@@ -99,7 +99,7 @@ contains(USE_O3, 1) {
     QMAKE_CFLAGS += -msse2
 }
 
-QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector
+QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector -Wimplicit-fallthrough=0 -Wno-deprecated-declarations -Wno-char-subscripts -Wno-unused-variable -Wno-sign-compare
 
 # Input
 DEPENDPATH += src src/json
@@ -184,8 +184,12 @@ HEADERS += src/addrman.h \
     src/masternodeconfig.h \
     src/masternodeman.h \
     src/masternode-payments.h \
-    src/spork.h \
-    src/blockfile.h
+    src/blockfile.h \
+    src/coins.h \
+    src/bloom.h \
+    src/assets.h \
+    src/leveldbwrapper.h \
+    src/lightwallet.h
 
 SOURCES += src/galaxycashd.cpp \
     src/kernel.cpp \
@@ -230,7 +234,6 @@ SOURCES += src/galaxycashd.cpp \
     src/activemasternodeman.cpp \
     src/masternodeman.cpp \
     src/masternode-payments.cpp \
-    src/spork.cpp \
     src/masternodeconfig.cpp \
     src/crypto/aes_helper.c \
     src/crypto/blake.c \
@@ -254,8 +257,12 @@ SOURCES += src/galaxycashd.cpp \
     src/crypto/ripemd.c \
     src/crypto/skein.c \
     src/crypto/blake2s-ref.c \
-    src/blockfile.cpp
-
+    src/blockfile.cpp \
+    src/coins.cpp \
+    src/bloom.cpp \
+    src/assets.cpp \
+    src/leveldbwrapper.cpp \
+    src/lightwallet.cpp
 
 # "Other files" to show in Qt Creator
 OTHER_FILES += \

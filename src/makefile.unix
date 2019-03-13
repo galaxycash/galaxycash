@@ -160,8 +160,11 @@ OBJS= \
     obj/masternodeconfig.o \
     obj/masternode-payments.o \
     obj/rpcmasternode.o \
-    obj/spork.o \
-    obj/blockfile.o
+    obj/blockfile.o \
+    obj/lightwallet.o \
+    obj/assets.o \
+    obj/leveldbwrapper.o \
+    obj/bloom.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET

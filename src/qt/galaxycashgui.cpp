@@ -192,7 +192,7 @@ GalaxyCashGUI::GalaxyCashGUI(QWidget *parent):
     frameBlocksLayout->addStretch();
     toolbar->addWidget(frameBlocks);
 
-    if (GetBoolArg("-staking", true))
+    if (GetBoolArg("-staking", false))
     {
         QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
         connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));

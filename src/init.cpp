@@ -22,8 +22,8 @@
 #include "masternode.h"
 #include "masternodeman.h"
 #include "masternodeconfig.h"
-#include "spork.h"
 
+#include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/convenience.hpp>
@@ -902,14 +902,6 @@ bool AppInit2(boost::thread_group& threadGroup)
         }
     }
 
-    //lite mode disables all Masternode and Anonsend related functionality
-    fLiteMode = false; //GetBoolArg("-litemode", false);
-    if(fMasterNode && fLiteMode){
-        return InitError("You can not start a masternode in litemode");
-    }
-
-    LogPrintf("fLiteMode %d\n", fLiteMode);
-
     threadGroup.create_thread(boost::bind(&ThreadMasternode));
 
 
@@ -935,7 +927,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
 #ifdef ENABLE_WALLET
     // Mine proof-of-stake blocks in the background
-    if (!GetBoolArg("-staking", true))
+    if (!GetBoolArg("-staking", false))
         LogPrintf("Staking disabled\n");
     else if (pwalletMain)
         threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwalletMain));
