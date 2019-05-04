@@ -17,16 +17,22 @@ public:
 };
 
 
+class CLightAddress {
+public:
+    uint160                     pubkey;
+    std::vector <CLightCoin>    coins;
+};
+
+
 class CLightWallet {
 public:
     int64_t                     balance;
-    uint160                     primary, secondary;
-    std::vector <CLightCoin>    coins;
+    CLightAddress               primary, secondary;
 
     inline uint256              GetWalletHash() const {
         CHashWriter h(SER_GETHASH, PROTOCOL_VERSION);
-        h << primary;
-        h << secondary;
+        h << primary.pubkey;
+        h << secondary.pubkey;
         return h.GetHash();
     }
 };

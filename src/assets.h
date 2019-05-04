@@ -8,10 +8,37 @@
 
 class CAssetHeader {
 public:
-    uint8_t             type;
-    uint16_t            length;
-    std::string         name;
-    std::string         description;
+    uint32_t            nVersion;
+    uint8_t             nType;
+    std::string         sName;
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(nVersion);
+        READWRITE(nType);
+        READWRITE(sName);
+    )
+
+    CAssetHeader() {
+        SetNull();
+    }
+
+    CAssetHeader(const CAssetHeader &h) : nVersion(h.nVersion),
+        nType(h.nType),
+        sName(h.sName) {
+
+    }
+
+    CAssetHeader &      SetNull() {
+        nVersion = 1;
+        nType = 0;
+        sName.clear();
+        return *this;
+    }
+
+    bool                IsNull() const {
+        return (nType == 0);
+    }
 };
 
 class CAsset {
@@ -22,49 +49,67 @@ public:
         Link,
         Text
     };
+
     CAssetHeader        header;
     std::vector<unsigned char>
                         vch;
 
-    CAsset();
-    ~CAsset();
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(header);
+        READWRITE(vch);
+    )
+
+    CAsset() {
+        SetNull();
+    }
+
+    CAsset(const CAsset &asset) :
+        header(asset.header),
+        vch(asset.vch) {
+    }
+
+    CAsset(const CAssetHeader &inHeader, const std::vector <unsigned char> &inVch) :
+        header(inHeader),
+        vch(inVch)
+    {
+    }
+    ~CAsset() {
+        vch.clear();
+    }
+
+    CAsset &            SetNull() {
+        header.SetNull();
+        vch.clear();
+        return *this;
+    }
+
+    bool                IsNull() const {
+        return header.IsNull();
+    }
+
+    bool                IsImage() const {
+        return (header.type == Image);
+    }
+
+    bool                IsLink() const {
+        return (header.type == Link);
+    }
+
+    bool                IsText() const {
+        return (header.type == Text);
+    }
+
+    const char *        AsText() const {
+        return (const char * ) vch.data();
+    }
+
+    bool                AddToScript(CScript &script);
 };
 
-inline int64_t CalculateAssetFee(const uint8_t type, const uint32_t length) {
-    switch (type)
-    {
-        case CAsset::Link:
-        {
-            int64_t fee = ((int64_t) (COIN * 0.10) * (int64_t) length) / 1000;
+bool ScriptAddAsset(CScriot &script, const CAsset &asset);
+bool ScriptGetAsset(const CScript &script, CAsset &asset);
+bool ScriptHaveAsset(const CScript &script);
 
-            if (fee < COIN)
-                return COIN;
-
-            return fee;
-        }
-        break;
-        case CAsset::Text:
-        {
-            int64_t fee = ((int64_t) (COIN * 0.15) * (int64_t) length) / 1000;
-
-            if (fee < COIN)
-                return COIN;
-
-            return fee;
-        }
-        break;
-        case CAsset::Image:
-        {
-            int64_t fee = ((int64_t) (COIN * 0.5) * (int64_t) length) / 1000;
-
-            if (fee < COIN)
-                return COIN;
-
-            return fee;
-        }
-        break;
-    };
-    return 0;
-}
 
 #endif

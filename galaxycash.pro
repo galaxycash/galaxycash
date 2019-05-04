@@ -90,9 +90,7 @@ contains(USE_QRCODE, 1) {
 #  or: qmake "USE_UPNP=0" (disabled by default)
 #  or: qmake "USE_UPNP=-" (not supported)
 # miniupnpc (http://miniupnp.free.fr/files/) must be installed for support
-contains(USE_UPNP, -) {
-    message(Building without UPNP support)
-} else {
+contains(USE_UPNP, 1) {
     message(Building with UPNP support)
     count(USE_UPNP, 0) {
         USE_UPNP=1
@@ -283,7 +281,8 @@ HEADERS += src/qt/galaxycashgui.h \
     src/bloom.h \
     src/assets.h \
     src/leveldbwrapper.h \
-    src/lightwallet.h
+    src/lightwallet.h \
+    src/ext.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -394,7 +393,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/bloom.cpp \
     src/assets.cpp \
     src/leveldbwrapper.cpp \
-    src/lightwallet.cpp
+    src/lightwallet.cpp \
+    src/ext.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc

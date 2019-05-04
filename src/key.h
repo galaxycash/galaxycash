@@ -14,6 +14,15 @@
 #include "uint256.h"
 #include "hash.h"
 
+#include <openssl/ec.h>
+#include <openssl/bn.h>
+
+struct ECDSA_SIG_st {
+   BIGNUM *r;
+   BIGNUM *s;
+};
+
+
 // secp256k1:
 // const unsigned int PRIVATE_KEY_SIZE = 279;
 // const unsigned int PUBLIC_KEY_SIZE  = 65;

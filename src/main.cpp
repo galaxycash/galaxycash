@@ -798,6 +798,9 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 bool CTransaction::CheckTransaction() const
 {
+    if (IsExt())
+        return CheckExt();
+
     // Basic checks that don't depend on any context
     if (vin.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
@@ -849,6 +852,18 @@ bool CTransaction::CheckTransaction() const
         }
     }
 
+    return true;
+}
+
+bool CTransaction::CheckExt() const {
+    return true;
+}
+
+bool CTransaction::ConnectExt(CTxDB &txdb) {
+    return true;
+}
+
+bool CTransaction::DisconnectExt(CTxDB &txdb) {
     return true;
 }
 
@@ -1743,6 +1758,9 @@ bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindex
 
 bool CTransaction::DisconnectInputs(CTxDB& txdb)
 {
+    if (IsExt())
+        return DisconnectExt(txdb);
+
     // Relinquish previous transactions' spent pointers
     if (!IsCoinBase())
     {
@@ -1780,6 +1798,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
 bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTestPool,
                                bool fBlock, bool fMiner, MapPrevTx& inputsRet, bool& fInvalid)
 {
+
     // FetchInputs can return false either because we just haven't seen some inputs
     // (in which case the transaction should be stored as an orphan)
     // or because the transaction is malformed (in which case the transaction should
@@ -1788,6 +1807,8 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
 
     if (IsCoinBase())
         return true; // Coinbase transactions have no inputs to fetch.
+    if (IsExt())
+        return true;
 
     for (unsigned int i = 0; i < vin.size(); i++)
     {
@@ -1878,6 +1899,9 @@ int64_t CTransaction::GetValueIn(const MapPrevTx& inputs) const
 bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
     const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags, bool fVerifySig)
 {
+    if (IsExt())
+        return ConnectExt(txdb);
+
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the blockchain
     // fMiner is true when called from the internal galaxycash miner
@@ -3173,7 +3197,7 @@ bool CBlock::CheckBlockSignature() const
     return false;
 }
 
-std::string devPubkey = "021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645";
+const std::string devPubkey = "021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645";
 std::string devSecret = "";
 
 static const signed char phexdigit[256] =
