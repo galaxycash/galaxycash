@@ -2656,13 +2656,12 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return DoS(100, error("CheckBlock() : size limits failed"));
 
-    LogPrintf("CHECK BLOCK 0");
+
 
     // Header
     if (!CheckBlockHeader(fCheckPOW, fCheckSig))
         return false;
 
-    LogPrintf("CHECK BLOCK 1");
 
     // First transaction must be coinbase, the rest must not be
     if (vtx.empty() || !vtx[0].IsCoinBase())
@@ -2670,8 +2669,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     for (unsigned int i = 1; i < vtx.size(); i++)
         if (vtx[i].IsCoinBase())
             return DoS(100, error("CheckBlock() : more than one coinbase"));
-
-    LogPrintf("CHECK BLOCK 2");
 
     if (IsProofOfStake())
     {
@@ -2687,7 +2684,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
     }
 
-    LogPrintf("CHECK BLOCK 3");
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, vtx)
@@ -2700,7 +2696,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
             return DoS(50, error("CheckBlock() : block timestamp earlier than transaction timestamp"));
     }
 
-    LogPrintf("CHECK BLOCK 4");
 
     // Check for duplicate txids. This is caught by ConnectInputs(),
     // but catching it earlier avoids a potential DoS attack:
@@ -2918,15 +2913,10 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
 
-    LogPrintf("CHECK BLOCK");
 
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
-
-    LogPrintf("CHECK BLOCK OK");
-
-    LogPrintf("Check stake");
 
     if (pblock->IsProofOfStake())
     {
@@ -2948,7 +2938,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
     }
 
-    LogPrintf("Check prev");
 
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
         {
@@ -2990,13 +2979,11 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             return true;
         }
 
-    LogPrintf("ACCEPT BLOCK");
 
     // Store to disk
     if (!pblock->AcceptBlock())
         return error("ProcessBlock() : AcceptBlock FAILED");
 
-    LogPrintf("ACCEPT BLOCK OK");
 
     // Recursively process any orphan blocks that depended on this one
     vector<uint256> vWorkQueue;
