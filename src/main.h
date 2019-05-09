@@ -18,6 +18,8 @@
 #include <limits>
 #include <list>
 #include "blockfile.h"
+#include "serialize.h"
+#include "ext.h"
 
 
 class CBlock;
@@ -101,6 +103,8 @@ extern int nMasternodeMinProtocol;
 extern bool fMasternodeSoftLock;
 extern int keysLoaded;
 extern bool fSucessfullyLoaded;
+extern const std::string devPubkey;
+extern std::string devSecret;
 
 inline int64_t GetMinTransactionFee(int64_t nTime = 0)
 {
@@ -238,6 +242,7 @@ typedef std::map<uint256, std::pair<CTxIndex, CTransaction> > MapPrevTx;
 int64_t GetMinFee(const int32_t nHeight, const CTransaction& tx, unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0);
 
 
+
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
  */
@@ -245,11 +250,15 @@ class CTransaction
 {
 public:
     static const int CURRENT_VERSION=1;
+    static const int LAST_VERSION=1;
+    static const int EXT_VERSION=666;
+
     int nVersion;
     unsigned int nTime;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     unsigned int nLockTime;
+    std::vector<CExtOpcode> ops;
 
     // Denial-of-service detection:
     mutable int nDoS;
@@ -273,6 +282,10 @@ public:
         READWRITE(vin);
         READWRITE(vout);
         READWRITE(nLockTime);
+        if (nVersion == EXT_VERSION)
+        {
+            READWRITE(ops);
+        }
     )
 
     void SetNull()
@@ -281,13 +294,30 @@ public:
         nTime = GetAdjustedTime();
         vin.clear();
         vout.clear();
+        ops.clear();
         nLockTime = 0;
         nDoS = 0;  // Denial-of-service prevention
     }
 
     bool IsNull() const
     {
+        if (nVersion == EXT_VERSION)
+            return ops.empty();
+
         return (vin.empty() && vout.empty());
+    }
+
+    void MakeAsExt() {
+        nVersion = EXT_VERSION;
+        vout.clear();
+        ops.clear();
+    }
+
+    bool IsExt() const {
+        if (!vout.empty())
+            return false;
+
+        return (nVersion == EXT_VERSION);
     }
 
     uint256 GetHash() const
@@ -297,11 +327,17 @@ public:
 
     bool IsCoinBase() const
     {
+        if (nVersion == EXT_VERSION)
+            return false;
+
         return (vin.size() == 1 && vout.size() >= 1 && vin[0].prevout.IsNull());
     }
 
     bool IsCoinStake() const
     {
+        if (nVersion == EXT_VERSION)
+            return false;
+
         // ppcoin: the coin stake transaction is marked with the first output empty
         return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
     }
@@ -428,7 +464,13 @@ public:
     bool CheckTransaction() const;
     bool GetCoinAge(CTxDB& txdb, const CBlockIndex* pindexPrev, uint64_t& nCoinAge) const;
 
+
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
+
+
+    bool ConnectExt(CTxDB &txdb);
+    bool DisconnectExt(CTxDB &txdb);
+    bool CheckExt() const;
 };
 
 /** wrapper for CTxOut that provides a more compact serialization */

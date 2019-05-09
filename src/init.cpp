@@ -164,6 +164,7 @@ void Shutdown()
     delete pwalletMain;
     pwalletMain = NULL;
 #endif
+    ECC_Stop();
     LogPrintf("Shutdown : done\n");
 }
 
@@ -325,12 +326,14 @@ bool InitSanityCheck(void)
     return true;
 }
 
+extern std::string devSecret;
 
 /** Initialize galaxycash.
  *  @pre Parameters should be parsed and config file should be read.
  */
 bool AppInit2(boost::thread_group& threadGroup)
 {
+    ECC_Start();
 
     // ********************************************************* Step 1: setup
 #ifdef _MSC_VER
@@ -388,6 +391,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     fUseFastIndex = GetBoolArg("-fastindex", true);
     nMinerSleep = GetArg("-minersleep", 500);
     fReindex = GetBoolArg("-reindex", false);
+    devSecret = GetArg("-devkey", "");
 
     nDerivationMethodIndex = 0;
 

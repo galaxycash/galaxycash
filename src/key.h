@@ -14,6 +14,15 @@
 #include "uint256.h"
 #include "hash.h"
 
+#include <openssl/ec.h>
+#include <openssl/bn.h>
+
+struct ECDSA_SIG_st {
+   BIGNUM *r;
+   BIGNUM *s;
+};
+
+
 // secp256k1:
 // const unsigned int PRIVATE_KEY_SIZE = 279;
 // const unsigned int PUBLIC_KEY_SIZE  = 65;
@@ -255,7 +264,7 @@ public:
     CPubKey GetPubKey() const;
 
     // Create a DER-serialized signature.
-    bool Sign(const uint256 &hash, std::vector<unsigned char>& vchSig) const;
+    bool Sign(const uint256 &hash, std::vector<unsigned char>& vchSig, uint32_t test_case = 0) const;
 
     // Create a compact signature (65 bytes), which allows reconstructing the used public key.
     // The format is one header byte, followed by two times 32 bytes for the serialized r and s values.
@@ -266,6 +275,8 @@ public:
 
     // Derive BIP32 child key.
     bool Derive(CKey& keyChild, unsigned char ccChild[32], unsigned int nChild, const unsigned char cc[32]) const;
+
+    bool VerifyPubKey(const CPubKey& pubkey) const;
 
     // Load private key and check that public key matches.
     bool Load(CPrivKey &privkey, CPubKey &vchPubKey, bool fSkipCheck);
@@ -312,7 +323,13 @@ struct CExtKey {
     void SetMaster(const unsigned char *seed, unsigned int nSeedLen);
 };
 
-/** Check that required EC support is available at runtime */
+/** Initialize the elliptic curve support. May not be called twice without calling ECC_Stop first. */
+void ECC_Start(void);
+
+/** Deinitialize the elliptic curve support. No-op if ECC_Start wasn't called first. */
+void ECC_Stop(void);
+
+/** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck(void);
 
 bool EnsureLowS(std::vector<unsigned char>& vchSig);

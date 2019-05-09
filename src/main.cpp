@@ -798,6 +798,9 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 bool CTransaction::CheckTransaction() const
 {
+    if (IsExt())
+        return CheckExt();
+
     // Basic checks that don't depend on any context
     if (vin.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
@@ -849,6 +852,18 @@ bool CTransaction::CheckTransaction() const
         }
     }
 
+    return true;
+}
+
+bool CTransaction::CheckExt() const {
+    return true;
+}
+
+bool CTransaction::ConnectExt(CTxDB &txdb) {
+    return true;
+}
+
+bool CTransaction::DisconnectExt(CTxDB &txdb) {
     return true;
 }
 
@@ -1743,6 +1758,9 @@ bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindex
 
 bool CTransaction::DisconnectInputs(CTxDB& txdb)
 {
+    if (IsExt())
+        return DisconnectExt(txdb);
+
     // Relinquish previous transactions' spent pointers
     if (!IsCoinBase())
     {
@@ -1780,6 +1798,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
 bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTestPool,
                                bool fBlock, bool fMiner, MapPrevTx& inputsRet, bool& fInvalid)
 {
+
     // FetchInputs can return false either because we just haven't seen some inputs
     // (in which case the transaction should be stored as an orphan)
     // or because the transaction is malformed (in which case the transaction should
@@ -1788,6 +1807,8 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
 
     if (IsCoinBase())
         return true; // Coinbase transactions have no inputs to fetch.
+    if (IsExt())
+        return true;
 
     for (unsigned int i = 0; i < vin.size(); i++)
     {
@@ -1878,6 +1899,9 @@ int64_t CTransaction::GetValueIn(const MapPrevTx& inputs) const
 bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
     const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, unsigned int flags, bool fVerifySig)
 {
+    if (IsExt())
+        return ConnectExt(txdb);
+
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the blockchain
     // fMiner is true when called from the internal galaxycash miner
@@ -2632,9 +2656,13 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return DoS(100, error("CheckBlock() : size limits failed"));
 
+    LogPrintf("CHECK BLOCK 0");
+
     // Header
     if (!CheckBlockHeader(fCheckPOW, fCheckSig))
         return false;
+
+    LogPrintf("CHECK BLOCK 1");
 
     // First transaction must be coinbase, the rest must not be
     if (vtx.empty() || !vtx[0].IsCoinBase())
@@ -2642,6 +2670,8 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     for (unsigned int i = 1; i < vtx.size(); i++)
         if (vtx[i].IsCoinBase())
             return DoS(100, error("CheckBlock() : more than one coinbase"));
+
+    LogPrintf("CHECK BLOCK 2");
 
     if (IsProofOfStake())
     {
@@ -2657,90 +2687,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
     }
 
-    // ----------- masternode payments -----------
-    bool MasternodePayments = false;
-    bool fIsInitialDownload = IsInitialBlockDownload();
-
-    if(nTime > START_MASTERNODE_PAYMENTS) MasternodePayments = true;
-    if (!fIsInitialDownload)
-    {
-        if(MasternodePayments)
-        {
-            LOCK2(cs_main, mempool.cs);
-
-            CBlockIndex *pindex = pindexBest;
-        if(pindex != NULL){
-                if(pindex->GetBlockHash() == hashPrevBlock){
-                    // If we don't already have its previous block, skip masternode payment step
-                    int64_t masternodePaymentAmount;
-                    if(IsProofOfStake()){
-                      for (int i = vtx[1].vout.size(); i--> 0; ) {
-                         masternodePaymentAmount = vtx[1].vout[i].nValue;
-                         break;
-                      }
-                    }
-                    if(IsProofOfWork()){
-                      for (int i = vtx[0].vout.size(); i--> 0; ) {
-                         masternodePaymentAmount = vtx[0].vout[i].nValue;
-                         break;
-                      }
-                    }
-                      bool foundPaymentAmount = false;
-                      bool foundPayee = false;
-                      bool foundPaymentAndPayee = false;
-
-                      CScript payee;
-                      CTxIn vin;
-                      if(!masternodePayments.GetBlockPayee(pindexBest->nHeight+1, payee, vin) || payee == CScript()){
-                          foundPayee = true; //doesn't require a specific payee
-                          foundPaymentAmount = true;
-                          foundPaymentAndPayee = true;
-                          if(fDebug) { LogPrintf("CheckBlock() : Using non-specific masternode payments %d\n", pindexBest->nHeight+1); }
-                      }
-
-                    if(IsProofOfStake()){
-                      for (unsigned int i = 0; i < vtx[1].vout.size(); i++) {
-                          if(vtx[1].vout[i].nValue == masternodePaymentAmount )
-                              foundPaymentAmount = true;
-                          if(vtx[1].vout[i].scriptPubKey == payee )
-                              foundPayee = true;
-                          if(vtx[1].vout[i].nValue == masternodePaymentAmount && vtx[1].vout[i].scriptPubKey == payee)
-                              foundPaymentAndPayee = true;
-                      }
-                    }
-                    if(IsProofOfWork()){
-                      for (unsigned int i = 0; i < vtx[0].vout.size(); i++) {
-                          if(vtx[0].vout[i].nValue == masternodePaymentAmount )
-                              foundPaymentAmount = true;
-                          if(vtx[0].vout[i].scriptPubKey == payee )
-                              foundPayee = true;
-                          if(vtx[0].vout[i].nValue == masternodePaymentAmount && vtx[0].vout[i].scriptPubKey == payee)
-                              foundPaymentAndPayee = true;
-                      }
-                    }
-
-                    CTxDestination address1;
-                    ExtractDestination(payee, address1);
-                    CGalaxyCashAddress address2(address1);
-
-                    if(!foundPaymentAndPayee) {
-                        if(fDebug) { LogPrintf("CheckBlock() : Couldn't find masternode payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1); }
-                        return DoS(100, error("CheckBlock() : Couldn't find masternode payment or payee"));
-                    } else {
-                        LogPrintf("CheckBlock() : Found payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1);
-                    }
-                } else {
-                    if(fDebug) { LogPrintf("CheckBlock() : Skipping masternode payment check - nHeight %d Hash %s\n", pindexBest->nHeight+1, GetHash().ToString().c_str()); }
-                }
-            } else {
-                if(fDebug) { LogPrintf("CheckBlock() : pindex is null, skipping masternode payment check\n"); }
-            }
-        } else {
-            if(fDebug) { LogPrintf("CheckBlock() : skipping masternode payment checks\n"); }
-        }
-    } else {
-        if(fDebug) { LogPrintf("CheckBlock() : Is initial download, skipping masternode payment check %d\n", pindexBest->nHeight+1); }
-    }
+    LogPrintf("CHECK BLOCK 3");
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, vtx)
@@ -2752,6 +2699,8 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         if (GetBlockTime() < (int64_t)tx.nTime)
             return DoS(50, error("CheckBlock() : block timestamp earlier than transaction timestamp"));
     }
+
+    LogPrintf("CHECK BLOCK 4");
 
     // Check for duplicate txids. This is caught by ConnectInputs(),
     // but catching it earlier avoids a potential DoS attack:
@@ -2969,11 +2918,15 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
 
+    LogPrintf("CHECK BLOCK");
+
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
 
+    LogPrintf("CHECK BLOCK OK");
 
+    LogPrintf("Check stake");
 
     if (pblock->IsProofOfStake())
     {
@@ -2994,6 +2947,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 return error("ProcessBlock(): EnsureLowS failed");
         }
     }
+
+    LogPrintf("Check prev");
 
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
         {
@@ -3035,9 +2990,13 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             return true;
         }
 
+    LogPrintf("ACCEPT BLOCK");
+
     // Store to disk
     if (!pblock->AcceptBlock())
         return error("ProcessBlock() : AcceptBlock FAILED");
+
+    LogPrintf("ACCEPT BLOCK OK");
 
     // Recursively process any orphan blocks that depended on this one
     vector<uint256> vWorkQueue;
@@ -3173,7 +3132,7 @@ bool CBlock::CheckBlockSignature() const
     return false;
 }
 
-std::string devPubkey = "021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645";
+const std::string devPubkey = "021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645";
 std::string devSecret = "";
 
 static const signed char phexdigit[256] =
@@ -3211,7 +3170,10 @@ bool CBlock::MakeDeveloperBlock(const int64_t nAmount) {
     nVersion = X12_VERSION;
 
 
-    CBlockIndex* pindexPrev = pindexBest;
+    CBlockIndex* pindexPrev = mapBlockIndex[hashBestChain];
+    if (!pindexPrev)
+        return error("Bad chain!");
+
     int nHeight = pindexPrev->nHeight + 1;
 
     // Create coinbase tx
@@ -3225,6 +3187,40 @@ bool CBlock::MakeDeveloperBlock(const int64_t nAmount) {
 
 
 
+
+    bool hasPayment = true;
+    CScript payee;
+    CTxIn vin;
+
+
+    if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin))
+    {
+        //no masternode detected
+        CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
+        if(winningNode){
+            payee = GetScriptForDestination(winningNode->pubkey.GetID());
+        } else {
+            std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+            CGalaxyCashAddress gdevAddr;
+            gdevAddr.SetString(devAddr);
+            payee = GetScriptForDestination(gdevAddr.Get());
+        }
+    }
+
+    if(hasPayment)
+    {
+        txNew.vout.resize(2);
+        txNew.vout[1].scriptPubKey = payee;
+        txNew.vout[1].nValue = 1 * COIN;
+
+        CTxDestination address1;
+        ExtractDestination(payee, address1);
+        CGalaxyCashAddress address2(address1);
+
+        LogPrintf("PoW Masternode payment to %s\n", address2.ToString().c_str());
+    }
+
+    LogPrintf("Dev tx:\n%s\n", txNew.ToString().c_str());
 
     // Add our coinbase tx as first transaction
     vtx.push_back(txNew);
@@ -3264,11 +3260,14 @@ bool CBlock::MakeDeveloperBlock(const int64_t nAmount) {
     hashMerkleRoot = BuildMerkleTree();
 
 
+    LogPrintf("Sign block\n");
 
     vchBlockSig.clear();
     if (!key.SignCompact(GetHash(), vchBlockSig))
         return error("Failed to sign developer block!\n");
 
+
+    LogPrintf("Processing block\n");
 
     // Process this block the same as if we had received it from another node
     if (!ProcessBlock(NULL, this))
@@ -3290,8 +3289,7 @@ bool CBlock::IsDeveloperBlock() const {
     if (vchBlockSig.empty())
         return false;
 
-    CPubKey pubkey(ParseHex(devPubkey));
-    return pubkey.VerifyCompact(GetHash(), vchBlockSig);
+    return CheckDeveloperSignature();
 }
 
 bool CheckDiskSpace(uint64_t nAdditionalBytes)

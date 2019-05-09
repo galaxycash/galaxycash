@@ -84,6 +84,17 @@ QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
 QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) clean
 
+INCLUDEPATH += src/secp256k1/include
+!exists( $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o ) {
+    gensecp256k1.commands = cd $$PWD/src/secp256k1 && ./autogen.sh && ./configure --enable-tests=no --enable-module-recovery=yes --with-bignum=no && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"  install -j2
+}
+gensecp256k1.target = $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+gensecp256k1.depends = FORCE
+PRE_TARGETDEPS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+QMAKE_EXTRA_TARGETS += gensecp256k1
+# Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
+QMAKE_CLEAN += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o; cd $$PWD/src/secp256k1 ; $(MAKE) clean
+
 contains(USE_O3, 1) {
     message(Building O3 optimization flag)
     QMAKE_CXXFLAGS_RELEASE -= -O2
@@ -189,7 +200,8 @@ HEADERS += src/addrman.h \
     src/bloom.h \
     src/assets.h \
     src/leveldbwrapper.h \
-    src/lightwallet.h
+    src/lightwallet.h \
+    src/ext.h
 
 SOURCES += src/galaxycashd.cpp \
     src/kernel.cpp \
@@ -262,7 +274,8 @@ SOURCES += src/galaxycashd.cpp \
     src/bloom.cpp \
     src/assets.cpp \
     src/leveldbwrapper.cpp \
-    src/lightwallet.cpp
+    src/lightwallet.cpp \
+    src/ext.cpp
 
 # "Other files" to show in Qt Creator
 OTHER_FILES += \

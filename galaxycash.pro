@@ -90,9 +90,7 @@ contains(USE_QRCODE, 1) {
 #  or: qmake "USE_UPNP=0" (disabled by default)
 #  or: qmake "USE_UPNP=-" (not supported)
 # miniupnpc (http://miniupnp.free.fr/files/) must be installed for support
-contains(USE_UPNP, -) {
-    message(Building without UPNP support)
-} else {
+contains(USE_UPNP, 1) {
     message(Building with UPNP support)
     count(USE_UPNP, 0) {
         USE_UPNP=1
@@ -125,6 +123,7 @@ SOURCES += src/txdb-leveldb.cpp
 !win32 {
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
     genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
+
 } else {
     # make an educated guess about what the ranlib command is called
     isEmpty(QMAKE_RANLIB) {
@@ -139,6 +138,17 @@ PRE_TARGETDEPS += $$PWD/src/leveldb/libleveldb.a
 QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
 QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; $$PWD/src/leveldb/libmemenv.a; cd $$PWD/src/leveldb ; $(MAKE) clean
+
+INCLUDEPATH += src/secp256k1/include
+!exists( $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o ) {
+    gensecp256k1.commands = cd $$PWD/src/secp256k1 && ./autogen.sh && ./configure --enable-tests=no --enable-module-recovery=yes --with-bignum=no && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"  install -j2
+}
+gensecp256k1.target = $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+gensecp256k1.depends = FORCE
+PRE_TARGETDEPS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+QMAKE_EXTRA_TARGETS += gensecp256k1
+# Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
+QMAKE_CLEAN += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o; cd $$PWD/src/secp256k1 ; $(MAKE) clean
 
 
 contains(USE_O3, 1) {
@@ -283,7 +293,8 @@ HEADERS += src/qt/galaxycashgui.h \
     src/bloom.h \
     src/assets.h \
     src/leveldbwrapper.h \
-    src/lightwallet.h
+    src/lightwallet.h \
+    src/ext.h
 
 SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -394,7 +405,8 @@ SOURCES += src/qt/galaxycash.cpp src/qt/galaxycashgui.cpp \
     src/bloom.cpp \
     src/assets.cpp \
     src/leveldbwrapper.cpp \
-    src/lightwallet.cpp
+    src/lightwallet.cpp \
+    src/ext.cpp
 
 RESOURCES += \
     src/qt/galaxycash.qrc
@@ -513,7 +525,7 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-LIBS += -lgmp -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX -lcurl
+LIBS += -lgmp -lz -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX -lcurl -lsecp256k1
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 

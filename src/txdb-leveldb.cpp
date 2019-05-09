@@ -583,7 +583,9 @@ bool CTxDB::LoadBlockIndex()
         block.SetBestChain(txdb, pindexFork);
     }
 
-    if (fReindex) {
+    if (fReindex ||
+        mapBlockIndex.find(pcoinsTip->GetBestBlock()) == mapBlockIndex.end() ||
+        pcoinsTip->GetBestBlock() == pindexGenesisBlock->GetBlockHash()) {
 
 
 
