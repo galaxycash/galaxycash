@@ -3,11 +3,9 @@ GalaxyCash
 Copyright (C) 2017-2019 The GalaxyCash developers
 
 
-Website:                                    https://galaxycash.info
+Website:                                    https://galaxy-hub.online
 
-Pool:                                       https://galaxypool.info
-
-Explorer:                                   http://explorer.galaxypool.info http://107.191.39.190:3001/
+Explorer:                                   https://galaxy-hub.online/explorer/GCH http://107.191.39.190:3001/
 
 Discord:                                    https://discord.gg/NseejAk
 
@@ -29,7 +27,7 @@ Difficulty retarget:                        Every block
 
 Block time:                                 120 seconds
 
-Block reward:                               10 GCH (Halving every 210k blocks)
+Block reward:                               500 GCH and more
 
 PoW Last Block:                             130000
 
@@ -40,7 +38,7 @@ Masternode Price:                           100000 GCH
 Masternode Reward:                          75%
 
 
-Max supply:                                 Infinite on PoS
+Max supply:                                 92233720368.54776
 
 Fee:                                        0.00000100
 
