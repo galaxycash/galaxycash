@@ -32,7 +32,8 @@ LIBS += \
    -l boost_thread$(BOOST_LIB_SUFFIX) \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
-   -l crypto
+   -l crypto \
+   -l secp256k1
 
 ifndef USE_UPNP
 	override USE_UPNP = -
@@ -164,7 +165,10 @@ OBJS= \
     obj/lightwallet.o \
     obj/assets.o \
     obj/leveldbwrapper.o \
-    obj/bloom.o
+    obj/bloom.o \
+    obj/coins.o \
+    obj/assets.o \
+    obj/ext.o
 
 ifeq (${USE_WALLET}, 1)
     DEFS += -DENABLE_WALLET
