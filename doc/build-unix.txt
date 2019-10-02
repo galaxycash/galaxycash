@@ -49,7 +49,9 @@ cd src
 cd secp256k1
 ./autogen.sh
 ./configure --enable-tests=no --enable-module-recovery=yes --with-bignum=no
-make -j2 && sudo make install -j2
+make -j2
+sudo make install
+sudo ./libtool   --mode=install /usr/bin/install -c   libsecp256k1.la '/usr/local/lib'
 
 cd ..
 
