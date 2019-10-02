@@ -17,11 +17,12 @@
 #include <openssl/ec.h>
 #include <openssl/bn.h>
 
+#ifndef GALAXYCASH_NOT_DEFECDSA_SIG
 struct ECDSA_SIG_st {
    BIGNUM *r;
    BIGNUM *s;
 };
-
+#endif
 
 // secp256k1:
 // const unsigned int PRIVATE_KEY_SIZE = 279;
