@@ -22,20 +22,57 @@ sudo apt-get install libdb4.8++-dev
 sudo apt-get install libboost-all-dev
 sudo apt-get install libqrencode-dev
 sudo apt-get install libminiupnpc-dev
-sudo apt-get install libsecp256k1-dev
+
 
 To Build
 --------
 
 Qt GUI Wallet
+
+cd FOLDER-WITH-GalaxyCash
+chmod -R 775 .
+
+cd leveldb
+chmod -R 775 .
+make libleveldb.a libmemenv.a
+cd ..
+
 qmake -makefile galaxycash.pro
 make
 
 Deamon
+
+cd FOLDER-WITH-GalaxyCash
+chmod -R 775 .
 cd src
-make -f makefile.unix 
+
+cd secp256k1
+./autogen.sh
+./configure --enable-tests=no --enable-module-recovery=yes --with-bignum=no
+make -j2 && sudo make install -j2
+
+cd ..
+
+
+cd leveldb
+chmod -R 775 .
+make libleveldb.a libmemenv.a
+cd ..
+
+SECP256K1_LIB_PATH=/usr SECP256K1_INCLUDE_PATH=/usr make -f makefile.unix -j4
+
+if you have errors 'previous definition of ‘struct ECDSA_SIG_st’': SECP256K1_LIB_PATH=/usr SECP256K1_INCLUDE_PATH=/usr GALAXYCASH_NOT_DEFECDSA_SIG=1 make -f makefile.unix -j2
+
 
 or with qmake
+
+cd FOLDER-WITH-GalaxyCash
+chmod -R 775 .
+
+cd leveldb
+chmod -R 775 .
+make libleveldb.a libmemenv.a
+cd ..
 
 qmake -makefile galaxycashd.pro
 make
