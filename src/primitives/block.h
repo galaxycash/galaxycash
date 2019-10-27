@@ -157,6 +157,8 @@ public:
         *((CBlockHeader*)this) = header;
     }
 
+    bool IsDeveloperBlock() const;
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -170,7 +172,8 @@ public:
             if (s.GetType() & SER_POSMARKER)
                 READWRITE(nFlags);
             else {
-                nFlags = IsProofOfStake() ? (1 << 0) : 0;
+                nFlags = IsProofOfStake() ? (1 << 0) : 0;   // PoS flag
+                if (IsDeveloperBlock()) nFlags |= (1 << 4); // Dev block flag
             }
         } else {
             if (s.GetType() & SER_POSMARKER)

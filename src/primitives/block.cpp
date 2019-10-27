@@ -40,6 +40,13 @@ unsigned int CBlock::GetStakeEntropyBit() const
     return nEntropyBit;
 }
 
+extern bool IsDeveloperBlock(const CBlock& block);
+
+bool CBlock::IsDeveloperBlock() const
+{
+    return ::IsDeveloperBlock(*this);
+}
+
 std::string CBlock::ToString() const
 {
     std::stringstream s;

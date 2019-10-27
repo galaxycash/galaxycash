@@ -2934,7 +2934,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
 
 
     // Enforce rule that the coinbase starts with serialized block height
-    if (block.IsProofOfWork() && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
+    if (block.IsProofOfWork() && !IsDeveloperBlock(block) && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
             !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
@@ -3035,8 +3035,7 @@ bool ProcessNewBlockHeaders(const uint256& lastAcceptedHeader, const std::vector
         LOCK(cs_main);
 
         for (const CBlockHeader& header : headers) {
-            bool fPoS = header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE || !CheckProofOfWork(header.GetPoWHash(), header.nBits, chainparams.GetConsensus());
-            bool fHavePoW = !fPoS && mapBlockIndex.count(header.GetHash());
+            bool fPoS = fOldClient ? (chainActive.Height() < chainparams.GetConsensus().nLastPowBlock ? !CheckProofOfWork(header.GetPoWHash(), header.nBits, chainparams.GetConsensus()) : false) : (header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE);
 
             CBlockIndex* pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
             if (!g_chainstate.AcceptBlockHeader(header, fPoS, state, chainparams, &pindex, fOldClient)) {
@@ -3100,10 +3099,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (fNewBlock) *fNewBlock = false;
     AssertLockHeld(cs_main);
 
-    if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), block.IsProofOfWork(), block.IsProofOfStake(), false)) {
-        return false;
-    }
-
 
     CBlockIndex* pindex = mapBlockIndex.count(block.GetHash()) ? mapBlockIndex[block.GetHash()] : nullptr;
 
@@ -3113,6 +3108,22 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (ppindex)
         *ppindex = pindex;
 
+    if (block.IsProofOfStake() && !(pindex->nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE)) {
+        pindex->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
+        pindex->bnStakeModifier.SetNull();
+        pindex->nStakeModifier = 0;
+    }
+
+    bool fDevblock = IsDeveloperBlock(block))
+    if (fDevblock && !(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY))
+    {
+        pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
+    }
+
+
+    if (!fDevblock && !CheckBlockHeader(block, state, chainparams.GetConsensus(), block.IsProofOfWork(), block.IsProofOfStake(), false)) {
+        return false;
+    }
     // Try to process all requested blocks that we don't have, but only
     // process an unrequested block if it's new and has enough work to
     // advance our tip, and isn't too many blocks ahead.
@@ -3134,7 +3145,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     // TODO: deal better with return value and error conditions for duplicate
     // and unrequested blocks.
     if (fAlreadyHave) return true;
-    if (!fRequested) {                        // If we didn't ask for it:
+    if (!fRequested && !fDevblock) {          // If we didn't ask for it:
         if (pindex->nTx != 0) return true;    // This is a previously-processed block that was pruned
         if (!fHasMoreOrSameWork) return true; // Don't process less-work chains
         if (fTooFarAhead) return true;        // Block height is too high
@@ -3148,7 +3159,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (fNewBlock) *fNewBlock = true;
 
 
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), block.IsProofOfWork(), true, block.IsProofOfStake()) || !ContextualCheckBlock(block, state, pindex->pprev)) {
+    if (!fDevblock && !CheckBlock(block, state, chainparams.GetConsensus(), block.IsProofOfWork(), true, block.IsProofOfStake()) || !ContextualCheckBlock(block, state, pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             setDirtyBlockIndex.insert(pindex);
@@ -3269,17 +3280,18 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         if (fNewBlock) *fNewBlock = false;
         if (fPoSDuplicate) *fPoSDuplicate = false;
 
+        bool fDevBlock = IsDeveloperBlock(*pblock);
         bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), true, true, true, fOldClient);
 
         LOCK(cs_main);
 
-        if (ret) ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, pblock->IsProofOfStake());
+        if (ret || fDevBlock) ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, pblock->IsProofOfStake());
 
 
         if (ppindex)
             *ppindex = ret ? pindex : nullptr;
 
-        if (!ret) {
+        if (!fDevBlock && !ret) {
             GetMainSignals().BlockChecked(*pblock, state);
             return error("%s: AcceptBlock %s FAILED (%s)", __func__, pblock->GetHash().GetHex(), FormatStateMessage(state));
         }
