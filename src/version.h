@@ -1,70 +1,72 @@
-// Copyright (c) 2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2012-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef GALAXYCASH_VERSION_H
-#define GALAXYCASH_VERSION_H
 
-#include "clientversion.h"
-#include <string>
-
-//
-// client versioning
-//
-
-static const int CLIENT_VERSION =
-                           1000000 * CLIENT_VERSION_MAJOR
-                         +   10000 * CLIENT_VERSION_MINOR
-                         +     100 * CLIENT_VERSION_REVISION
-                         +       1 * CLIENT_VERSION_BUILD;
-
-extern const std::string CLIENT_NAME;
-extern const std::string CLIENT_CODENAME;
-extern const std::string CLIENT_BUILD;
-extern const std::string CLIENT_DATE;
+#ifndef BITCOIN_VERSION_H
+#define BITCOIN_VERSION_H
 
 //
 // database format versioning
 //
 static const int DATABASE_VERSION = 90909;
 
-//
-// network protocol versioning
-//
+/**
+ * network protocol versioning
+ */
 
-static const int PROTOCOL_VERSION = 90920;
+static const int PROTOCOL_VERSION = 94444;
+static const int NEW_VERSION = 94444; // galaxycash: used to communicate with clients knows about galaxycash new protocol
+static const int OLD_VERSION = 90920; // galaxycash: used to communicate with clients that don't know how to send PoS information in headers
 
-// intial proto version, to be increased after version/verack negotiation
-static const int INIT_PROTO_VERSION = 90000;
+//! initial proto version, to be increased after version/verack negotiation
+static const int INIT_PROTO_VERSION = OLD_VERSION;
 
-// disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 90918;
+//! In this version, 'getheaders' was introduced.
+static const int GETHEADERS_VERSION = 94444;
 
-// minimum peer version accepted by AnonSendPool
-static const int MIN_POOL_PEER_PROTO_VERSION = 90918;
+//! disconnect from peers older than this proto version
+static const int MIN_PEER_PROTO_VERSION = 90920;
+
+//! nTime field added to CAddress, starting with this version;
+//! if possible, avoid requesting addresses nodes older than this
+static const int CADDR_TIME_VERSION = 60000;
+
+//! BIP 0031, pong message, is enabled for all versions AFTER this one
+static const int BIP0031_VERSION = 60000;
+
+//! "filter*" commands are disabled without NODE_BLOOM after and including this version
+static const int NO_BLOOM_VERSION = 90918;
+
+//! "sendheaders" command and announcing blocks with headers starts with this version
+static const int SENDHEADERS_VERSION = 94444;
+
+//! "feefilter" tells peers to filter invs to you by fee starts with this version
+static const int FEEFILTER_VERSION = 94444;
+
+//! short-id-based block download starts with this version
+static const int SHORT_IDS_BLOCKS_VERSION = 94444;
+
+//! not banning for invalid compact blocks starts with this version
+static const int INVALID_CB_NO_BAN_VERSION = 90000;
 
 // minimum peer version that can receive masternode payments
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
-static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = 90912;
-static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = 90912;
-
-// nTime field added to CAddress, starting with this version;
-// if possible, avoid requesting addresses nodes older than this
-static const int CADDR_TIME_VERSION = 30000;
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = 90920;
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = 90920;
 
 // only request blocks from nodes outside this range of versions
-static const int NOBLKS_VERSION_START = 59998;
-static const int NOBLKS_VERSION_END = 59999;
-
-// BIP 0031, pong message, is enabled for all versions AFTER this one
-static const int BIP0031_VERSION = 60000;
+static const int NOBLKS_VERSION_START = 90000;
+static const int NOBLKS_VERSION_END = 90000;
 
 // "mempool" command, enhanced "getdata" behavior starts with this version:
-static const int MEMPOOL_GD_VERSION = 70000;
+static const int MEMPOOL_GD_VERSION = 90920;
 
 // reject blocks with non-canonical signatures starting from this version
-static const int CANONICAL_BLOCK_SIG_VERSION = 60013;
-static const int CANONICAL_BLOCK_SIG_LOW_S_VERSION = 60015;
+static const int CANONICAL_BLOCK_SIG_VERSION = 90920;
+static const int CANONICAL_BLOCK_SIG_LOW_S_VERSION = 90920;
 
-#endif
+//! masternodes older than this proto version use old strMessage format for mnannounce
+static const int MIN_PEER_MNANNOUNCE = 90000;
 
+#endif // BITCOIN_VERSION_H

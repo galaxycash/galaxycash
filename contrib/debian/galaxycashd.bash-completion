@@ -1,0 +1,3 @@
+contrib/galaxycashd.bash-completion	galaxycashd
+contrib/galaxycash-cli.bash-completion	galaxycash-cli
+contrib/galaxycash-tx.bash-completion	galaxycash-tx

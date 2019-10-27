@@ -1,33 +1,42 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GALAXYCASH_CHAIN_PARAMS_H
-#define GALAXYCASH_CHAIN_PARAMS_H
+#ifndef BITCOIN_CHAINPARAMS_H
+#define BITCOIN_CHAINPARAMS_H
 
-#include "arith_uint256.h"
-#include "util.h"
-#include "script.h"
+#include <chainparamsbase.h>
+#include <consensus/params.h>
+#include <primitives/block.h>
+#include <protocol.h>
 
+#include <key.h>
+#include <pubkey.h>
+
+#include <memory>
 #include <vector>
 
-using namespace std;
+struct SeedSpec6 {
+    uint8_t addr[16];
+    uint16_t port;
+};
 
-#define MESSAGE_START_SIZE 4
-typedef unsigned char MessageStartChars[MESSAGE_START_SIZE];
+typedef std::map<int, uint256> MapCheckpoints;
 
-class CAddress;
-class CBlock;
+struct CCheckpointData {
+    MapCheckpoints mapCheckpoints;
+};
 
-struct CDNSSeedData {
-    string name, host;
-    CDNSSeedData(const string &strName, const string &strHost) : name(strName), host(strHost) {}
+struct ChainTxData {
+    int64_t nTime;
+    int64_t nTxCount;
+    double dTxRate;
 };
 
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
- * GalaxyCash system. There are three: the main network on which people trade goods
+ * Bitcoin system. There are three: the main network on which people trade goods
  * and services, the public test network which gets reset from time to time and
  * a regression test mode which is intended for private networks only. It has
  * minimal difficulty to ensure that blocks can be found instantly.
@@ -35,13 +44,6 @@ struct CDNSSeedData {
 class CChainParams
 {
 public:
-    enum Network {
-        MAIN,
-        EASY,
-        TEST,
-        MAX_NETWORK_TYPES
-    };
-
     enum Base58Type {
         PUBKEY_ADDRESS,
         SCRIPT_ADDRESS,
@@ -52,77 +54,72 @@ public:
         MAX_BASE58_TYPES
     };
 
-    const uint256& HashGenesisBlock() const { return hashGenesisBlock; }
-    const MessageStartChars& MessageStart() const { return pchMessageStart; }
+    const Consensus::Params& GetConsensus() const { return consensus; }
+    const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
+    const CKey& DevKey() const { return key; }
+    const CPubKey& DevPubKey() const { return pubKey; }
     int GetDefaultPort() const { return nDefaultPort; }
-    const uint256& ProofOfWorkLimit() const { return powLimit; }
-    const uint256& ProofOfStakeLimit() const { return stakeLimit; }
-    int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
-    virtual const CBlock& GenesisBlock() const = 0;
-    virtual bool RequireRPCPassword() const { return true; }
-    const string& DataDir() const { return strDataDir; }
-    virtual Network NetworkID() const = 0;
-    virtual string NetworkIDString() const = 0;
-    const vector<CDNSSeedData>& DNSSeeds() const { return vSeeds; }
-    const std::vector<unsigned char> &Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
-    virtual const vector<CAddress>& FixedSeeds() const = 0;
-    int RPCPort() const { return nRPCPort; }
-    bool POWNoRetargeting() const { return fPOWNoRetargeting; }
-    bool IsProtocolV1(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight <= 35000 : true; }
-    bool IsProtocolV2(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > 35000 : true; }
-    bool IsProtocolV3(int32_t nHeight) const { return (NetworkID() == MAIN) ? nHeight > nLastPowBlock : true; }
-    int64_t PowTargetTimespan(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nPowTargetTimespanPOS; return IsProtocolV2(nHeight) ? nPowTargetTimespan2 : nPowTargetTimespan; }
-    int64_t PowTargetSpacing(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nPowTargetSpacingPOS; return IsProtocolV2(nHeight) ? nPowTargetSpacing2 : nPowTargetSpacing; }
-    int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { return IsProtocolV2(nHeight) ? (nPowTargetTimespan2 / nPowTargetSpacing2) : (nPowTargetTimespan / nPowTargetSpacing); }
-    int64_t POSStart() const { return nPOSFirstBlock; }
-    int64_t MergeStart() const { return nMergeFirstBlock; }
-    int64_t MergeEnd() const { return nMergeLastBlock; }
-    int32_t LastPowBlock() const { return nLastPowBlock; }
+
+    const CBlock& GenesisBlock() const { return genesis; }
+    /** Make miner wait to have peers to avoid wasting work */
+    bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
+    /** Default value for -checkmempool and -checkblockindex argument */
+    bool DefaultConsistencyChecks() const { return fDefaultConsistencyChecks; }
+    /** Policy: Filter transactions that do not match well-defined patterns */
+    bool RequireStandard() const { return fRequireStandard; }
+    uint64_t PruneAfterHeight() const { return nPruneAfterHeight; }
+    /** Make miner stop after a block is found. In RPC, don't return until nGenProcLimit blocks are generated */
+    bool MineBlocksOnDemand() const { return fMineBlocksOnDemand; }
+    /** Return the BIP70 network string (main, test or regtest) */
+    std::string NetworkIDString() const { return strNetworkID; }
+    /** Return the list of hostnames to look up for DNS seeds */
+    const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
+    const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
+    const std::string& Bech32HRP() const { return bech32_hrp; }
+    const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
+    const CCheckpointData& Checkpoints() const { return checkpointData; }
+    const ChainTxData& TxData() const { return chainTxData; }
 
 protected:
-    CChainParams() {};
+    CChainParams();
 
-    uint256 hashGenesisBlock;
-    MessageStartChars pchMessageStart;
+    Consensus::Params consensus;
+    CMessageHeader::MessageStartChars pchMessageStart;
+    CPubKey pubKey;
+    CKey key;
     int nDefaultPort;
-    int nRPCPort;
-    int64_t nPOSFirstBlock, nMergeFirstBlock, nMergeLastBlock;
-    int64_t nPowTargetTimespan, nPowTargetTimespanPOS, nPowTargetTimespan2;
-    int64_t nPowTargetSpacing, nPowTargetSpacingPOS, nPowTargetSpacing2;
-    int32_t nLastPowBlock;
-    bool fPOWNoRetargeting;
-    uint256 stakeLimit;
-    uint256 powLimit;
-    int nSubsidyHalvingInterval;
-    string strDataDir;
-    vector<CDNSSeedData> vSeeds;
+    uint64_t nPruneAfterHeight;
+    std::vector<std::string> vSeeds;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
+    std::string bech32_hrp;
+    std::string strNetworkID;
+    CBlock genesis;
+    std::vector<SeedSpec6> vFixedSeeds;
+    bool fMiningRequiresPeers;
+    bool fDefaultConsistencyChecks;
+    bool fRequireStandard;
+    bool fMineBlocksOnDemand;
+    CCheckpointData checkpointData;
+    ChainTxData chainTxData;
 };
 
 /**
- * Return the currently selected parameters. This won't change after app startup
- * outside of the unit tests.
+ * Creates and returns a std::unique_ptr<CChainParams> of the chosen chain.
+ * @returns a CChainParams* of the chosen chain.
+ * @throws a std::runtime_error if the chain is not supported.
  */
-const CChainParams &Params();
-
-/** Sets the params returned by Params() to those for the given network. */
-void SelectParams(CChainParams::Network network);
+std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain);
 
 /**
- * Looks for -regtest or -testnet and then calls SelectParams as appropriate.
- * Returns false if an invalid combination is given.
+ * Return the currently selected parameters. This won't change after app
+ * startup, except for unit tests.
  */
-bool SelectParamsFromCommandLine();
+const CChainParams& Params();
 
-inline bool TestNet() {
-    // Note: it's deliberate that this returns "false" for regression test mode.
-    return Params().NetworkID() == CChainParams::TEST;
-}
+/**
+ * Sets the params returned by Params() to those for the given BIP70 chain name.
+ * @throws std::runtime_error when the chain is not supported.
+ */
+void SelectParams(const std::string& chain);
 
-inline bool EasyNet() {
-    // Note: it's deliberate that this returns "false" for regression test mode.
-    return Params().NetworkID() == CChainParams::EASY;
-}
-
-#endif
-
+#endif // BITCOIN_CHAINPARAMS_H

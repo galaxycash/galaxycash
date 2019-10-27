@@ -1,0 +1,11 @@
+usr/local/bin/galaxycash-qt usr/bin
+share/pixmaps/galaxycash16.png usr/share/pixmaps
+share/pixmaps/galaxycash32.png usr/share/pixmaps
+share/pixmaps/galaxycash128.png usr/share/pixmaps
+share/pixmaps/galaxycash256.png usr/share/pixmaps
+share/pixmaps/galaxycash-testnet32.png usr/share/pixmaps
+share/pixmaps/galaxycash-testnet128.png usr/share/pixmaps
+share/pixmaps/galaxycash-testnet256.png usr/share/pixmaps
+debian/galaxycash-qt.desktop usr/share/applications
+debian/galaxycash-testnet-qt.desktop usr/share/applications
+debian/galaxycash-qt.protocol usr/share/kde4/services/

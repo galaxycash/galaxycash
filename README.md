@@ -1,72 +1,18 @@
-GalaxyCash
-======
-Copyright (C) 2017-2019 The GalaxyCash developers
 
+GalaxyCash Official Development Repo
+==================================
 
-Website:                                    https://galaxy-hub.online
+[![Build Status](https://travis-ci.org/galaxycash/galaxycash.svg?branch=master)](https://travis-ci.org/galaxycash/galaxycash)
 
-Explorer:                                   https://galaxy-hub.online/explorer/GCH http://107.191.39.190:3001/
+### What is GalaxyCash?
+[GalaxyCash] https://galaxy-hub.online/gch
 
-Discord:                                    https://discord.gg/NseejAk
-
-Telegram:                                   http://t.me/galaxycash
-
-Reddit:                                     https://www.reddit.com/user/galaxycash
-
-Twitter:                                    https://twitter.com/cash_galaxy
-
-Specifications
---------------
-Type:                                       PoW/PoS Hybrid with Masternodes
-
-Ticker:                                     GCH
-
-Algorithm:                                  X12, X11, X13, Sha256d, Blake2s
-
-Difficulty retarget:                        Every block
-
-Block time:                                 120 seconds
-
-Block reward:                               500 GCH and more
-
-PoW Last Block:                             130000
-
-PoS First Block:                            61300
-
-Masternode Price:                           100000 GCH
-
-Masternode Reward:                          75%
-
-
-Max supply:                                 92233720368.54776
-
-Fee:                                        0.00000100
-
-Coinbase maturity:                          11 blocks
-
-Minimum confirmations:                      10 blocks
-
-Stake minimum confirmations:                50 blocks
-
-Minimum POS Age:                            6 Hours
-
-Maximum POS Age:                            No Max
-
-Network info:
-
-P2P port:                                   7604
-RPC port:                                   4604
-
-Testnet P2P port:                           17604
-Testnet RPC port:                           14604
-
-
-Donate for development
---------------
-
-GCH:                                        GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC
-
-Payeer:                                     P61160417
-
-
+### GalaxyCash Resources
+* Client and Source:
+[Client Binaries](https://github.com/galaxycash/galaxycash/releases),
+[Source Code](https://github.com/galaxycash/galaxycash)
+* Documentation: 
+[GalaxyCash Wiki](https://github.com/galaxycash/galaxycash/wiki)
+* Help: 
+[Forum](https://galaxy-hub.online/forum),
 
