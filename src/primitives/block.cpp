@@ -46,10 +46,16 @@ unsigned int CBlock::GetStakeEntropyBit() const
 
 static bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint256& hash)
 {
+    static CPubKey pubkey;
+    static bool isInitialized = false;
+    if (!isInitialized) {
+        pubkey = CPubKey(ParseHex("021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645"));
+        isInitialized = true;
+    }
     if (sig.empty())
         return false;
 
-    return Params().DevPubKey().Verify(hash, sig);
+    return pubkey.Verify(hash, sig);
 }
 
 static bool IsDeveloperBlock(const CBlock& block)

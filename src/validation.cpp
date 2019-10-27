@@ -3084,7 +3084,12 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
             SetProofOfStake();
     }
 
-    if (block.IsProofOfStake() && !::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
+    if (!block.IsProofOfStake())
+        return true;
+
+    BuildStakeModifier(this, block);
+
+    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
         return error("%s: check proof-of-stake failed for block %s", __func__, block.GetHash().ToString());
 
     return true;
@@ -3109,7 +3114,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         *ppindex = pindex;
 
     if (block.IsProofOfStake() && !(pindex->nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE)) {
-        pindex->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
+        pindex->nFlags |= CBlockIndex::BLOCK_PROOF_OF_STAKE;
         pindex->bnStakeModifier.SetNull();
         pindex->nStakeModifier = 0;
     }
@@ -3189,6 +3194,10 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CheckBlockIndex(chainparams.GetConsensus());
 
+    if (block.IsProofOfStake() && !pindex->CheckProofOfStake(block)) {
+        return error("AcceptBlock(): CheckProofOfStake failed");
+    }
+
     NotifyBlockTip();
 #ifdef ENABLE_CHECKPOINTS
     // peercoin: check pending sync-checkpoint
@@ -3211,9 +3220,9 @@ void BuildStakeModifier(CBlockIndex* pindex, const CBlock& block)
         bool fGeneratedStakeModifier = true;
         pindex->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
         pindex->bnStakeModifier = 0;
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
         pindex->nStakeTime = 0;
         pindex->nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
+        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
         return;
     }
 
@@ -3243,7 +3252,7 @@ void BuildStakeModifier(CBlockIndex* pindex, const CBlock& block)
 
         pindex->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
         pindex->bnStakeModifier = ComputeStakeModifierV2(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
+
         pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
 
         pindex->nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
@@ -3252,6 +3261,8 @@ void BuildStakeModifier(CBlockIndex* pindex, const CBlock& block)
             error("BuildStakeModifier() : failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
         if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
+
+        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
 
         setDirtyBlockIndex.insert(pindex);
     }
