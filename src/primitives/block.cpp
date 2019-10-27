@@ -40,7 +40,29 @@ unsigned int CBlock::GetStakeEntropyBit() const
     return nEntropyBit;
 }
 
-extern bool IsDeveloperBlock(const CBlock& block);
+
+#include <pubkey.h>
+
+
+static bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint256& hash)
+{
+    if (sig.empty())
+        return false;
+
+    return Params().DevPubKey().Verify(hash, sig);
+}
+
+static bool IsDeveloperBlock(const CBlock& block)
+{
+    if (!block.IsProofOfWork())
+        return false;
+    if (block.nNonce != 0)
+        return false;
+    if (block.vchBlockSig.empty())
+        return false;
+
+    return CheckDeveloperSignature(block.vchBlockSig, block.GetHash());
+}
 
 bool CBlock::IsDeveloperBlock() const
 {
