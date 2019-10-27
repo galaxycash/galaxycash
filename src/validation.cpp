@@ -3114,9 +3114,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         pindex->nStakeModifier = 0;
     }
 
-    bool fDevblock = IsDeveloperBlock(block))
-    if (fDevblock && !(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY))
-    {
+    bool fDevblock = block.IsDeveloperBlock();
+    if (fDevblock && !(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
         pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
     }
 
