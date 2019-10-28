@@ -241,11 +241,9 @@ public:
     enum {
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
         BLOCK_STAKE_ENTROPY = (1 << 1),  // entropy bit for stake modifier
-        BLOCK_STAKE_MODIFIER = (1 << 2), // regenerated stake modifier
-        BLOCK_MODIFIER_MAKED = (1 << 3),
-        BLOCK_DEVSUBSIDY = (1 << 4)
+        BLOCK_MODIFIER_MAKED = (1 << 2),
+        BLOCK_DEVSUBSIDY = (1 << 3)
     };
-    uint64_t nStakeModifier; // hash modifier for proof-of-stake
     uint256 bnStakeModifier;
     unsigned int nStakeModifierChecksum; // checksum of index; in-memeory only
     COutPoint prevoutStake;
@@ -270,7 +268,6 @@ public:
     void InitAsProofOfStake()
     {
         nFlags = BLOCK_PROOF_OF_STAKE;
-        nStakeModifier = 0;
         bnStakeModifier = 0;
         nStakeModifierChecksum = 0;
         prevoutStake.SetNull();
@@ -281,7 +278,6 @@ public:
     void InitAsProofOfWork()
     {
         nFlags = 0;
-        nStakeModifier = 0;
         bnStakeModifier = 0;
         nStakeModifierChecksum = 0;
         prevoutStake.SetNull();
@@ -302,17 +298,6 @@ public:
         return true;
     }
 
-    bool GeneratedStakeModifier() const
-    {
-        return (nFlags & BLOCK_STAKE_MODIFIER);
-    }
-
-    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier)
-    {
-        nStakeModifier = nModifier;
-        if (fGeneratedStakeModifier)
-            nFlags |= BLOCK_STAKE_MODIFIER;
-    }
     // galaxycash end
 
     void SetNull()
@@ -341,7 +326,6 @@ public:
         nMint = 0;
         nMoneySupply = 0;
         nFlags = 0;
-        nStakeModifier = 0;
         bnStakeModifier = 0;
         nStakeModifierChecksum = 0;
         hashProofOfStake = 0;
@@ -463,11 +447,12 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(nprev=%08x, nFile=%d, nHeight=%d, nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016llx, nStakeModifierChecksum=%08x, hashProofOfStake=%s, prevoutStake=(%s), nStakeTime=%d merkle=%s, hashBlock=%s)",
+        return strprintf("CBlockIndex(nprev=%08x, nFile=%d, nHeight=%d, nMint=%s, nMoneySupply=%s, nFlags=(%d)(%s), nStakeModifier=%016llx, nStakeModifierChecksum=%08x, hashProofOfStake=%s, prevoutStake=(%s), nStakeTime=%d merkle=%s, hashBlock=%s)",
             pprev, nFile, nHeight,
             FormatMoney(nMint), FormatMoney(nMoneySupply),
-            GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW",
-            nStakeModifier, nStakeModifierChecksum,
+            GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW",
+            bnStakeModifier.GetLow64(),
+            nStakeModifierChecksum,
             hashProofOfStake.ToString(),
             prevoutStake.ToString(), nStakeTime,
             hashMerkleRoot.ToString().substr(0, 10),
@@ -553,7 +538,6 @@ public:
         READWRITE(nMint);
         READWRITE(nMoneySupply);
         READWRITE(nFlags);
-        READWRITE(nStakeModifier);
         READWRITE(bnStakeModifier);
         if (IsProofOfStake()) {
             READWRITE(prevoutStake);

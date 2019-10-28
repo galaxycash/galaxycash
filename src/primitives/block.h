@@ -173,7 +173,7 @@ public:
                 READWRITE(nFlags);
             else {
                 nFlags = IsProofOfStake() ? (1 << 0) : 0;   // PoS flag
-                if (IsDeveloperBlock()) nFlags |= (1 << 4); // Dev block flag
+                if (IsDeveloperBlock()) nFlags |= (1 << 3); // Dev block flag
             }
         } else {
             if (s.GetType() & SER_POSMARKER)
