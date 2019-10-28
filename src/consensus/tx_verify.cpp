@@ -212,18 +212,12 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         assert(!coin.IsSpent());
 
         // If prev is coinbase, check that it's matured
-        if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < params.nCoinbaseMaturity) {
+        if ((coin.IsCoinStake() || coin.IsCoinBase()) && nSpendHeight - coin.nHeight < params.nCoinbaseMaturity) {
             return state.Invalid(false,
-                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
-                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase-or-coinstake",
+                strprintf("tried to spend coinbase or coinstake at depth %d", nSpendHeight - coin.nHeight));
         }
 
-        // If prev is coinbase, check that it's matured
-        if (coin.IsCoinStake() && nSpendHeight - coin.nHeight < params.nStakeMinConfirmations - 1) {
-            return state.Invalid(false,
-                REJECT_INVALID, "bad-txns-premature-spend-of-coinstake",
-                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
-        }
 
         // galaxycash: check transaction timestamp
         if (coin.nTime > tx.nTime)

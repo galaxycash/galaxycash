@@ -76,7 +76,7 @@ static const int MAX_SCRIPTCHECK_THREADS = 16;
 /** -par default (number of script-checking threads, 0 = auto) */
 static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 /** Number of blocks that can be requested at any given time from a single peer. */
-static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 250;
+static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 8;
 /** Timeout in seconds during which a peer must stall block download progress before being disconnected. */
 static const unsigned int BLOCK_STALLING_TIMEOUT = 30;
 /** Number of headers sent in one getheaders result. We rely on the assumption that if a peer sends
@@ -91,7 +91,7 @@ static const int MAX_BLOCKTXN_DEPTH = 10;
  *  Larger windows tolerate larger download speed differences between peer, but increase the potential
  *  degree of disordering of blocks on disk (which make reindexing and pruning harder). We'll probably
  *  want to make this a per-peer adaptive value at some point. */
-static const unsigned int BLOCK_DOWNLOAD_WINDOW = 5000;
+static const unsigned int BLOCK_DOWNLOAD_WINDOW = 512;
 /** Time to wait (in seconds) between writing blocks/block index to disk. */
 static const unsigned int DATABASE_WRITE_INTERVAL = 60 * 60;
 /** Time to wait (in seconds) between flushing chainstate to disk. */
@@ -132,10 +132,10 @@ static const bool DEFAULT_PERSIST_MEMPOOL = true;
 static const bool DEFAULT_FEEFILTER = true;
 
 /** Maximum number of headers to announce when relaying blocks with headers message.*/
-static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 16;
+static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 8;
 
 /** Maximum number of unconnecting headers announcements before DoS score */
-static const int MAX_UNCONNECTING_HEADERS = 128;
+static const int MAX_UNCONNECTING_HEADERS = 12;
 
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 
@@ -235,11 +235,12 @@ static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 1024 * 1024 * 1024;
  */
 bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient = false, bool fForceProcessing = true, bool* fNewBlock = nullptr, CBlockIndex** ppindex = nullptr, bool* fPoSDuplicate = nullptr);
 
-void BuildStakeModifier(CBlockIndex* pindex, const CBlock& block);
+bool BlockProofOfStakeCheck(CBlockIndex* pindex, const CBlock& block);
 
 uint256 static GetOrphanRoot(const uint256& hash);
 uint256 WantedByOrphan(const COrphanBlock* pblockOrphan);
 void static PruneOrphanBlocks();
+
 /**
  * Process incoming block headers.
  *

@@ -2045,7 +2045,7 @@ bool IsBlockPayeeValid(const CBlock& block, int nBlockHeight)
         return true;
     }
 
-    const CTransactionRef& txNew = (nBlockHeight > Params().GetConsensus().LastPowBlock() ? block.vtx[1] : block.vtx[0]);
+    const CTransactionRef& txNew = (nBlockHeight >= Params().GetConsensus().FirstMNPaymentRejectionBlock() ? block.vtx[1] : block.vtx[0]);
 
     //check for masternode payee
     if (masternodePayments.IsTransactionValid(*txNew, nBlockHeight))

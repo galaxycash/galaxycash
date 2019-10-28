@@ -2863,40 +2863,11 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
         if (IsInitialBlockDownload() && pto->nVersion <= OLD_VERSION)
             pto->fWhitelisted = true;
 
-        bool fFetch = pto->nStartingHeight > chainActive.Height() || state.fPreferredDownload || (nPreferredDownload == 0 && !pto->fClient && !pto->fOneShot) || (chainActive.Height() == 0);
+        // Start block sync
+        if (pindexBestHeader == NULL)
+            pindexBestHeader = chainActive.Tip();
+        bool fFetch = state.fPreferredDownload || (nPreferredDownload == 0 && !pto->fClient && !pto->fOneShot); // Download if this is a nice peer, or we have no nice peers and this one might do.
 
-        /*if (pto->GetRecvVersion() <= OLD_VERSION) {
-            if (!state.fSyncStarted && !pto->fClient && !fImporting && !fReindex) {
-                // Only actively request headers from a single peer, unless we're close to today.
-                if ((nSyncStarted == 0 && fFetch) || pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 24 * 60 * 60) {
-                    state.fSyncStarted = true;
-                    state.nHeadersSyncTimeout = GetTimeMicros() + BLOCK_DOWNLOAD_TIMEOUT_BASE + BLOCK_DOWNLOAD_TIMEOUT_PER_PEER * (GetAdjustedTime() - pindexBestHeader->GetBlockTime()) / (consensusParams.TargetSpacing(pindexBestHeader->nHeight));
-                    nSyncStarted++;
-                    const CBlockIndex* pindexStart = pindexBestHeader;
-
-                    if (pindexStart->pprev)
-                        pindexStart = pindexStart->pprev;
-                    LogPrint(BCLog::NET, "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->GetId(), pto->nStartingHeight);
-                    connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexStart), uint256()));
-                }
-            }
-        } else {
-            if (!state.fSyncStarted && !pto->fClient && !fImporting && !fReindex) {
-                // Only actively request headers from a single peer, unless we're close to today.
-                if ((nSyncStarted == 0 && fFetch) || pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 24 * 60 * 60) {
-                    state.fSyncStarted = true;
-                    state.nHeadersSyncTimeout = GetTimeMicros() + HEADERS_DOWNLOAD_TIMEOUT_BASE + HEADERS_DOWNLOAD_TIMEOUT_PER_HEADER * (GetAdjustedTime() - pindexBestHeader->GetBlockTime()) / (consensusParams.TargetSpacing(pindexBestHeader->nHeight));
-                    nSyncStarted++;
-                    const CBlockIndex* pindexStart = pindexBestHeader;
-
-                    if (pindexStart->pprev)
-                        pindexStart = pindexStart->pprev;
-                    LogPrint(BCLog::NET, "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->GetId(), pto->nStartingHeight);
-                    connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexStart), uint256()));
-                }
-            }
-        }
-        */
         if (!state.fSyncStarted && !pto->fClient && !fImporting && !fReindex) {
             // Only actively request headers from a single peer, unless we're close to today.
             if ((nSyncStarted == 0 && fFetch) || pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 24 * 60 * 60) {
@@ -2909,47 +2880,18 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                     pindexStart = pindexStart->pprev;
                 LogPrint(BCLog::NET, "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->GetId(), pto->nStartingHeight);
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexStart), uint256()));
+                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexStart), uint256()));
             }
         }
-        /* if (state.fSyncStarted && (state.m_last_block_announcement + 100) < (GetTime())) {
-            if (pto->GetRecvVersion() < NEW_VERSION)
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexBestHeader), uint256(0)));
-            else
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), uint256(0)));
-        } else if (!state.fSyncStarted) {
-            state.fSyncStarted = true;
-            state.nHeadersSyncTimeout = GetTime() + 100;
 
 
-            state.m_chain_sync.m_timeout = GetTime() + 15;
-            state.m_chain_sync.m_work_header = chainActive.Tip();
-            state.m_chain_sync.m_sent_getheaders = false;
-
-            if (pto->GetRecvVersion() < NEW_VERSION)
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexBestHeader), uint256(0)));
-            else
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), uint256(0)));
-        }*/
         // Resend wallet transactions that haven't gotten in a block yet
         // Except during reindex, importing and IBD, when old wallet
         // transactions become unconfirmed and spams other nodes.
         if (!fReindex && !fImporting && !IsInitialBlockDownload()) {
             GetMainSignals().Broadcast(nTimeBestReceived, connman);
         }
-        /*if (pto->GetRecvVersion() < NEW_VERSION) {
-            for (std::vector<uint256>::iterator it = pto->vBlockHashesToAnnounce.begin(); it != pto->vBlockHashesToAnnounce.end(); it++) {
-                if (!mapBlockIndex.count((*it)))
-                    continue;
 
-                vGetData.push_back(CInv(MSG_BLOCK, (*it)));
-            }
-            for (std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator>>::iterator it = mapBlocksInFlight.begin(); it != mapBlocksInFlight.end(); it++) {
-                vGetData.push_back(CInv(MSG_BLOCK, (*it).second.second->hash));
-            }
-            for (std::map<CBlockIndex*, WaitElement>::iterator it = mapBlocksWait.begin(); it != mapBlocksWait.end(); it++) {
-                vGetData.push_back(CInv(MSG_BLOCK, ((*it).second.pblock->hashPrevBlock)));
-            }
-        }*/
 
         //
         // Try sending block announcements via headers
@@ -3019,28 +2961,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                 }
             }
             if (!fRevertToInv && !vHeaders.empty()) {
-                if (vHeaders.size() == 1) {
-                    // We only send up to 1 block as header-and-ids, as otherwise
-                    // probably means we're doing an initial-ish-sync or they're slow
-                    LogPrint(BCLog::NET, "%s sending header-and-ids %s to peer=%d\n", __func__,
-                        vHeaders.front().GetHash().ToString(), pto->GetId());
-
-                    bool fGotBlockFromCache = false;
-                    {
-                        LOCK(cs_most_recent_block);
-                        if (most_recent_block_hash == pBestIndex->GetBlockHash()) {
-                            connman->PushMessage(pto, msgMaker.Make(NetMsgType::BLOCK, *most_recent_block));
-                            fGotBlockFromCache = true;
-                        }
-                    }
-                    if (!fGotBlockFromCache) {
-                        CBlock block;
-                        bool ret = ReadBlockFromDisk(block, pBestIndex, consensusParams);
-                        assert(ret);
-                        connman->PushMessage(pto, msgMaker.Make(NetMsgType::BLOCK, block));
-                    }
-                    state.pindexBestHeaderSent = pBestIndex;
-                } else if (state.fPreferHeaders && pto->GetRecvVersion() >= NEW_VERSION) {
+                if (state.fPreferHeaders && pto->GetRecvVersion() >= NEW_VERSION) {
                     if (vHeaders.size() > 1) {
                         LogPrint(BCLog::NET, "%s: %u headers, range (%s, %s), to peer=%d\n", __func__,
                             vHeaders.size(),
