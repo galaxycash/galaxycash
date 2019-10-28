@@ -160,6 +160,7 @@ struct COrphanBlock {
 extern std::map<uint256, COrphanBlock*> mapOrphanBlocks;
 extern std::multimap<uint256, COrphanBlock*> mapOrphanBlocksByPrev;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeenOrphan;
+extern std::map<uint256, std::pair<COutPoint, unsigned int>> mapProofOfStake;
 extern size_t nOrphanBlocksSize;
 extern uint64_t nLastBlockTx;
 extern uint64_t nLastBlockWeight;

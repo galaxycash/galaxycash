@@ -2433,6 +2433,13 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
         return false;
     }
 
+
+    uiInterface.NotifyBlockTip(IsInitialBlockDownload(), chainActive.Tip());
+
+    if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
+        masternodePayments.ProcessBlock(chainActive.Height() + 10);
+    }
+
     return true;
 }
 
@@ -2606,6 +2613,10 @@ CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, bool fSetAs
     if (pindexBestHeader == nullptr || pindexBestHeader->nChainTrust < pindexNew->nChainTrust)
         pindexBestHeader = pindexNew;
 
+    // ppcoin: compute stake entropy bit for stake modifier
+    if (!pindexNew->SetStakeEntropyBit(block.GetStakeEntropyBit()))
+        LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
+
 
     setDirtyBlockIndex.insert(pindexNew);
 
@@ -2616,6 +2627,9 @@ CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, bool fSetAs
 /** Mark a block as having its data received and checked (up to BLOCK_VALID_TRANSACTIONS). */
 bool CChainState::ReceivedBlockTransactions(const CBlock& block, CValidationState& state, CBlockIndex* pindexNew, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
 {
+    if (!pindexNew)
+        return false;
+
     if (block.IsProofOfStake() != pindexNew->IsProofOfStake()) {
         if (pindexNew->IsProofOfStake())
             pindexNew->nFlags &= ~CBlockIndex::BLOCK_PROOF_OF_STAKE;
@@ -2625,6 +2639,7 @@ bool CChainState::ReceivedBlockTransactions(const CBlock& block, CValidationStat
         if (pindexNew->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
             pindexNew->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
     }
+
     if (IsDeveloperBlock(block)) {
         if (!(pindexNew->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
             pindexNew->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
@@ -2792,7 +2807,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW && !block.IsProofOfStake(), fCheckSignature && !block.IsProofOfWork(), fOldClient))
+    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW && block.IsProofOfWork(), fCheckSignature && block.IsProofOfStake(), fOldClient))
         return false;
 
     // Check the merkle root.
@@ -2892,7 +2907,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (fCheckSignature && block.IsProofOfStake() && !CheckBlockSignature(block))
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-sign", false, strprintf("%s : bad block signature", __func__));
 
-    if ((block.IsProofOfWork() ? fCheckPOW : true) && fCheckMerkleRoot && (block.IsProofOfStake() ? fCheckSignature : true))
+    if (fCheckPOW && fCheckMerkleRoot && fCheckSignature)
         block.fChecked = true;
 
     return true;
@@ -2986,7 +3001,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
 
 
     // Enforce rule that the coinbase starts with serialized block height
-    if (block.IsProofOfWork() && !IsDeveloperBlock(block) && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
+    if (block.IsProofOfWork() && block.IsDeveloperBlock() && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
             !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
@@ -3097,7 +3112,6 @@ bool ProcessNewBlockHeaders(const uint256& lastAcceptedHeader, const std::vector
             if (ppindex) {
                 *ppindex = pindex;
             }
-            NotifyHeaderTip();
         }
     }
 
@@ -3124,18 +3138,81 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
     return blockPos;
 }
 
-bool CBlockIndex::CheckProofOfStake(const CBlock& block)
+bool CBlockIndex::BuildStakeModifier(const CBlock& block)
 {
-    if (!pprev)
+    if (nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
         return true;
 
+
+    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
+        const CBlock& genesis = Params().GenesisBlock();
+        hashProofOfStake = genesis.GetPoWHash();
+        nStakeModifier = 0;
+        bnStakeModifier = 0;
+        nStakeTime = 0;
+        nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
+        nStakeModifierChecksum = GetStakeModifierChecksum(this);
+
+        setDirtyBlockIndex.insert(this);
+
+        return true;
+    }
+
+    if (pprev && pprev->GetBlockHash() != Params().GetConsensus().hashGenesisBlock) {
+        if (!pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
+            return true;
+
+        CBlock prevBlock;
+        if (!ReadBlockFromDisk(prevBlock, pprev, Params().GetConsensus())) {
+            error("BlockProofOfStakeCheck(): *** ReadBlockFromDisk failed at %d, hash=%s", __func__, pprev->nHeight, pprev->GetBlockHash().ToString());
+            return false;
+        }
+
+        if (!pprev->BuildStakeModifier(prevBlock))
+            return false;
+    }
+
+    if (IsValid(BLOCK_VALID_TRANSACTIONS)) {
+        if (block.IsProofOfWork()) hashProofOfStake = block.GetPoWHash();
+
+        uint64_t nStakeModifierNew = 0;
+        bool fGeneratedStakeModifierNew = false;
+        if (!ComputeNextStakeModifier(pprev, nStakeModifierNew, fGeneratedStakeModifierNew))
+            LogPrintf("AddToBlockIndex() : ComputeNextStakeModifier() failed \n");
+        SetStakeModifier(nStakeModifierNew, fGeneratedStakeModifierNew);
+
+        bnStakeModifier = ComputeStakeModifierV2(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
+        nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
+        if (block.IsProofOfStake() && !::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
+            return error("BlockProofOfStakeCheck() : CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+        }
+        nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
+        nStakeModifierChecksum = GetStakeModifierChecksum(this);
+        if (!CheckStakeModifierCheckpoints(nHeight, nStakeModifierChecksum))
+            return error("BlockProofOfStakeCheck() : CheckStakeModifierCheckpoints failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+
+        setDirtyBlockIndex.insert(this);
+
+        return true;
+    }
+    return true;
+}
+
+bool CBlockIndex::CheckProofOfStake(const CBlock& block)
+{
     if (!block.IsProofOfStake())
         return true;
 
+    if (!IsValid(BLOCK_VALID_TRANSACTIONS))
+        return true;
+
+    if (!BuildStakeModifier(block))
+        return error("%s: build stake modifier failed for block %s", __func__, block.GetHash().ToString());
 
     if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
         return error("%s: check proof-of-stake failed for block %s", __func__, block.GetHash().ToString());
 
+    setDirtyBlockIndex.insert(this);
     return true;
 }
 
@@ -3157,7 +3234,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (ppindex)
         *ppindex = pindex;
 
-    if (block.IsProofOfStake() != pindex->IsProofOfStake()) {
+    if (pindex && block.IsProofOfStake() != pindex->IsProofOfStake()) {
         if (pindex->IsProofOfStake())
             pindex->nFlags &= ~CBlockIndex::BLOCK_PROOF_OF_STAKE;
         else {
@@ -3172,14 +3249,14 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     bool fDevblock = IsDeveloperBlock(block);
 
     if (fDevblock) {
-        if (!(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
+        if (pindex && !(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
             pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
 
             if (pindex->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
                 pindex->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
         }
     } else {
-        if (pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY) {
+        if (pindex && pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY) {
             pindex->nFlags &= ~CBlockIndex::BLOCK_DEVSUBSIDY;
 
             if (pindex->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
@@ -3187,10 +3264,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         }
     }
 
-    // peercoin: we should only accept blocks that can be connected to a prev block with validated PoS
-    if (fCheckPoS && pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
-        return error("%s: this block does not connect to any valid known block", __func__);
-    }
 
     if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), block.IsProofOfWork(), fCheckPoS && block.IsProofOfStake(), fDevblock)) {
         return false;
@@ -3261,10 +3334,12 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CheckBlockIndex(chainparams.GetConsensus());
 
-    if (fCheckPoS && pindex->IsProofOfStake() && !BlockProofOfStakeCheck(pindex, block)) {
+    if (fCheckPoS && pindex->IsProofOfStake() && !pindex->CheckProofOfStake(block)) {
         error("AcceptBlock(): BlockProofOfStakeCheck build stake modifiers and check proof of stake FAILED for block %d, %s", block.GetHash().ToString(), pindex->nHeight);
         return g_chainstate.InvalidateBlock(state, chainparams, pindex);
     }
+
+    setDirtyBlockIndex.insert(pindex);
 
     if (pindexBestBlock == nullptr) {
         pindexBestBlock = pindex;
@@ -3357,18 +3432,28 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         if (fNewBlock) *fNewBlock = false;
         if (fPoSDuplicate) *fPoSDuplicate = false;
 
-        bool fDevBlock = IsDeveloperBlock(*pblock);
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), true, true, true, fOldClient);
+        bool fDevblock = IsDeveloperBlock(*pblock);
+
+        if (pindex && fDevblock) {
+            if (!(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
+                pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
+
+                if (pindex->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
+                    pindex->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
+            }
+        }
+
+        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), !fDevblock, !fDevblock, !fDevblock, fOldClient);
 
         LOCK(cs_main);
 
-        if (ret || fDevBlock) ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, pblock->IsProofOfStake());
+        if (ret || fDevblock) ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, (!fDevblock) && pblock->IsProofOfStake());
 
 
         if (ppindex)
-            *ppindex = (ret || fDevBlock) ? pindex : nullptr;
+            *ppindex = (ret || fDevblock) ? pindex : nullptr;
 
-        if (!fDevBlock && !ret) {
+        if (!fDevblock && !ret) {
             GetMainSignals().BlockChecked(*pblock, state);
             return error("%s: AcceptBlock %s FAILED (%s)", __func__, pblock->GetHash().GetHex(), FormatStateMessage(state));
         }
@@ -3383,14 +3468,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
 
     if (!g_chainstate.ActivateBestChain(state, chainparams, pblock)) {
         return error("%s: ActivateBestChain failed", __func__);
-    }
-
-    if (*ppindex) {
-        uiInterface.NotifyBlockTip(IsInitialBlockDownload(), *ppindex);
-
-        if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
-            masternodePayments.ProcessBlock((*ppindex)->nHeight + 10);
-        }
     }
 
 #ifdef ENABLE_CHECKPOINTS
@@ -3546,17 +3623,19 @@ bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient, bool fForc
 
     // Check for duplicate
     uint256 hash = block.GetHash();
-    if (mapBlockIndex.count(hash) && pindex->nStatus & BLOCK_HAVE_DATA)
+    if (mapBlockIndex.count(hash) && pindex->nStatus & BLOCK_HAVE_DATA) {
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString());
+    }
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString());
 
     // ppcoin: check proof-of-stake
     // Limited duplicity on stake: prevents block flood attack
     // Duplicate stake allowed only when there is orphan child block
-    if (!fReindex && !fImporting && pindex->nStatus & BLOCK_HAVE_DATA && block.IsProofOfStake() && setStakeSeen.count(block.GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
+    if (!fReindex && !fImporting && pindex->nStatus & BLOCK_HAVE_DATA && block.IsProofOfStake() && setStakeSeen.count(block.GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash)) {
+        if (fPoSDuplicate) *fPoSDuplicate = true;
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", block.GetProofOfStake().first.ToString(), block.GetProofOfStake().second, hash.ToString());
-
+    }
     if (block.IsProofOfStake()) {
         if (!IsCanonicalBlockSignature(pblock.get(), false)) {
             if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION)

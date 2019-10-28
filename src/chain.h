@@ -482,6 +482,7 @@ public:
     CBlockIndex* GetAncestor(int height);
     const CBlockIndex* GetAncestor(int height) const;
 
+    bool BuildStakeModifier(const CBlock& block);
     bool CheckProofOfStake(const CBlock& block);
 };
 
