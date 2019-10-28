@@ -2631,33 +2631,6 @@ bool CChainState::ReceivedBlockTransactions(const CBlock& block, CValidationStat
     if (!pindexNew)
         return false;
 
-    if (block.IsProofOfStake() != pindexNew->IsProofOfStake()) {
-        if (pindexNew->IsProofOfStake())
-            pindexNew->nFlags &= ~CBlockIndex::BLOCK_PROOF_OF_STAKE;
-        else
-            pindexNew->SetProofOfStake();
-
-        if (pindexNew->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
-            pindexNew->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
-    }
-
-    if (IsDeveloperBlock(block)) {
-        if (!(pindexNew->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
-            pindexNew->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-
-            if (pindexNew->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
-                pindexNew->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
-        }
-    } else {
-        if (pindexNew->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY) {
-            pindexNew->nFlags &= ~CBlockIndex::BLOCK_DEVSUBSIDY;
-
-            if (pindexNew->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
-                pindexNew->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
-        }
-    }
-    pindexNew->BuildStakeModifier(block);
-
     pindexNew->nTx = block.vtx.size();
     pindexNew->nChainTx = 0;
     pindexNew->nFile = pos.nFile;
@@ -3202,9 +3175,6 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
 
 bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 {
-    if (!IsValid(BLOCK_VALID_TRANSACTIONS))
-        return true;
-
     if (!block.IsProofOfStake())
         return true;
 
@@ -3226,10 +3196,12 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     CBlock block;
     ss >> block;
 
+    uint256 hash = block.GetHash();
+
     if (fNewBlock) *fNewBlock = false;
     AssertLockHeld(cs_main);
 
-    CBlockIndex* pindex = ppindex ? *ppindex : nullptr;
+    CBlockIndex* pindex = ppindex ? *ppindex : (mapBlockIndex.count(hash) ? mapBlockIndex[hash] : nullptr);
     if (pindex == nullptr) {
         pindex = AddToBlockIndex(block, block.IsProofOfStake());
         if (ppindex) *ppindex = pindex;
@@ -3306,6 +3278,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     // Write block to history file
     try {
+        block.nFlags = pindex->nFlags; // Again save nFlags
+
         CDiskBlockPos blockPos = SaveBlockToDisk(block, pindex->nHeight, chainparams, dbp);
         if (blockPos.IsNull()) {
             state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
@@ -3341,71 +3315,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 #endif
 }
 
-#include <masternode.h>
-
-/*bool BlockProofOfStakeCheck(CBlockIndex* pindex, const CBlock& block)
-{
-    if (pindex->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
-        return true;
-
-    if (pindex->GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
-        const CBlock& genesis = Params().GenesisBlock();
-        pindex->hashProofOfStake = genesis.GetPoWHash();
-        if (!pindex->SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
-            return error("BlockProofOfStakeCheck() : SetStakeEntropyBit() failed at %d, hash=%s", pindex->pprev->nHeight, pindex->pprev->GetBlockHash().ToString());
-        pindex->nStakeModifier = 0;
-        pindex->bnStakeModifier = 0;
-        pindex->nStakeTime = 0;
-        pindex->nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-        return true;
-    }
-
-    if (pindex->pprev && pindex->pprev->GetBlockHash() != Params().GetConsensus().hashGenesisBlock) {
-        CBlock prevBlock;
-        if (!ReadBlockFromDisk(prevBlock, pindex->pprev, Params().GetConsensus())) {
-            error("BlockProofOfStakeCheck(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->pprev->nHeight, pindex->pprev->GetBlockHash().ToString());
-            return false;
-        }
-
-        if (!BlockProofOfStakeCheck(pindex->pprev, prevBlock))
-            return false;
-    }
-
-    if ((pindex->nStatus & BLOCK_HAVE_DATA) && (pindex->nStatus & BLOCK_VALID_TRANSACTIONS)) {
-        if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
-        if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
-            return error("BlockProofOfStakeCheck() : SetStakeEntropyBit() failed at %d, hash=%s", pindex->pprev->nHeight, pindex->pprev->GetBlockHash().ToString());
-
-
-        pindex->nStakeModifier = 0;
-        pindex->bnStakeModifier = ComputeStakeModifierV2(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
-        pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
-        if (block.IsProofOfStake() && !::CheckProofOfStake(pindex->pprev, block.nBits, *block.vtx[1], pindex->hashProofOfStake)) {
-            return error("BlockProofOfStakeCheck() : CheckProofOfStake failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-        }
-        pindex->nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum))
-            return error("BlockProofOfStakeCheck() : CheckStakeModifierCheckpoints failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-
-        setDirtyBlockIndex.insert(pindex);
-
-        return true;
-    }
-
-    return false;
-}*/
-
-
-void AddInvalidBlock(const std::shared_ptr<CBlock>& block)
-{
-}
-
-void ProcessInvalidBlocksAgain()
-{
-}
-
 bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fOldClient, bool fForceProcessing, bool* fNewBlock, CBlockIndex** ppindex, bool* fPoSDuplicate)
 {
     AssertLockNotHeld(cs_main);
@@ -3421,14 +3330,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
 
         bool fDevblock = IsDeveloperBlock(*pblock);
         bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, (!fDevblock) && pblock->IsProofOfStake());
-        if (pindex && fDevblock) {
-            if (!(pindex->nFlags & CBlockIndex::BLOCK_DEVSUBSIDY)) {
-                pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-
-                if (pindex->nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
-                    pindex->nFlags &= ~CBlockIndex::BLOCK_MODIFIER_MAKED;
-            }
-        }
 
 
         if (ppindex)
