@@ -267,6 +267,28 @@ public:
         nFlags |= BLOCK_PROOF_OF_STAKE;
     }
 
+    void InitAsProofOfStake()
+    {
+        nFlags = BLOCK_PROOF_OF_STAKE;
+        nStakeModifier = 0;
+        bnStakeModifier = 0;
+        nStakeModifierChecksum = 0;
+        prevoutStake.SetNull();
+        nStakeTime = 0;
+        hashProofOfStake = uint256();
+    }
+
+    void InitAsProofOfWork()
+    {
+        nFlags = 0;
+        nStakeModifier = 0;
+        bnStakeModifier = 0;
+        nStakeModifierChecksum = 0;
+        prevoutStake.SetNull();
+        nStakeTime = 0;
+        hashProofOfStake = GetBlockHeader().GetPoWHash();
+    }
+
     unsigned int GetStakeEntropyBit() const
     {
         return ((nFlags & BLOCK_STAKE_ENTROPY) >> 1);
