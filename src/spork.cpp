@@ -252,7 +252,7 @@ void ThreadSporks()
                 g_connman.PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make(NetMsgType::GETSPORKS));
             });
 
-            lastRequest = time + GETSPORKS_TIMEOUT;
+            lastRequest = time + GETSPORKS_TIME;
         }
     }
 }
