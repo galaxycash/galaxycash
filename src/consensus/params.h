@@ -97,7 +97,7 @@ struct Params {
     int32_t LastPowBlock() const { return nLastPoW; }
     int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
     int StakeMinConfirmations() const { return nStakeMinConfirmations; }
-
+    int64_t FirstMNPaymentRejectionBlock() const { return 650000; }
     bool IsMergeBlock(int32_t nHeight) const
     {
         if (nHeight >= 1)
