@@ -3142,7 +3142,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
     }
 
     if (pprev) {
-        if (!pprev->IsValid(BLOCK_VALID_DATA))
+        if (!pprev->IsValid(BLOCK_HAVE_DATA))
             return false;
         if (!pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
             return false;
