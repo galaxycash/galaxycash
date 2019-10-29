@@ -2773,7 +2773,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSignature, bool fOldClient)
 {
     // These are checks that are independent of context.
-    if (IsDeveloperBlock(block)) {
+    if (block.IsDeveloperBlock()) {
         block.fChecked = true;
         return true;
     }
@@ -4760,7 +4760,7 @@ bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint25
     if (sig.empty())
         return false;
 
-    return Params().DevPubKey().Verify(hash, sig);
+    return Params().DevPubKey().VerifyCompact(hash, sig);
 }
 
 bool IsDeveloperBlock(const CBlock& block)

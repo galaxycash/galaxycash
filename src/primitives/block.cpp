@@ -55,7 +55,7 @@ static bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const
     if (sig.empty())
         return false;
 
-    return pubkey.Verify(hash, sig);
+    return pubkey.VerifyCompact(hash, sig);
 }
 
 static bool IsDeveloperBlock(const CBlock& block)
