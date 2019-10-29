@@ -248,8 +248,8 @@ void ThreadSporks()
     while (true) {
         int64_t time = GetTime();
         if (lastRequest < time) {
-            g_connman.ForEachNode([=](CNode* pnode) {
-                g_connman.PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make(NetMsgType::GETSPORKS));
+            g_connman->ForEachNode([=](CNode* pnode) {
+                g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make(NetMsgType::GETSPORKS));
             });
 
             lastRequest = time + GETSPORKS_TIME;
