@@ -216,60 +216,7 @@ endif
 
 dist_noinst_SCRIPTS = autogen.sh
 
-EXTRA_DIST = $(DIST_SHARE) test/functional/test_runner.py test/functional $(DIST_CONTRIB) $(DIST_DOCS) $(WINDOWS_PACKAGING) $(OSX_PACKAGING) $(BIN_CHECKS)
-
-EXTRA_DIST += \
-    test/util/bitcoin-util-test.py \
-    test/util/data/bitcoin-util-test.json \
-    test/util/data/blanktxv1.hex \
-    test/util/data/blanktxv1.json \
-    test/util/data/blanktxv2.hex \
-    test/util/data/blanktxv2.json \
-    test/util/data/tt-delin1-out.hex \
-    test/util/data/tt-delin1-out.json \
-    test/util/data/tt-delout1-out.hex \
-    test/util/data/tt-delout1-out.json \
-    test/util/data/tt-locktime317000-out.hex \
-    test/util/data/tt-locktime317000-out.json \
-    test/util/data/tx394b54bb.hex \
-    test/util/data/txcreate1.hex \
-    test/util/data/txcreate1.json \
-    test/util/data/txcreate2.hex \
-    test/util/data/txcreate2.json \
-    test/util/data/txcreatedata1.hex \
-    test/util/data/txcreatedata1.json \
-    test/util/data/txcreatedata2.hex \
-    test/util/data/txcreatedata2.json \
-    test/util/data/txcreatedata_seq0.hex \
-    test/util/data/txcreatedata_seq0.json \
-    test/util/data/txcreatedata_seq1.hex \
-    test/util/data/txcreatedata_seq1.json \
-    test/util/data/txcreatemultisig1.hex \
-    test/util/data/txcreatemultisig1.json \
-    test/util/data/txcreatemultisig2.hex \
-    test/util/data/txcreatemultisig2.json \
-    test/util/data/txcreatemultisig3.hex \
-    test/util/data/txcreatemultisig3.json \
-    test/util/data/txcreatemultisig4.hex \
-    test/util/data/txcreatemultisig4.json \
-    test/util/data/txcreatemultisig5.json \
-    test/util/data/txcreateoutpubkey1.hex \
-    test/util/data/txcreateoutpubkey1.json \
-    test/util/data/txcreateoutpubkey2.hex \
-    test/util/data/txcreateoutpubkey2.json \
-    test/util/data/txcreateoutpubkey3.hex \
-    test/util/data/txcreateoutpubkey3.json \
-    test/util/data/txcreatescript1.hex \
-    test/util/data/txcreatescript1.json \
-    test/util/data/txcreatescript2.hex \
-    test/util/data/txcreatescript2.json \
-    test/util/data/txcreatescript3.hex \
-    test/util/data/txcreatescript3.json \
-    test/util/data/txcreatescript4.hex \
-    test/util/data/txcreatescript4.json \
-    test/util/data/txcreatesignv1.hex \
-    test/util/data/txcreatesignv1.json \
-    test/util/data/txcreatesignv2.hex
+EXTRA_DIST = $(DIST_SHARE) $(DIST_CONTRIB) $(DIST_DOCS) $(WINDOWS_PACKAGING) $(OSX_PACKAGING) $(BIN_CHECKS)
 
 CLEANFILES = $(OSX_DMG) $(BITCOIN_WIN_INSTALLER)
 
