@@ -3136,6 +3136,8 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
     }
 
     if (pprev) {
+        if (!pprev->IsValid(BLOCK_VALID_DATA))
+            return false;
         if (!pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
             return false;
 
@@ -3154,7 +3156,6 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
             LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
 
         if (block.IsProofOfWork()) hashProofOfStake = block.GetPoWHash();
-
 
         bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
         nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
@@ -3175,11 +3176,14 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
 
 bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 {
-    if (!block.IsProofOfStake())
+    if (fReindex)
         return true;
 
     if (!BuildStakeModifier(block))
         return error("%s: build stake modifier failed for block %s", __func__, block.GetHash().ToString());
+
+    if (!block.IsProofOfStake())
+        return true;
 
     if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
         return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
@@ -3219,7 +3223,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         block.nFlags = pindex->nFlags;
     }
 
-    if (!AcceptBlockHeader(pindex->GetBlockHeader(), block.IsProofOfStake(), state, chainparams, &pindex))
+    if (!block.IsDeveloperBlock() && !AcceptBlockHeader(pindex->GetBlockHeader(), block.IsProofOfStake(), state, chainparams, &pindex))
         return false;
 
     // peercoin: we should only accept blocks that can be connected to a prev block with validated PoS
@@ -3295,7 +3299,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CheckBlockIndex(chainparams.GetConsensus());
 
-    if (pindex && !fReindex && !pindex->CheckProofOfStake(block))
+    if (pindex && !fHasDevblock && !pindex->CheckProofOfStake(block))
         return error("AcceptBlock(): CheckProofOfStake FAILED for block %d, %s", block.GetHash().ToString(), pindex->nHeight);
 
 
