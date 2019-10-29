@@ -33,6 +33,7 @@
 #include <scheduler.h>
 #include <script/sigcache.h>
 #include <script/standard.h>
+#include <spork.h>
 #include <timedata.h>
 #include <torcontrol.h>
 #include <txdb.h>
@@ -202,6 +203,7 @@ void Shutdown()
     RenameThread("galaxycash-shutoff");
     mempool.AddTransactionsUpdated(1);
 
+    sporkManager.Dump();
     DumpMasternodes();
     DumpMasternodePayments();
 
@@ -1667,6 +1669,9 @@ bool AppInitMain()
     if (!est_filein.IsNull())
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
+
+    sporkManager.Init();
+    threadGroup.create_thread(boost::bind(&ThreadSporks));
 
     return true;
 }

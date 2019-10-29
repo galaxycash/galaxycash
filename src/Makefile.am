@@ -77,6 +77,7 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   galaxycash.h \
+  galaxyscript.h \  
   addrdb.h \
   addrman.h \
   amount.h \
@@ -116,6 +117,7 @@ BITCOIN_CORE_H = \
   memusage.h \
   merkleblock.h \
   masternode.h \
+  spork.h \
   miner.h \
   net.h \
   net_processing.h \
@@ -208,6 +210,7 @@ libbitcoin_server_a_SOURCES = \
   dbwrapper.cpp \
   merkleblock.cpp \
   masternode.cpp \
+  spork.cpp \
   miner.cpp \
   net.cpp \
   net_processing.cpp \
@@ -430,6 +433,7 @@ libgalaxycash_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libgalaxycash_a_SOURCES =
 libgalaxycash_a_SOURCES += \
   galaxycash.cpp \
+  galaxyscript.cpp \
   $(BITCOIN_CORE_H)
 
 # cli: shared between galaxycash-cli and galaxycash-qt

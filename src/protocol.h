@@ -115,6 +115,10 @@ extern const char* GETBLOCKS;
  */
 extern const char* GETHEADERS;
 /**
+ * The getsporks message requests a for sporks data
+ */
+extern const char* GETSPORKS;
+/**
  * The tx message transmits a single transaction.
  * @see https://bitcoin.org/en/developer-reference#tx
  */
@@ -131,7 +135,16 @@ extern const char* HEADERS;
  * @see https://bitcoin.org/en/developer-reference#block
  */
 extern const char* BLOCK;
-
+/**
+ * The spork message transmits a single serialized spork.
+ * @see https://bitcoin.org/en/developer-reference#block
+ */
+extern const char* SPORK;
+/**
+ * The sporks message transmits a list of serialized sporks.
+ * @see https://bitcoin.org/en/developer-reference#block
+ */
+extern const char* SPORKS;
 
 extern const char* MASTERNODE_WINNER;
 extern const char* MASTERNODE_SCANNING_ERROR;
@@ -373,12 +386,10 @@ enum GetDataMsg {
     MSG_TX = 1,
     MSG_BLOCK = 2,
     MSG_FILTERED_BLOCK,
+    MSG_SPORK,
+    MSG_SPORKS,
     MSG_MASTERNODE_WINNER,
     MSG_MASTERNODE_SCANNING_ERROR,
-    MSG_BUDGET_VOTE,
-    MSG_BUDGET_PROPOSAL,
-    MSG_BUDGET_FINALIZED,
-    MSG_BUDGET_FINALIZED_VOTE,
     MSG_MASTERNODE_QUORUM,
     MSG_MASTERNODE_ANNOUNCE,
     MSG_MASTERNODE_PING

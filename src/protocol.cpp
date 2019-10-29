@@ -25,6 +25,10 @@ const char* GETHEADERS = "getheaders";
 const char* TX = "tx";
 const char* HEADERS = "headers";
 const char* BLOCK = "block";
+const char* GETSPORKS = "getsporks";
+const char* GETSPORK = "getspork";
+const char* SPORK = "spork";
+const char* SPORKS = "sporks";
 const char* MASTERNODE_WINNER = "mn-winner";
 const char* MASTERNODE_SCANNING_ERROR = "mn-scan-error";
 const char* BUDGET_VOTE = "mn-budget-vote";
@@ -47,7 +51,6 @@ const char* REJECT = "reject";
 const char* SENDHEADERS = "sendheaders";
 const char* FEEFILTER = "feefilter";
 const char* CHECKPOINT = "checkpoint";
-const char* SPORK = "spork";
 const char* DSEE = "dsee";
 const char* MNWINNER = "masternode winner";
 const char* FILTEREDBLOCK = "filtered block";
@@ -67,9 +70,12 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::MERKLEBLOCK,
     NetMsgType::GETBLOCKS,
     NetMsgType::GETHEADERS,
+    NetMsgType::GETSPORKS,
     NetMsgType::TX,
     NetMsgType::HEADERS,
     NetMsgType::BLOCK,
+    NetMsgType::SPORK,
+    NetMsgType::SPORKS,
     NetMsgType::MASTERNODE_WINNER,
     NetMsgType::MASTERNODE_SCANNING_ERROR,
     NetMsgType::BUDGET_VOTE,
@@ -96,6 +102,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::FILTEREDBLOCK,
     NetMsgType::BLOCKTXN,
     NetMsgType::GETBLOCKTXN};
+
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes + ARRAYLEN(allNetMessageTypes));
 
 CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn)
@@ -189,20 +196,17 @@ std::string CInv::GetCommand() const
     case MSG_FILTERED_BLOCK:
         return NetMsgType::MERKLEBLOCK;
         break;
+    case MSG_SPORK:
+        return NetMsgType::MSG_SPORK;
+        break;
+    case MSG_SPORKS:
+        return NetMsgType::MSG_SPORKS;
+        break;
     case MSG_MASTERNODE_WINNER:
         return NetMsgType::MASTERNODE_WINNER;
         break;
     case MSG_MASTERNODE_SCANNING_ERROR:
         return NetMsgType::MASTERNODE_SCANNING_ERROR;
-        break;
-    case MSG_BUDGET_VOTE:
-        return NetMsgType::BUDGET_VOTE;
-        break;
-    case MSG_BUDGET_FINALIZED:
-        return NetMsgType::BUDGET_FINALIZED;
-        break;
-    case MSG_BUDGET_FINALIZED_VOTE:
-        return NetMsgType::BUDGET_FINALIZED_VOTE;
         break;
     case MSG_MASTERNODE_QUORUM:
         return NetMsgType::MASTERNODE_QUORUM;
