@@ -3295,7 +3295,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CheckBlockIndex(chainparams.GetConsensus());
 
-    if (pindex && !pindex->CheckProofOfStake(block))
+    if (pindex && !fReindex && !pindex->CheckProofOfStake(block))
         return error("AcceptBlock(): CheckProofOfStake FAILED for block %d, %s", block.GetHash().ToString(), pindex->nHeight);
 
 
