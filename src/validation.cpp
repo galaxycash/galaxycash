@@ -1546,6 +1546,12 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, !fJustCheck))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
 
+    if (!pindex->BuildStakeModifier(block))
+        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+
+    if (!pindex->CheckProofOfStake(block))
+        return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
     assert(hashPrevBlock == view.GetBestBlock());
@@ -3214,12 +3220,10 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (block.IsProofOfStake()) {
         pindex->InitAsProofOfStake();
         if (block.IsDeveloperBlock()) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-        pindex->BuildStakeModifier(block);
         block.nFlags = pindex->nFlags;
     } else {
         pindex->InitAsProofOfWork();
         if (block.IsDeveloperBlock()) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-        pindex->BuildStakeModifier(block);
         block.nFlags = pindex->nFlags;
     }
 
@@ -3298,10 +3302,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
 
     CheckBlockIndex(chainparams.GetConsensus());
-
-    if (pindex && !fHasDevblock && !pindex->CheckProofOfStake(block))
-        return error("AcceptBlock(): CheckProofOfStake FAILED for block %d, %s", block.GetHash().ToString(), pindex->nHeight);
-
 
     setDirtyBlockIndex.insert(pindex);
 
