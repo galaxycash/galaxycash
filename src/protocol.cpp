@@ -197,10 +197,10 @@ std::string CInv::GetCommand() const
         return NetMsgType::MERKLEBLOCK;
         break;
     case MSG_SPORK:
-        return NetMsgType::MSG_SPORK;
+        return NetMsgType::SPORK;
         break;
     case MSG_SPORKS:
-        return NetMsgType::MSG_SPORKS;
+        return NetMsgType::SPORKS;
         break;
     case MSG_MASTERNODE_WINNER:
         return NetMsgType::MASTERNODE_WINNER;
