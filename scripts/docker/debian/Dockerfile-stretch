@@ -1,7 +1,7 @@
 FROM debian:stretch
 
-#Default branch name develop
-ARG BRANCH_NAME=develop
+#Default branch name master
+ARG BRANCH_NAME=master
 #Default
 ARG REPO_SLUG=galaxycash/galaxycash
 ENV REPO_SLUG=${REPO_SLUG}
