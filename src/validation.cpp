@@ -1718,7 +1718,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
 
-    if (block.IsProofOfWork()) {
+    if (block.IsProofOfWork() && !block.IsDeveloperBlock()) {
         int64_t nBaseReward = GetProofOfWorkReward(nFees, pindex->nHeight);
         if (nBaseReward < nReward)
             return error("ConnectBlock(): %s block coinbase to large: %d < %d", block.GetHash().GetHex().c_str(), nBaseReward, nReward);
