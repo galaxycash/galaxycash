@@ -8,7 +8,6 @@
 #include "base58.h"
 #include "chainparams.h"
 #include "key.h"
-#include "main.h"
 #include "masternode.h"
 #include "net.h"
 #include "net_processing.h"
@@ -17,6 +16,7 @@
 #include "pubkey.h"
 #include "sync.h"
 #include "util.h"
+#include "validation.h"
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
