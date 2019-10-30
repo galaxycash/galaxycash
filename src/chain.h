@@ -167,6 +167,7 @@ enum BlockStatus : uint32_t {
 
     BLOCK_HAVE_DATA = 8,  //!< full block available in blk*.dat
     BLOCK_HAVE_UNDO = 16, //!< undo data available in rev*.dat
+    BLOCK_HAVE_STAKE_MODIFIER = 24,
     BLOCK_HAVE_MASK = BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO,
 
     BLOCK_FAILED_VALID = 32, //!< stage after last reached validness failed
@@ -241,8 +242,7 @@ public:
     enum {
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
         BLOCK_STAKE_ENTROPY = (1 << 1),  // entropy bit for stake modifier
-        BLOCK_STAKE_MODIFIER = (1 << 2),
-        BLOCK_DEVSUBSIDY = (1 << 3)
+        BLOCK_SUBSIDY = (1 << 2)
     };
     uint256 bnStakeModifier;
     unsigned int nStakeModifierChecksum; // checksum of index; in-memeory only
