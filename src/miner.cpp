@@ -108,6 +108,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (!pblocktemplate.get())
         return nullptr;
     pblock = &pblocktemplate->block; // pointer for convenience
+    pblock->nVersion = CBlockHeader::X12_VERSION;
 
     LOCK(cs_main);
     CBlockIndex* pindexPrev = chainActive.Tip();
@@ -123,7 +124,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
 
     if (pblock->IsProofOfWork()) {
-        pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
+                pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
         coinbaseTx.vout[0].nValue = GetProofOfWorkReward(nFees, nHeight);
     }
 
