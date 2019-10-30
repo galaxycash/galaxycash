@@ -5,8 +5,8 @@
 #include <qt/forms/ui_overviewpage.h>
 #include <qt/overviewpage.h>
 
-#include <qt/galaxycashunits.h>
 #include <qt/clientmodel.h>
+#include <qt/galaxycashunits.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
@@ -81,7 +81,7 @@ public:
         }
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 
-        painter->setPen(COLOR_POSITIVE);
+        painter->setPen(COLOR_WHITE);
         painter->drawText(amountRect, Qt::AlignLeft | Qt::AlignVCenter, GUIUtil::dateTimeStr(date));
 
         painter->restore();
