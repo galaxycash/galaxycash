@@ -1532,7 +1532,10 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
 
     if (block.IsProofOfStake()) {
-        if (pindex->IsProofOfWork()) pindex->SetProofOfStake();
+        if (pindex->IsProofOfWork()) {
+            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
+            pindex->SetProofOfStake();
+        }
         if (pindex->nHeight < Params().GetConsensus().POSStart())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
         if (!pindex->BuildStakeModifier(block))
@@ -1540,7 +1543,10 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         if (!pindex->CheckProofOfStake(block))
             return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
     } else {
-        if (pindex->IsProofOfStake()) pindex->SetProofOfWork();
+        if (pindex->IsProofOfStake()) {
+            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
+            pindex->SetProofOfWork();
+        }
         if (!block.IsDeveloperBlock() && pindex->nHeight > Params().GetConsensus().LastPowBlock())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
         if (!block.IsDeveloperBlock() && !pindex->CheckProofOfWork(block))
@@ -3203,8 +3209,10 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (fHasDevblock && !(pindex->nFlags & CBlockIndex::BLOCK_SUBSIDY)) pindex->nFlags |= CBlockIndex::BLOCK_SUBSIDY;
 
     if (pblock->IsProofOfStake()) {
+        if (pindex->IsProofOfWork() && pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
         pindex->SetProofOfStake();
     } else {
+        if (pindex->IsProofOfStake() && pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
         pindex->SetProofOfWork();
     }
 
