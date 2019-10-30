@@ -1008,7 +1008,12 @@ enum CScriptValueFlags {
     VALUE_METHOD = (1 << 11),
     VALUE_ARGS = (1 << 12),
     VALUE_THIS = (1 << 13),
-    VALUE_SUPER = (1 << 14)
+    VALUE_SUPER = (1 << 14),
+    VALUE_READ = (1 << 15),
+    VALUE_WRITE = (1 << 16),
+    VALUE_ENUMERABLE = (1 << 17),
+    VALUE_SETTER = (1 << 18),
+    VALUE_GETTER = (1 << 19)
 };
 
 enum CScriptOpcode {
@@ -1031,8 +1036,20 @@ typedef std::shared_ptr<CScriptModule> CScriptModuleRef;
 class CScriptValue;
 typedef std::shared_ptr<CScriptValue> CScriptValueRef;
 
+class CScriptString;
+typedef std::shared_ptr<CScriptString> CScriptStringRef;
+
+class CScriptNumber;
+typedef std::shared_ptr<CScriptNumber> CScriptNumberRef;
+
+class CScriptPointer;
+typedef std::shared_ptr<CScriptPointer> CScriptPointerRef;
+
 class CScriptVariable;
 typedef std::shared_ptr<CScriptVariable> CScriptVariableRef;
+
+class CScriptProperty;
+typedef std::shared_ptr<CScriptProperty> CScriptPropertyRef;
 
 class CScriptPrototype;
 typedef std::shared_ptr<CScriptPrototype> CScriptPrototypeRef;
@@ -1211,14 +1228,31 @@ public:
     std::string name;
     CScriptValueRef value;
 
-    CScriptVariable() : CScriptValue() {}
-    CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name), value(value) {}
+    CScriptVariable() : CScriptValue(), name(GenName()), value(CScriptValue::MakeNull()) {}
+    CScriptVariable(const CScriptVariableRef variable, int32_t flags = 0) : name(variable->name), CScriptValue(variable, flags), value(variable->value == nullptr ? CScriptValue::MakeNull() : variable->value)
+    {
+    }
+    CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name.empty() ? GenName() : name), value(value) {}
     virtual ~CScriptVariable() {}
 
     virtual int Type() const { return SYMBOL_VARIABLE; }
 
     virtual int ValueType() const { return (value != nullptr) ? value->ValueType() : VALUE_NULL; }
     virtual std::string ValueTypeName() const { return ValueTypeNames[ValueType()]; }
+
+    virtual std::string GenName()
+    {
+        char buf[16];
+        GetRandBytes(buf, sizeof(buf));
+        return buf;
+    }
+
+    virtual Ref AsValue() const { return value; }
+
+    virtual Ref Clone()
+    {
+        return std::make_shared<CScriptVariable>(shared_from_this(), 0);
+    }
 
     virtual CScriptValueRef AsValue() { return value; }
     virtual bool isVariable() const { return true; }
@@ -1240,21 +1274,52 @@ public:
 CScriptValueRef CScriptValue::MakeVariable(const CScriptValueRef& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 CScriptValueRef CScriptValue::MakeVariable(const std::string& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 
+class CScriptProperty : public CScriptValue
+{
+public:
+    typedef std::shared_ptr<CScriptProperty> Ref;
+
+    CScriptValueRef name;
+    CScriptValueRef value;
+    CScriptValueRef setter, getter;
+    CScriptValueRef configurable, enumerable;
+};
+
 class CScriptPrototype : public CScriptValue
 {
 public:
+    typedef std::shared_ptr<CScriptPrototype> Ref;
+    typedef std::vector<CScriptValueRef> Elements;
+    typedef std::map<std::string, CScriptPropertyRef> KeyValues;
+
+    KeyValues keys;
+    Elements elements;
+
+    CScriptVariable() : CScriptValue(), name(GenName()), value(CScriptValue::MakeNull()) {}
+    CScriptVariable(const CScriptVariableRef variable, int32_t flags = 0) : name(variable->name), CScriptValue(variable, flags), value(variable->value == nullptr ? CScriptValue::MakeNull() : variable->value)
+    {
+    }
+    CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name.empty() ? GenName() : name), value(value) {}
+    virtual ~CScriptVariable() {}
 };
 
 class CScriptArray : public CScriptValue
 {
 public:
     typedef std::shared_ptr<CScriptArray> Ref;
+    typedef std::vector<CScriptValueRef> Elements;
     CScriptPrototypeRef prototype;
     CScriptValueRef length;
-    std::vector<CScriptValueRef> elements;
+    Elements elements;
 
-    CScriptArray()
+    CScriptArray() : CScriptValue()
     {
+    }
+    CScriptArray(const Elements& elements, int32_t flags = 0) : CScriptValueRef(flags)
+    {
+        for (Elements::iterator it = elements.begin(); it != elements.end(); it++) {
+            this->elements.push_back(CScriptVariable::Make("", (*it)->AsValue()))
+        }
     }
     virtual ~CScriptArray()
     {
@@ -1309,9 +1374,11 @@ public:
 class CScriptObject : public CScriptValue
 {
 public:
-    CScriptPrototypeRef prototype;
+    typedef std::shared_ptr<CScriptObject> Ref;
+    typedef std::map<std::string, CScriptValueRef> KeyValues;
 
-    std::map<std::string, CScriptValueRef> keys;
+    CScriptPrototypeRef prototype;
+    KeyValues keys;
 
     virtual int ValueType() const { return VALUE_OBJECT; }
     virtual bool isObject() const { return true; }
@@ -1322,6 +1389,13 @@ public:
     }
     virtual ~CScriptObject()
     {
+    }
+
+    virtual CScriptArrayRef Values()
+    {
+        CScriptArrayRef arr = CScriptArray::Make();
+        for (KeyValues::iterator it = keys.begin(); it != keys.end(); it++) {
+        }
     }
 
 
