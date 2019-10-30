@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#  galaxycashd The bitcoin core server.
+#
+#
+# chkconfig: 345 80 20
+# description: galaxycashd
+# processname: galaxycashd
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/galaxycashd, see below
+if [ -f /etc/sysconfig/galaxycashd ]; then
+        . /etc/sysconfig/galaxycashd
+fi
+
+RETVAL=0
+
+prog=galaxycashd
+# you can override the lockfile via BITCOIND_LOCKFILE in /etc/sysconfig/galaxycashd
+lockfile=${BITCOIND_LOCKFILE-/var/lock/subsys/galaxycashd}
+
+# galaxycashd defaults to /usr/bin/galaxycashd, override with BITCOIND_BIN
+galaxycashd=${BITCOIND_BIN-/usr/bin/galaxycashd}
+
+# galaxycashd opts default to -disablewallet, override with BITCOIND_OPTS
+galaxycash_opts=${BITCOIND_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $galaxycashd $galaxycash_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

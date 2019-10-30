@@ -1,0 +1,33 @@
+# /etc/conf.d/galaxycashd: config file for /etc/init.d/galaxycashd
+
+# Config file location
+#BITCOIND_CONFIGFILE="/etc/galaxycash/galaxycash.conf"
+
+# What directory to write pidfile to?  (created and owned by $BITCOIND_USER)
+#BITCOIND_PIDDIR="/var/run/galaxycashd"
+
+# What filename to give the pidfile
+#BITCOIND_PIDFILE="${BITCOIND_PIDDIR}/galaxycashd.pid"
+
+# Where to write galaxycashd data (be mindful that the blockchain is large)
+#BITCOIND_DATADIR="/var/lib/galaxycashd"
+
+# User and group to own galaxycashd process
+#BITCOIND_USER="galaxycash"
+#BITCOIND_GROUP="galaxycash"
+
+# Path to galaxycashd executable
+#BITCOIND_BIN="/usr/bin/galaxycashd"
+
+# Nice value to run galaxycashd under
+#BITCOIND_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#BITCOIND_OPTS=""
+
+# The timeout in seconds OpenRC will wait for galaxycashd to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+BITCOIND_SIGTERM_TIMEOUT=60
