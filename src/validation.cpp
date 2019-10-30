@@ -3122,7 +3122,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
     }
 
     if (pprev) {
-        if (!pprev->IsValid(BLOCK_HAVE_DATA))
+        if (!(pprev->nStatus & BLOCK_HAVE_DATA))
             return false;
 
         CBlock prevBlock;
