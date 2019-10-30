@@ -3146,7 +3146,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
         bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
         nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
 
-        if (block.IsProofOfStake() && !CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake) {
+        if (block.IsProofOfStake() && !CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake)) {
             return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
         }
 
@@ -3158,8 +3158,8 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
 
 bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 {
-    if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfStake())
-        return true;
+    if (!block.IsProofOfStake())
+        return false;
 
     if (!::CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake)) {
         return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
@@ -3169,8 +3169,8 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 
 bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 {
-    if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfWork())
-        return true;
+    if (!block.IsProofOfWork())
+        return false;
 
     if (!::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus()))
         return error("%s: CheckProofOfWork failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
