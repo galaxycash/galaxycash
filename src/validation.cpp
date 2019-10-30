@@ -2499,7 +2499,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
         if (chainActive.Tip()->nHeight < Params().GetConsensus().POSStart())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
 
-        if (!chainActive.Tip()->CheckProofOfStake(block)) {
+        if (!chainActive.Tip()->CheckProofOfStake(*pblock)) {
             return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
         }
     }
@@ -2511,7 +2511,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
         if (!fHasDevsubsidy && chainActive.Tip()->nHeight > Params().GetConsensus().LastPowBlock())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
 
-        if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(block))
+        if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(*pblock))
             return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
     }
 
