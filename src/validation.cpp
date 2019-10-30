@@ -3295,7 +3295,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     uint256 hashProofOfStake = uint256();
 
     // peercoin: verify hash target and signature of coinstake tx
-    if (block.IsProofOfStake() && !CheckProofOfStake(pindex->pprev, block.vtx[1], block.nBits, hashProofOfStake)) {
+    if (block.IsProofOfStake() && !::CheckProofOfStake(pindex->pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
         LogPrintf("WARNING: %s: check proof-of-stake failed for block %s\n", __func__, block.GetHash().ToString());
         return false; // do not error here as we expect this during initial block download
     }
