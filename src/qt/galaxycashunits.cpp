@@ -75,11 +75,11 @@ QString BitcoinUnits::description(int unit)
 qint64 BitcoinUnits::factor(int unit)
 {
     switch (unit) {
-    case GCH:
+    case BTC:
         return 100000000;
-    case mGCH:
+    case mBTC:
         return 100000;
-    case uGCH:
+    case uBTC:
         return 100;
     default:
         return 100000000;
