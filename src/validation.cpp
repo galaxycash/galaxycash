@@ -3195,20 +3195,22 @@ bool BlockBuildStakeModifier(CBlockIndex* pindex, const CBlock& block)
     return true;
 }
 
-void BlockBuildStakeModifiers()
+bool BlockBuildStakeModifiers()
 {
     CBlockIndex* pindex = chainActive.Genesis();
     while (pindex) {
         if (!(pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
             CBlock block;
-            if (pindex != chainActive.Genesis() && !ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
+            if (pindex != chainActive.Genesis() && !ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus())) {
                 return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-
+            }
             BlockBuildStakeModifier(pindex, block);
         }
 
         pindex = chainActive.Next(pindex);
     }
+
+    return true;
 }
 
 
