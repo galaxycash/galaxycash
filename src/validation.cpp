@@ -3112,7 +3112,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
     if (nFlags & CBlockIndex::BLOCK_STAKE_MODIFIER)
         return true;
 
-    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
+    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock && !(nFlags & CBlockIndex::BLOCK_STAKE_MODIFIER)) {
         const CBlock& genesis = Params().GenesisBlock();
         hashProofOfStake = genesis.GetPoWHash();
         bnStakeModifier = 0;
