@@ -926,18 +926,24 @@ std::string PrototypeTypeNames[] = {
     "object",
     "class"};
 
-enum CScriptCallableType {
-    CALLABLE_FUNCTION = 0,
-    CALLABLE_SETTER,
-    CALLABLE_GETTER
+enum CScriptFunctionype {
+    FUNCTION_DEFAULT = 0,
+    FUNCTION_CONSTRUCTOR,
+    FUNCTION_DESTRUCTOR,
+    FUNCTION_METHOD,
+    FUNCTION_OPERATOR,
+    FUNCTION_SETTER,
+    FUNCTION_GETTER
 };
 
-std::string PrototypeTypeNames[] = {
+std::string FunctionTypeNames[] = {
     "function",
+    "constructor",
+    "destructor",
+    "method",
+    "operator",
     "setter",
-    "getter",
-    "object",
-    "class"};
+    "getter"};
 
 
 enum CScriptValueType {
@@ -1003,32 +1009,15 @@ enum CScriptValueFlags {
     VALUE_EXPORT = (1 << 6),
     VALUE_PRIVATE = (1 << 7),
     VALUE_UNSIGNED = (1 << 8),
-    VALUE_CONSTRUCTOR = (1 << 9),
-    VALUE_DESTRUCTOR = (1 << 10),
-    VALUE_METHOD = (1 << 11),
-    VALUE_ARGS = (1 << 12),
-    VALUE_THIS = (1 << 13),
-    VALUE_SUPER = (1 << 14),
-    VALUE_READ = (1 << 15),
-    VALUE_WRITE = (1 << 16),
-    VALUE_ENUMERABLE = (1 << 17),
-    VALUE_SETTER = (1 << 18),
-    VALUE_GETTER = (1 << 19)
+    VALUE_ARGUMENTS = (1 << 9),
+    VALUE_THIS = (1 << 10),
+    VALUE_SUPER = (1 << 11),
+    VALUE_READ = (1 << 12),
+    VALUE_WRITE = (1 << 13),
+    VALUE_CONFIGURABLE = (1 << 14),
+    VALUE_ENUMERABLE = (1 << 15)
 };
 
-enum CScriptOpcode {
-    SCRIPT_OP_NOP = 0,
-    SCRIPT_OP_NEW_ARRAY,
-    SCRIPT_OP_NEW_CLASS,
-    SCRIPT_OP_NEW_OBJECT,
-    SCRIPT_OP_NEW_NATIVE,
-    SCRIPT_OP_DELETE,
-    SCRIPT_OP_PLUS,
-    SCRIPT_OP_MINUS,
-    SCRIPT_OP_MULTIPLY,
-    SCRIPT_OP_DIVIDE,
-    SCRIPT_OP_MOD
-};
 
 class CScriptModule;
 typedef std::shared_ptr<CScriptModule> CScriptModuleRef;
@@ -1078,15 +1067,63 @@ class CScriptValue : public std::enable_shared_from_this<CScriptValue>
 public:
     typedef std::shared_ptr<CScriptValue> Ref;
 
-    Ref ns;
+    CScriptModuleRef valueModule;
+    CScriptValueRef valueScope;
+
+    std::vector<char> valueData;
+    std::string valueUniqueID;
     int32_t flags;
 
-    CScriptValue() : flags(0) {}
-    CScriptValue(const int32_t flags) : flags(flags) {}
-    CScriptValue(const Ref& value, const int32_t flags) : flags(value->flags | flags)
+    CScriptValue() : flags(0), uuid(GenUUID()) {}
+    CScriptValue(const int32_t flags) : flags(flags), uuid(GenUUID()) {}
+    CScriptValue(const Ref& value, const int32_t flags) : flags(value->flags | flags), uuid(value->GenUUID())
     {
     }
     virtual ~CScriptValue() {}
+
+    static std::string GenUUID()
+    {
+        char buf[16];
+        GetRandBytes(buf, sizeof(buf));
+        return buf;
+    }
+
+    static std::string GenName()
+    {
+        return GenUUID();
+    }
+
+    const std::string& uniqueID() const
+    {
+        return valueUniqueID;
+    }
+
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        std::vector<char> buffer;
+        if (ser_action.ForRead()) {
+            READWRITE(buffer);
+            SerializeValue(buffer);
+        } else {
+            UnserializeValue(buffer);
+            READWRITE(buffer);
+        }
+        READWRITE(valueData);
+        READWRITE(valueUniqueID);
+        READWRITE(flags);
+        READWRITE(valueScope);
+    }
+
+    virtual void SerializeValue(std::vector<char>& buffer)
+    {
+    }
+    virtual void UnserializeValue(std::vector<char>& buffer)
+    {
+    }
 
     bool isVariable() const { return false; }
     bool isValue() const { return true; }
@@ -1109,6 +1146,10 @@ public:
     bool isFunction() const { return (ValueType() == VALUE_FUNCTION); }
     bool isImport() const { return (flags & VALUE_IMPORT); }
     bool isExport() const { return (flags & VALUE_EXPORT); }
+    bool isReadable() const { return (flags & VALUE_READ); }
+    bool isWritable() const { return (flags & VALUE_WRITE); }
+    bool isConfigurable() const { return (flags & VALUE_CONFIGURABLE); }
+    bool isEnumerable() const { return (flags & VALUE_ENUMERABLE); }
     bool isModule() const { return (flags & VALUE_MODULE); }
     bool isPubkey() const { return (ValueType() == VALUE_PUBKEY); }
     bool isPrivkey() const { return (ValueType() == VALUE_PRIVKEY); }
@@ -1133,7 +1174,19 @@ public:
     virtual Ref GetNamespace() { return this->ns; }
     virtual bool IsLinked() const { return ns != nullptr; }
 
+    virtual void FromValue(const Ref& value) {}
     virtual Ref AsValue() const { return shared_from_this(); }
+
+    virtual Ref valueByName(const std::string& id) const
+    {
+        return valueScope != nullptr ? valueScope->valueByName(id) : MakeNull();
+    }
+
+    virtual Ref valueByUniqueID(const std::string& id) const
+    {
+        return valueScope != nullptr ? valueScope->valueUniqueID(id) : MakeNull();
+    }
+
     virtual Ref Clone()
     {
         return std::make_shared<CScriptValue>(*this);
@@ -1225,7 +1278,7 @@ class CScriptVariable : public CScriptValue
 public:
     typedef std::shared_ptr<CScriptVariable> Ref;
 
-    std::string name;
+    std::string name, valueUUID;
     CScriptValueRef value;
 
     CScriptVariable() : CScriptValue(), name(GenName()), value(CScriptValue::MakeNull()) {}
@@ -1235,26 +1288,46 @@ public:
     CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name.empty() ? GenName() : name), value(value) {}
     virtual ~CScriptVariable() {}
 
+    virtual void AssignVariableByUUID(const std::string& uuid)
+    {
+        if (valueScope) {
+            value = valueScope->valueByUUID(uuid);
+        }
+    }
+
+    virtual void SerializeValue(std::vector<char>& buffer)
+    {
+        CDataStream ss(buffer.begin(), buffer.end(), SER_DISK, PROTOCOL_VERSION);
+        ss >> valueUUID;
+        ss >> name;
+
+        AssignVariableByUUID(valueUUID, value);
+    }
+
+    virtual void UnserializeValue(std::vector<char>& buffer)
+    {
+        CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+        ss << value != nullptr ? value->uniqueID() : "nullnullnullnull";
+        ss << name;
+    }
+
     virtual int Type() const { return SYMBOL_VARIABLE; }
 
     virtual int ValueType() const { return (value != nullptr) ? value->ValueType() : VALUE_NULL; }
     virtual std::string ValueTypeName() const { return ValueTypeNames[ValueType()]; }
 
-    virtual std::string GenName()
+    virtual void FromValue(const CScriptValueRef& value)
     {
-        char buf[16];
-        GetRandBytes(buf, sizeof(buf));
-        return buf;
+        value->FromValue(value);
     }
-
-    virtual Ref AsValue() const { return value; }
+    virtual CScriptValueRef AsValue() const { return value != nullptr ? value->AsValue() : CScriptValue::MakeNull(); }
 
     virtual Ref Clone()
     {
         return std::make_shared<CScriptVariable>(shared_from_this(), 0);
     }
 
-    virtual CScriptValueRef AsValue() { return value; }
+
     virtual bool isVariable() const { return true; }
 
     static CScriptValueRef Make(const std::string& name, const CScriptValueRef& value, int32_t flags = 0)
@@ -1274,6 +1347,21 @@ public:
 CScriptValueRef CScriptValue::MakeVariable(const CScriptValueRef& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 CScriptValueRef CScriptValue::MakeVariable(const std::string& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 
+
+class CScriptSetter : public CScriptCallable
+{
+public:
+    CScriptValueRef object;
+    CScriptValueRef property;
+    CScriptValueRef callable;
+
+    CScriptSetter() : CScriptCallable(VALUE_SETTER) {}
+
+    virtual int ValueType() const { return VALUE_CALLABLE; }
+
+    virtual bool isSetter() const { return true; }
+};
+
 class CScriptProperty : public CScriptValue
 {
 public:
@@ -1282,7 +1370,10 @@ public:
     CScriptValueRef name;
     CScriptValueRef value;
     CScriptValueRef setter, getter;
-    CScriptValueRef configurable, enumerable;
+
+    CScriptProperty() : name(GenName()), value(MakeNull()), CScriptValue()
+    {
+    }
 };
 
 class CScriptPrototype : public CScriptValue
@@ -1301,6 +1392,11 @@ public:
     }
     CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name.empty() ? GenName() : name), value(value) {}
     virtual ~CScriptVariable() {}
+
+    void defineGetter(const std::string& name, const CScriptValueRef& value);
+    inline void defineGetter(const CScriptValueRef& name, const CScriptValueRef& value) { defineGetter(name.AsString(), value); }
+    void defineSetter(const std::string& name, const CScriptValueRef& value);
+    inline void defineSetter(const CScriptValueRef& name, const CScriptValueRef& value) { defineSetter(name.AsString(), value); }
 };
 
 class CScriptArray : public CScriptValue
@@ -1435,36 +1531,64 @@ CScriptValueRef CScriptValue::MakeObject()
 }
 
 
-class CScriptCallable : public CScriptObject
-{
-public:
-    virtual int ValueType() const { return VALUE_OBJECT; }
-    virtual bool isCallable() const { return true; }
-
-    CScriptCallable() : CScriptObject() {}
-    CScriptCallable(const int32_t flags) : CScriptObject(flags | VALUE_CALLABLE)
-    {
-    }
-    virtual ~CScriptCallable()
-    {
-    }
-
-    virtual CScriptValueRef Call(const CScriptValueRef& thisArg, const CScriptArrayRef& args) { return CScriptValueVoid::Make(); }
+enum CScriptOpcode {
+    SCRIPT_OP_NOP = 0,
+    SCRIPT_OP_NEW_NUMBER,    // Allocate number
+    SCRIPT_OP_NEW_STRING,    // Allocate string
+    SCRIPT_OP_NEW_POINTER,   // Allocate pointer
+    SCRIPT_OP_NEW_VARIABLE,  // Allocate variable
+    SCRIPT_OP_NEW_ARRAY,     // Allocate new array
+    SCRIPT_OP_NEW_CLASS,     // Allocate new class
+    SCRIPT_OP_NEW_OBJECT,    // Allocate new object
+    SCRIPT_OP_NEW_PROTOTYPE, // Allocate new prototype
+    SCRIPT_OP_NEW_PROPERTY,  // Allocate new property
+    SCRIPT_OP_NEW_FUNCTION,  // Allocate new function
+    SCRIPT_OP_NEW_VARIABLE,  // Allocate new variable
+    SCRIPT_OP_PRTSET,        // Prototype set
+    SCRIPT_OP_PRTGET,        // Prototype get
+    SCRIPT_OP_ARGSET,        // Argument set
+    SCRIPT_OP_ARGSSET,       // Arguments set
+    SCRIPT_OP_ARGGET,        // Argument get
+    SCRIPT_OP_ARGSGET,       // Arguments get
+    SCRIPT_OP_SCOPEGET,      // Scoped variable set
+    SCRIPT_OP_SCOPESET,      // Scoped variable get
+    SCRIPT_OP_THISGET,       // This scoped variable set
+    SCRIPT_OP_THISSET,       // This scoped variable get
+    SCRIPT_OP_DELETE,        // delete var
+    SCRIPT_OP_PLUS,          // +
+    SCRIPT_OP_MINUS,         // -
+    SCRIPT_OP_MULTIPLY,      // *
+    SCRIPT_OP_DIVIDE,        // /
+    SCRIPT_OP_MOD,           // %
+    SCRIPT_OP_CALL           // callable(this, args)
 };
 
-class CScriptAddExpression : public CScriptCallable
+class CScriptCode
 {
 public:
-    virtual CScriptValueRef Call(const CScriptValueRef& thisArg, const CScriptArrayRef& args)
+    uint8_t opcode;
+    std::vector<CScriptValueRef> args;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
     {
-        /*if (args->GetArrayLength() >= 2) {
-            CScriptValueRef lhs = args->GetArrayValue(0);
-            CScriptValueRef rhs = args->GetArrayValue(1);
+        READWRITE(opcode);
+        READWRITE(args);
+    }
+};
 
-            if (lhs->isNumber()) {
-
-            }
-        }*/
+class CScriptCallable : public CScriptValue
+{
+public:
+    virtual bool isCallable() const { return true; }
+    virtual CScriptValueRef Execute(const CScriptValueRef& thisArg, const CScriptValueRef& arguments)
+    {
+        return MakeVoid();
+    }
+    virtual CScriptValueRef ExecuteOpcode(const CScriptOpcode& opcode)
+    {
         return MakeVoid();
     }
 };
