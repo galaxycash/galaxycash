@@ -1541,8 +1541,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         if (!pindex->BuildStakeModifier(block))
             return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
         if (!pindex->CheckProofOfStake(block)) {
-            if (!pindex->BuildStakeModifier(block, true) || !pindex->CheckProofOfStake(block))
-                return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
         }
     } else {
         if (pindex->IsProofOfStake()) {
@@ -3113,16 +3112,11 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
 
 bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
 {
-    if (!fRebuild && nStatus & BLOCK_HAVE_STAKE_MODIFIER)
-        return true;
-
-    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock && (fRebuild || !(nStatus & BLOCK_HAVE_STAKE_MODIFIER))) {
+    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
         const CBlock& genesis = Params().GenesisBlock();
         hashProofOfStake = genesis.GetPoWHash();
         bnStakeModifier = 0;
         nStakeTime = 0;
-
-        if (!(nStatus & BLOCK_HAVE_STAKE_MODIFIER)) nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         if (!SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
             LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
@@ -3152,11 +3146,9 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
         bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
         nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
 
-        if (block.IsProofOfStake() && !CheckProofOfStake(block)) {
+        if (block.IsProofOfStake() && !CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake) {
             return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
         }
-
-        if (!(nStatus & BLOCK_HAVE_STAKE_MODIFIER)) nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         setDirtyBlockIndex.insert(this);
     }
@@ -3169,7 +3161,7 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
     if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfStake())
         return true;
 
-    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
+    if (!::CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake)) {
         return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
     }
     return true;
