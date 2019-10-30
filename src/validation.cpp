@@ -3296,8 +3296,12 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     // peercoin: verify hash target and signature of coinstake tx
     if (block.IsProofOfStake() && !::CheckProofOfStake(pindex->pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
-        LogPrintf("WARNING: %s: check proof-of-stake failed for block %s\n", __func__, block.GetHash().ToString());
-        return false; // do not error here as we expect this during initial block download
+        return error("%s:  check proof-of-stake failed for block %s\n", __func__, block.GetHash().ToString());
+    }
+
+    // check pow
+    if (block.IsProofOfWork() && !::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus())) {
+        return error("%s:  check proof-of-work failed for block %s\n", __func__, block.GetHash().ToString());
     }
 
     // peercoin: compute stake entropy bit for stake modifier
