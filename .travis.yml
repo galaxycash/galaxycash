@@ -29,16 +29,15 @@ matrix:
           - ./scripts/install-ubuntu.sh
       - os: linux
         sudo: required
-      #cross compile windows
-      #- os: linux
-      #  services: docker
-      #  env:
-      #    - V=windows-Dockerfile-wheezy
-      #  script:
-      #    - ./archive.sh
-      #    - travis_wait 60 docker build -f scripts/docker/windows-crosscompile/Dockerfile-wheezy .
-      #- os: linux
-      #  services: docker
+      - os: linux
+        services: docker
+        env:
+          - V=windows-Dockerfile-wheezy
+        script:
+         - ./archive.sh
+          - travis_wait 60 docker build -f scripts/docker/windows-crosscompile/Dockerfile-wheezy .
+      - os: linux
+        services: docker
       #  env:
       #    - V=windows-Dockerfile-xenial
       #  script:
