@@ -67,7 +67,7 @@ public:
         READWRITE(nNonce);
 
         // galaxycash: do not serialize nFlags when computing hash
-        if (s.GetType() & SER_POSMARKER)
+        if (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH)
             READWRITE(nFlags);
     }
 
@@ -167,18 +167,11 @@ public:
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
         READWRITE(vchBlockSig);
-
-        if (ser_action.ForRead()) {
-            if (s.GetType() & SER_POSMARKER)
-                READWRITE(nFlags);
-            else {
-                nFlags = IsProofOfStake() ? (1 << 0) : 0;   // PoS flag
-                if (IsDeveloperBlock()) nFlags |= (1 << 3); // Dev block flag
-            }
-        } else {
-            if (s.GetType() & SER_POSMARKER)
-                READWRITE(nFlags);
-        }
+        if (!ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
+        if (!ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 3))) nFlags |= (1 << 3); // Dev block flag
+        READWRITE(nFlags);
+        if (ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
+        if (ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 3))) nFlags |= (1 << 3); // Dev block flag
     }
 
     void SetNull()

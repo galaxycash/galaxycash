@@ -2760,7 +2760,7 @@ static bool FindUndoPos(CValidationState& state, int nFile, CDiskBlockPos& pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckSignature = true, bool fOldClient = false)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+    if (fCheckPOW && !(block.nFlags & CBlockIndex::BLOCK_DEVSUBSIDY) && !(block.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
         if (fOldClient)
             return true;
         else
@@ -2780,10 +2780,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (block.fChecked)
         return true;
 
-    // Check that the header is valid (particularly PoW).  This is mostly
-    // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW && block.IsProofOfWork(), fCheckSignature && block.IsProofOfStake(), fOldClient))
-        return false;
+
+    if (fCheckPOW && block.IsProofOfWork() && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    }
 
     // Check the merkle root.
     if (fCheckMerkleRoot) {
@@ -3036,21 +3036,6 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
 
         if (*ppindex != NULL && pindexPrev != NULL && !ContextualCheckBlockHeader(block, fSetAsPos, state, chainparams, pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
-
-        if (*ppindex != NULL && !pindexPrev->IsValid(BLOCK_VALID_SCRIPTS)) {
-            for (const CBlockIndex* failedit : g_failed_blocks) {
-                if (pindexPrev->GetAncestor(failedit->nHeight) == failedit) {
-                    assert(failedit->nStatus & BLOCK_FAILED_VALID);
-                    CBlockIndex* invalid_walk = pindexPrev;
-                    while (invalid_walk != failedit) {
-                        invalid_walk->nStatus |= BLOCK_FAILED_CHILD;
-                        setDirtyBlockIndex.insert(invalid_walk);
-                        invalid_walk = invalid_walk->pprev;
-                    }
-                    return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
-                }
-            }
-        }
     }
 
     if (pindex == nullptr)
@@ -3079,7 +3064,7 @@ bool ProcessNewBlockHeaders(const uint256& lastAcceptedHeader, const std::vector
         LOCK(cs_main);
 
         for (const CBlockHeader& header : headers) {
-            bool fPoS = fOldClient ? (chainActive.Height() < chainparams.GetConsensus().nLastPowBlock ? !CheckProofOfWork(header.GetPoWHash(), header.nBits, chainparams.GetConsensus()) : false) : (header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE);
+            bool fPoS = (header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE);
 
             CBlockIndex* pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
             if (!g_chainstate.AcceptBlockHeader(header, fPoS, state, chainparams, &pindex, fOldClient)) {
@@ -3211,26 +3196,20 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         if (ppindex) *ppindex = pindex;
     }
 
-    if (block.IsProofOfStake()) {
-        pindex->InitAsProofOfStake();
-        if (fHasDevblock) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-        block.nFlags = pindex->nFlags;
-        setDirtyBlockIndex.insert(pindex);
-    } else {
-        pindex->InitAsProofOfWork();
-        if (fHasDevblock) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
-        block.nFlags = pindex->nFlags;
-        setDirtyBlockIndex.insert(pindex);
-    }
-
     if (!fHasDevblock && !AcceptBlockHeader(pindex->GetBlockHeader(), block.IsProofOfStake(), state, chainparams, &pindex))
         return false;
 
-    // peercoin: we should only accept blocks that can be connected to a prev block with validated PoS
-    if (!fHasDevblock && fCheckPoS && pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
-        return error("%s: this block does not connect to any valid known block", __func__);
+    if (pblock->IsProofOfStake()) {
+        pindex->InitAsProofOfStake();
+    } else {
+        pindex->InitAsProofOfWork();
     }
+    
+    g_chainstate.ResetBlockFailureFlags(pindex);
 
+
+    block.nFlags = pindex->nFlags;
+    const_cast<CBlock&>(*pblock).nFlags = pindex->nFlags;
     // Try to process all requested blocks that we don't have, but only
     // process an unrequested block if it's new and has enough work to
     // advance our tip, and isn't too many blocks ahead.
@@ -3329,14 +3308,14 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         if (fNewBlock) *fNewBlock = false;
         if (fPoSDuplicate) *fPoSDuplicate = false;
 
-        bool fDevblock = IsDeveloperBlock(*pblock);
-        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, false);
+        bool fHasDevblock = pblock->IsDeveloperBlock();
+        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, !fDevblock);
 
 
         if (ppindex)
             *ppindex = (ret || fDevblock) ? pindex : nullptr;
 
-        if (!fDevblock && !ret) {
+        if (!fHasDevblock && !ret) {
             GetMainSignals().BlockChecked(*pblock, state);
             return error("%s: AcceptBlock %s FAILED (%s)", __func__, pblock->GetHash().GetHex(), FormatStateMessage(state));
         }
@@ -3495,6 +3474,8 @@ bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient, bool fForc
 
     if (ppindex)
         *ppindex = pindex;
+
+    
 
     // Check for duplicate
     uint256 hash = block.GetHash();
