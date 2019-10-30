@@ -3304,7 +3304,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     unsigned int nEntropyBit = GetStakeEntropyBit(block);
 
     // peercoin: compute stake modifier
-    uint64_t nStakeModifier = ComputeStakeModifier(pindex, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
+    uint256 bnStakeModifier = ComputeStakeModifier(pindex, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
 
 
     // compute nStakeModifierChecksum begin
@@ -3321,12 +3321,9 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     // undo pindex fields
     pindex->nFlags = nFlagsBackup;
-    pindex->nStakeModifier = nStakeModifierBackup;
+    pindex->bnStakeModifier = bnStakeModifierBackup;
     pindex->hashProofOfStake = hashProofOfStakeBackup;
     // compute nStakeModifierChecksum end
-
-    if (!CheckStakeModifierCheckpoints(pindex->nHeight, nStakeModifierChecksum))
-        return error("ConnectBlock() : Rejected by stake modifier checkpoint height=%d, modifier=0x%016llx", pindex->nHeight, nStakeModifier);
 
 
     // write everything to index
@@ -3339,7 +3336,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         return error("ConnectBlock() : SetStakeEntropyBit() failed");
 
     pindex->bnStakeModifier = bnStakeModifier;
-    pindex->nStakeModifierChecksum = nStakeModifierChecksum;
+
     setDirtyBlockIndex.insert(pindex); // queue a write to disk
 
 
