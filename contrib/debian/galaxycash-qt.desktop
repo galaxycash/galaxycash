@@ -6,7 +6,6 @@ Comment[de]=Offizieller Client für die Kryptowährung GalaxyCash
 Exec=galaxycash-qt %u
 Terminal=false
 Type=Application
-Icon=/usr/share/pixmaps/galaxycash128.png
 MimeType=x-scheme-handler/galaxycash;
 Categories=Office;Finance;
 StartupWMClass=GalaxyCash-qt

@@ -6,6 +6,5 @@ Comment[de]=Offizieller Client für die Kryptowährung GalaxyCash (testnet)
 Exec=galaxycash-qt -testnet %u
 Terminal=false
 Type=Application
-Icon=/usr/share/pixmaps/galaxycash-testnet128.png
 MimeType=x-scheme-handler/galaxycash;
 Categories=Application;Network;

@@ -29,14 +29,6 @@ matrix:
           - ./scripts/install-ubuntu.sh
       - os: linux
         sudo: required
-        env:
-          - V=ubuntu-debuild
-        before_install:
-          - ./scripts/travis-uninstall-packages.sh
-          - ./scripts/dependencies-ubuntu.sh
-        install: true
-        script:
-          - ./scripts/debuild.sh
       #cross compile windows
       #- os: linux
       #  services: docker
