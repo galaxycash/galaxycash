@@ -2347,18 +2347,18 @@ static void NotifyBlockTip()
     }
 }
 
-void BlockBuildStakeModifier(CBlockIndex* pindex)
+bool BlockBuildStakeModifier(CBlockIndex* pindex)
 {
     if (pindex->GetBlockHash() == Params().GenesisBlock().GetHash()) {
         pindex->bnStakeModifier = 0;
         pindex->hashProofOfStake = Params().GenesisBlock().GetPoWHash();
         pindex->nStakeTime = 0;
-        return;
+        return true;
     }
 
     if (!(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
-        BlockBuildStakeModifier(pindex->pprev);
-        pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+        bool fOk = BlockBuildStakeModifier(pindex->pprev);
+        if (fOk) pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
     }
 
     CBlock block;
@@ -2372,6 +2372,8 @@ void BlockBuildStakeModifier(CBlockIndex* pindex)
     pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
 
     if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
+
+    return true;
 }
 
 void BlockBuildStakeModifiers()
@@ -2500,7 +2502,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
 
         if (!chainActive.Tip()->CheckProofOfStake(*pblock)) {
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), pindex->nHeight);
         }
     }
 
@@ -2512,7 +2514,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
 
         if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(*pblock))
-            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), pindex->nHeight);
     }
 
     return true;
