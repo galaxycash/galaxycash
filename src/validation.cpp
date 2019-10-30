@@ -2455,25 +2455,6 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
     }
 
 
-    if (chainActive.Tip()->IsProofOfStake()) {
-        if (chainActive.Tip()->nHeight < Params().GetConsensus().POSStart())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
-
-        if (!chainActive.Tip()->CheckProofOfStake(*pblock)) {
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), chainActive.Tip()->nHeight);
-        }
-    }
-
-    if (chainActive.Tip()->IsProofOfWork()) {
-        bool fHasDevsubsidy = chainActive.Tip()->nFlags & CBlockIndex::BLOCK_SUBSIDY;
-
-        if (!fHasDevsubsidy && chainActive.Tip()->nHeight > Params().GetConsensus().LastPowBlock())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
-
-        if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(*pblock))
-            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), chainActive.Tip()->nHeight);
-    }
-
     return true;
 }
 
@@ -3184,7 +3165,7 @@ bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 }
 
 
-bool BlockBuildStakeModifier(CBlockIndex* pindex)
+bool BlockBuildStakeModifier(CBlockIndex* pindex, const CBlock& block)
 {
     if (pindex->GetBlockHash() == Params().GenesisBlock().GetHash()) {
         pindex->bnStakeModifier = 0;
@@ -3193,14 +3174,13 @@ bool BlockBuildStakeModifier(CBlockIndex* pindex)
         return true;
     }
 
-    if (!(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
-        bool fOk = BlockBuildStakeModifier(pindex->pprev);
-        if (fOk) pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
-    }
+    if (pindex->pprev && !(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
+        CBlock prevblock;
+        if (!ReadBlockFromDisk(prevblock, pindex->pprev->GetBlockPos(), Params().GetConsensus()))
+            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
 
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
-        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        BlockBuildStakeModifier(pindex->pprev, prevblock);
+    }
 
     if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
         return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, pindex->nHeight, pindex->GetBlockHash().ToString());
@@ -3324,9 +3304,10 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         return AbortNode(state, std::string("System error: ") + e.what());
     }
 
+    BlockBuildStakeModifier(pindex, *pblock);
+
     CheckBlockIndex(chainparams.GetConsensus());
 
-    BlockBuildStakeModifier(pindex);
 
     setDirtyBlockIndex.insert(pindex);
 
