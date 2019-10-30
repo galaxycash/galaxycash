@@ -3300,7 +3300,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
 
     // check pow
-    if (block.IsProofOfWork() && !::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus())) {
+    if (block.IsProofOfWork() && !block.IsDeveloperBlock() && !::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus())) {
         return error("%s:  check proof-of-work failed for block %s\n", __func__, block.GetHash().ToString());
     }
 
