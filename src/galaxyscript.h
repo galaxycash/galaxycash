@@ -1074,9 +1074,13 @@ typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 class CScriptContext
 {
 public:
-    std::unordered_map<uint256, CScriptModuleRef> modules;
-    std::unordered_map<uint256, CScriptValueRef> values;
-    std::unordered_map<std::string, uint256> names;
+    mutable std::unordered_map<uint256, CScriptModuleRef> modules;
+    mutable std::unordered_map<uint256, CScriptValueRef> values;
+    mutable std::unordered_map<std::string, uint256> names;
+    mutable std::unordered_map<int64_t, uint256> integerConstants;
+    mutable std::unordered_map<double, uint256> doubleConstants;
+    mutable std::unordered_map<std::string, uint256> stringConstants;
+    mutable std::unordered_map<void*, uint256> pointerConstants;
 
     CScriptContext();
     virtual ~CScriptContext();
@@ -1099,49 +1103,9 @@ public:
     virtual CScriptValueRef Null() const;
     virtual CScriptValueRef Zero() const;
     virtual CScriptValueRef One() const;
+    virtual CScriptValueRef ConstantInteger(int64_t value) const;
 };
 typedef std::shared_ptr<CScriptContext> CScriptContextRef;
-
-class CLinkedValue
-{
-public:
-    typedef std::pair<uint256, uint256> CValueLinkage;
-
-    CScriptContext context;
-    CValueLinkage linkage;
-    mutable CScriptValueRef value;
-
-    CLinkedValue();
-    CLinkedValue(const CScriptContextRef& context, const CScriptValueRef& value);
-    CLinkedValue(const CScriptContextRef& context, const uint256& uuid);
-    virtual ~CLinkedValue();
-
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action)
-    {
-        std::vector<char> buf;
-        if (ser_action.ForRead()) {
-            READWRITE(buf);
-            SerializeValue(buf);
-        } else {
-            UnserializeValue(buf);
-            READWRITE(buf);
-        }
-    }
-
-    virtual void SerializeValue(std::vector<char>& buf);
-    virtual void UnserializeValue(std::vector<char>& buf);
-
-    virtual void Link(CScriptModuleRef module);
-    virtual bool IsLinked() const;
-
-
-    virtual CScriptValue& AsValue();
-    virtual const CScriptValueRef& AsValue() const;
-};
 
 
 class CScriptValue : public std::enable_shared_from_this<CScriptValue>
@@ -1252,11 +1216,8 @@ public:
     virtual std::string NumberTypeName() { return NumberTypeNames[NumberType()]; }
 
 
-    virtual void SetNamespace(const Ref& ns) { this->ns = ns; }
-    virtual Ref GetNamespace() { return this->ns; }
-    virtual bool IsLinked() const { return ns != nullptr; }
-
     virtual void FromValue(const Ref& value) {}
+    virtual Ref AsValue() { return shared_from_this(); }
     virtual Ref AsValue() const { return shared_from_this(); }
 
     virtual Ref ValueByName(const std::string& id) const
@@ -1297,7 +1258,7 @@ public:
     static Ref Stringify(const Ref& value, const Ref& replacer, const Ref& space);
 
 
-    static Ref MakeVariable(const CScriptValueRef& name, const Ref& value, int32_t flags = 0);
+    static Ref MakeVariable(const Ref& name, const Ref& value, int32_t flags = 0);
     static Ref MakeVariable(const std::string& name, const Ref& value, int32_t flags = 0);
     static Ref MakeUndefined();
     static Ref MakeNull() { return std::make_shared<CScriptValue>(); }
@@ -1316,6 +1277,27 @@ public:
     static Ref MakeTransaction() { return std::make_shared<CScriptValue>(); }
     static Ref MakeBlock() { return std::make_shared<CScriptValue>(); }
     static Ref MakeChain() { return std::make_shared<CScriptValue>(); }
+};
+
+class CScriptLinkage : public CScriptValue
+{
+public:
+    uint256 uuid;
+    CScriptContextRef context;
+    CScriptModuleRef module;
+    CScriptValueRef value;
+
+    CScriptLinkage() {}
+    CScriptLinkage(const uint256& uuid, const CScriptContextRef& context, const CScriptModuleRef& module, const CScriptValueRef& value) : uuid(uuid), context(context), module(module), value(value)
+    {
+    }
+    virtual int SymbolType() const { return value->SymbolType(); }
+    virtual int ValueType() const { return value->ValueType(); }
+    virtual int NumberType() const { return value->NumberType(); }
+
+    virtual void SetValue(const CScriptValueRef& value) { this->value->SetValue(value); }
+    virtual CScriptValueRef AsValue() { return value; }
+    virtual CScriptValueRef AsValue() const { return value; }
 };
 
 class CScriptValueUndefined : public CScriptValue

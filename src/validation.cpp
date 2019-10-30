@@ -2846,13 +2846,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
     }
 
-    // masternode payments / budgets
-    if (nHeight != 0 && !IsInitialBlockDownload()) {
-        if (!IsBlockPayeeValid(block, nHeight)) {
-            return state.DoS(0, error("%s : Couldn't find masternode/budget payment", __func__),
-                REJECT_INVALID, "bad-cb-payee");
-        }
-    }
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx) {
