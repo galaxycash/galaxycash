@@ -1778,31 +1778,6 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         return false;
 
 
-    if (block.IsProofOfStake()) {
-        if (pindex->IsProofOfWork()) {
-            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
-            pindex->SetProofOfStake();
-        }
-        if (pindex->nHeight < Params().GetConsensus().POSStart())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
-        if (!pindex->BuildStakeModifier(block))
-            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        if (!pindex->CheckProofOfStake(block)) {
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        }
-    } else {
-        if (pindex->IsProofOfStake()) {
-            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
-            pindex->SetProofOfWork();
-        }
-        if (!pindex->BuildStakeModifier(block))
-            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        if (!block.IsDeveloperBlock() && pindex->nHeight > Params().GetConsensus().LastPowBlock())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
-        if (!block.IsDeveloperBlock() && !pindex->CheckProofOfWork(block))
-            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-    }
-
     assert(pindex->phashBlock);
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
@@ -2372,6 +2347,45 @@ static void NotifyBlockTip()
     }
 }
 
+void BlockBuildStakeModifier(CBlockIndex* pindex)
+{
+    if (pindex->GetBlockHash() == chainActive.Genesis().GetBlockHash()) {
+        pindex->bnStakeModifier = 0;
+        pindex->hashProofOfStake = chainActive.Genesis().GetPoWHash();
+        pindex->nStakeTime = 0;
+        return;
+    }
+
+    if (!(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
+        BlockBuildStakeModifier(pindex->pprev);
+        pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+    }
+
+    CBlock block;
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
+        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+
+    if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
+        return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+
+    pindex->bnStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
+    pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
+
+    if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
+}
+
+void BlockBuildStakeModifiers()
+{
+    CBlockIndex* pindex = chainActive.Genesis();
+    while (pindex) {
+        if (!(pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
+            BlockBuildStakeModifier(pindex);
+            pindex->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+        }
+        pindex = chainActive.Next(pindex);
+    }
+}
+
 /**
  * Make the best chain active, in multiple steps. The result is either failure
  * or an activated best chain. pblock is either nullptr or a pointer to a block
@@ -2477,6 +2491,28 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
 
     if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
         masternodePayments.ProcessBlock(chainActive.Height() + 10);
+    }
+
+    BlockBuildStakeModifiers();
+
+    if (chainActive.Tip()->IsProofOfStake()) {
+        if (chainActive.Tip()->nHeight < Params().GetConsensus().POSStart())
+            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
+
+        if (!chainActive.Tip()->CheckProofOfStake(block)) {
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        }
+    }
+
+    if (chainActive.Tip()->IsProofOfWork()) {
+        bool fHasDevsubsidy = chainActive.Tip()->nFlags & CBlockIndex::BLOCK_SUBSIDY;
+
+
+        if (!fHasDevsubsidy && chainActive.Tip()->nHeight > Params().GetConsensus().LastPowBlock())
+            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
+
+        if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(block))
+            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
     }
 
     return true;
@@ -2805,6 +2841,20 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSignature, bool fOldClient)
 {
+    CBlockIndex* pindexPrev = chainActive.Tip();
+    int nHeight = 0;
+    if (pindexPrev != NULL) {
+        if (pindexPrev->GetBlockHash() == block.hashPrevBlock) {
+            nHeight = pindexPrev->nHeight + 1;
+        } else { //out of order
+            BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+            if (mi != mapBlockIndex.end() && (*mi).second)
+                nHeight = (*mi).second->nHeight + 1;
+        }
+
+
+        if (nHeight < 61000) return true;
+    }
     // These are checks that are independent of context.
     if (block.IsDeveloperBlock()) {
         block.fChecked = true;
@@ -2935,6 +2985,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
 {
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
+    if (nHeight < 61000) return true;
 
 
     // Check proof of work or proof-of-stake
@@ -2992,7 +3043,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
         return true;
 
     const int nHeight = pindexPrev->nHeight + 1;
-
+    if (nHeight < 61000) return true;
 
     // Start enforcing BIP113 (Median Time Past)
     int nLockTimeFlags = 0;
