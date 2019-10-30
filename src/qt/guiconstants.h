@@ -35,6 +35,7 @@ static const bool DEFAULT_SPLASHSCREEN = true;
 #define COLOR_TX_STATUS_DANGER QColor(200, 100, 100)
 /* Transaction list -- TX status decoration - default color */
 #define COLOR_BLACK QColor(0, 0, 0)
+#define COLOR_WHITE QColor(255, 255, 255)
 
 /* Tooltips longer than this (in characters) are converted into rich text,
    so that they can be word-wrapped.
@@ -56,8 +57,8 @@ static const int MAX_URI_LENGTH = 255;
 #define QAPP_APP_NAME_TESTNET "GalaxyCash-Qt-testnet"
 
 /* Colors for minting tab for each coin age group */
-#define COLOR_MINT_YOUNG QColor(255, 224, 226)
-#define COLOR_MINT_MATURE QColor(204, 255, 207)
-#define COLOR_MINT_OLD QColor(111, 252, 141)
+#define COLOR_MINT_YOUNG QColor(255*0.75, 224*0.75, 226*0.75)
+#define COLOR_MINT_MATURE QColor(204*0.75, 255*0.75, 207*0.75)
+#define COLOR_MINT_OLD QColor(111*0.75, 252*0.75, 141*0.75)
 
 #endif // BITCOIN_QT_GUICONSTANTS_H
