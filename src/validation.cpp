@@ -1540,13 +1540,17 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
         if (!pindex->BuildStakeModifier(block))
             return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        if (!pindex->CheckProofOfStake(block))
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        if (!pindex->CheckProofOfStake(block)) {
+            if (!pindex->BuildStakeModifier(block, true) || !pindex->CheckProofOfStake(block))
+                return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        }
     } else {
         if (pindex->IsProofOfStake()) {
             if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
             pindex->SetProofOfWork();
         }
+        if (!pindex->BuildStakeModifier(block))
+            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
         if (!block.IsDeveloperBlock() && pindex->nHeight > Params().GetConsensus().LastPowBlock())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
         if (!block.IsDeveloperBlock() && !pindex->CheckProofOfWork(block))
@@ -3165,13 +3169,8 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
     if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfStake())
         return true;
 
-    if (!BuildStakeModifier(block))
-        return error("%s: BuildStakeModifier failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
-
     if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
-        BuildStakeModifier(block, true); // Try fully rebuild stake modifier tree
-        if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
-            return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+        return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
     }
     return true;
 }
