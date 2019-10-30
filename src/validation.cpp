@@ -2349,9 +2349,9 @@ static void NotifyBlockTip()
 
 void BlockBuildStakeModifier(CBlockIndex* pindex)
 {
-    if (pindex->GetBlockHash() == chainActive.Genesis().GetBlockHash()) {
+    if (pindex->GetBlockHash() == Params().GenesisBlock().GetHash()) {
         pindex->bnStakeModifier = 0;
-        pindex->hashProofOfStake = chainActive.Genesis().GetPoWHash();
+        pindex->hashProofOfStake = Params().GenesisBlock().GetPoWHash();
         pindex->nStakeTime = 0;
         return;
     }
@@ -2366,7 +2366,7 @@ void BlockBuildStakeModifier(CBlockIndex* pindex)
         return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
 
     if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
-        return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+        return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, pindex->nHeight, pindex->GetBlockHash().ToString());
 
     pindex->bnStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
     pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
