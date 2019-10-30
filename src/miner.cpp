@@ -124,7 +124,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
 
     if (pblock->IsProofOfWork()) {
-                pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
+        pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
         coinbaseTx.vout[0].nValue = GetProofOfWorkReward(nFees, nHeight);
     }
 
@@ -189,7 +189,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (pblock->IsProofOfStake())
         pblock->nTime = pblock->vtx[1]->nTime; //same as coinstake timestamp
     pblock->nTime = std::max(pindexPrev->GetMedianTimePast() + 1, pblock->GetMaxTransactionTime());
-    pblock->nTime = std::max(pblock->GetBlockTime(), pindexPrev->GetBlockTime() - MAX_FUTURE_BLOCK_TIME);
+    //pblock->nTime = std::max(pblock->GetBlockTime(), pindexPrev->GetBlockTime() - MAX_FUTURE_BLOCK_TIME);
     if (pblock->IsProofOfWork())
         UpdateTime(pblock);
     pblock->nNonce = 0;

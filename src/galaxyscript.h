@@ -4,7 +4,17 @@
 #ifndef GALAXYCASH_EXT_SCRIPT_H
 #define GALAXYCASH_EXT_SCRIPT_H
 
+#include "hash.h"
 #include "random.h"
+#include "util.h"
+
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <cstring>
+#include <map>
+#include <unordered_map>
+#include <vector>
 
 // GalaxyCash Scripting language
 
@@ -965,7 +975,8 @@ enum CScriptValueType {
     VALUE_TRANSACTION,
     VALUE_BLOCK,
     VALUE_CHAIN,
-    VALUE_TOKEN
+    VALUE_TOKEN,
+    VALUE_MODULE
 };
 
 
@@ -986,7 +997,8 @@ std::string ValueTypeNames[] = {
     "transaction",
     "block",
     "chain",
-    "token"};
+    "token",
+    "module"};
 
 enum CScriptNumberType {
     NUMBER_INTEGER = 0,
@@ -1004,20 +1016,19 @@ std::string NumberTypeNames[] = {
 enum CScriptValueFlags {
     VALUE_CONSTANT = (1 << 0),
     VALUE_STATIC = (1 << 1),
-    VALUE_MODULE = (1 << 2),
-    VALUE_NATIVE = (1 << 3),
-    VALUE_BUILDIN = (1 << 4),
-    VALUE_IMPORT = (1 << 5),
-    VALUE_EXPORT = (1 << 6),
-    VALUE_PRIVATE = (1 << 7),
-    VALUE_UNSIGNED = (1 << 8),
-    VALUE_ARGUMENTS = (1 << 9),
-    VALUE_THIS = (1 << 10),
-    VALUE_SUPER = (1 << 11),
-    VALUE_READ = (1 << 12),
-    VALUE_WRITE = (1 << 13),
-    VALUE_CONFIGURABLE = (1 << 14),
-    VALUE_ENUMERABLE = (1 << 15)
+    VALUE_NATIVE = (1 << 2),
+    VALUE_BUILDIN = (1 << 3),
+    VALUE_IMPORT = (1 << 4),
+    VALUE_EXPORT = (1 << 5),
+    VALUE_PRIVATE = (1 << 6),
+    VALUE_UNSIGNED = (1 << 7),
+    VALUE_ARGUMENTS = (1 << 8),
+    VALUE_THIS = (1 << 9),
+    VALUE_SUPER = (1 << 10),
+    VALUE_READ = (1 << 11),
+    VALUE_WRITE = (1 << 12),
+    VALUE_CONFIGURABLE = (1 << 13),
+    VALUE_ENUMERABLE = (1 << 14)
 };
 
 
@@ -1060,8 +1071,77 @@ typedef std::shared_ptr<CScriptClass> CScriptClasstRef;
 class CScriptArray;
 typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 
-class CScriptContext;
+class CScriptContext
+{
+public:
+    std::unordered_map<uint256, CScriptModuleRef> modules;
+    std::unordered_map<uint256, CScriptValueRef> values;
+    std::unordered_map<std::string, uint256> names;
+
+    CScriptContext();
+    virtual ~CScriptContext();
+
+
+    inline uint256 combine(const uint256& a, const uint256& b)
+    {
+        uint256 buf;
+        CSHA256().Write(a.begin(), sizeof(a)).Write(b.begin(), sizeof(b)).Finalize(buf.begin());
+        return buf;
+    }
+
+    virtual uint256 UniqueID(const std::string& name);
+    virtual std::string Name(const uint256& uuid);
+    virtual CScriptValueRef Value(const uint256& uuid);
+    virtual CScriptModuleRef Module(const uint256& uuid);
+    virtual CScriptModuleRef Import(const std::string& name);
+    virtual CScriptModuleRef Scope() const;
+    virtual CScriptValueRef Void() const;
+    virtual CScriptValueRef Null() const;
+    virtual CScriptValueRef Zero() const;
+    virtual CScriptValueRef One() const;
+};
 typedef std::shared_ptr<CScriptContext> CScriptContextRef;
+
+class CLinkedValue
+{
+public:
+    typedef std::pair<uint256, uint256> CValueLinkage;
+
+    CScriptContext context;
+    CValueLinkage linkage;
+    mutable CScriptValueRef value;
+
+    CLinkedValue();
+    CLinkedValue(const CScriptContextRef& context, const CScriptValueRef& value);
+    CLinkedValue(const CScriptContextRef& context, const uint256& uuid);
+    virtual ~CLinkedValue();
+
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        std::vector<char> buf;
+        if (ser_action.ForRead()) {
+            READWRITE(buf);
+            SerializeValue(buf);
+        } else {
+            UnserializeValue(buf);
+            READWRITE(buf);
+        }
+    }
+
+    virtual void SerializeValue(std::vector<char>& buf);
+    virtual void UnserializeValue(std::vector<char>& buf);
+
+    virtual void Link(CScriptModuleRef module);
+    virtual bool IsLinked() const;
+
+
+    virtual CScriptValue& AsValue();
+    virtual const CScriptValueRef& AsValue() const;
+};
 
 
 class CScriptValue : public std::enable_shared_from_this<CScriptValue>
@@ -1069,11 +1149,12 @@ class CScriptValue : public std::enable_shared_from_this<CScriptValue>
 public:
     typedef std::shared_ptr<CScriptValue> Ref;
 
-    CScriptModuleRef valueModule;
-    CScriptValueRef valueScope;
 
-    std::vector<char> valueData;
-    uint256 valueUniqueID;
+    CScriptModuleRef module;
+    CScriptValueRef scope;
+
+    std::vector<char> data;
+    uint256 uuid;
     int32_t flags;
 
     CScriptValue() : flags(0), uuid(GenUUID()) {}
@@ -1095,7 +1176,7 @@ public:
 
     const uint256& UniqueID() const
     {
-        return valueUniqueID;
+        return uuid;
     }
 
 
@@ -1104,6 +1185,7 @@ public:
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
+        READWRITE(module);
         std::vector<char> buffer;
         if (ser_action.ForRead()) {
             READWRITE(buffer);
@@ -1112,10 +1194,10 @@ public:
             UnserializeValue(buffer);
             READWRITE(buffer);
         }
-        READWRITE(valueData);
-        READWRITE(valueUniqueID);
+        READWRITE(data);
+        READWRITE(uuid);
         READWRITE(flags);
-        READWRITE(valueScope);
+        READWRITE(scope);
     }
 
     virtual void SerializeValue(std::vector<char>& buffer)
@@ -1342,6 +1424,14 @@ public:
 CScriptValueRef CScriptValue::MakeVariable(const CScriptValueRef& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 CScriptValueRef CScriptValue::MakeVariable(const std::string& name, const CScriptValueRef& value, int32_t flags) { return CScriptVariable::Make(name, value, flags); }
 
+class CScriptLitteral : public CScriptValue
+{
+public:
+    uint8_t type;
+
+    CScriptLitteral() : CScriptValue() {}
+    CScriptLitteral(const uint8_t type, const int32_t flags) : type(type), CScriptValue(flags) {}
+};
 
 class CScriptSetter : public CScriptCallable
 {
@@ -1614,6 +1704,9 @@ public:
 class CScriptModule : public CScriptObject
 {
 public:
+    std::unordered_map<uint256, CScriptValueRef> storage;
+    std::unordered_map<std::string, uint256> names;
+
     virtual int ValueType() const { return VALUE_OBJECT; }
 
     CScriptModule() : CScriptObject(VALUE_MODULE) {}
@@ -1621,6 +1714,27 @@ public:
     {
     }
     virtual ~CScriptModule()
+    {
+    }
+
+    virtual CScriptVariableRef NewVariable(const std::string& name, const CScriptValueRef& value, int32_t flags)
+    {
+        if (names.count(name)) return storage[names[name]];
+        CScriptVariableRef variable = CScriptVariable::Make(name, value, flags);
+        return storage[names[name]] = variable;
+    }
+
+    virtual void AssignName(const std::string& name, const uint256& uuid)
+    {
+        names[name] = uuid;
+    }
+
+    virtual void Assign(const uint256& uuid, const CScriptValueRef& value)
+    {
+        storage[uuid] = value;
+    }
+
+    virtual void Initialize()
     {
     }
 };
