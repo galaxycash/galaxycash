@@ -1559,10 +1559,20 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     // galaxycash: set/unset network serialization mode for new clients
     if (pfrom->nVersion <= OLD_VERSION) {
-        vRecv.SetType(vRecv.GetType() & ~SER_POSMARKER);
-        vRecv.SetType(vRecv.GetType() & ~SER_GALAXYCASH);
-    } else
-        vRecv.SetType(vRecv.GetType() | (SER_POSMARKER | SER_GALAXYCASH));
+        int32_t nType = vRecv.GetType();
+        if (nType & SER_POSMARKER)
+            nType &= ~SER_POSMARKER;
+        if (nType & SER_GALAXYCASH)
+            nType &= ~SER_GALAXYCASH;
+        vRecv.SetType(nType);
+    } else {
+        int32_t nType = vRecv.GetType();
+        if (!(nType & SER_POSMARKER))
+            nType |= SER_POSMARKER;
+        if (!(nType & SER_GALAXYCASH))
+            nType |= SER_GALAXYCASH;
+        vRecv.SetType(nType);
+    }
 
     // At this point, the outgoing message serialization version can't change.
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());

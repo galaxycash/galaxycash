@@ -169,7 +169,7 @@ public:
         READWRITE(vchBlockSig);
         if (!ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
         if (!ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 3))) nFlags |= (1 << 3); // Dev block flag
-        READWRITE(nFlags);
+        if (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH) READWRITE(nFlags);
         if (ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
         if (ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 3))) nFlags |= (1 << 3); // Dev block flag
     }
