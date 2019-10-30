@@ -244,8 +244,14 @@ std::string CSporkManager::GetSporkNameByID(int id)
 
 void ThreadSporks()
 {
+    // Make this thread recognisable as the wallet flushing thread
+    RenameThread("galaxycash-sporks");
+
     int64_t lastRequest = 0;
+
     while (true) {
+        MilliSleep(1000);
+
         int64_t time = GetTime();
         if (lastRequest < time) {
             g_connman->ForEachNode([=](CNode* pnode) {

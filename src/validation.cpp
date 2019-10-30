@@ -3107,17 +3107,18 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
     return blockPos;
 }
 
-bool CBlockIndex::BuildStakeModifier(const CBlock& block)
+bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
 {
-    if (nStatus & BLOCK_HAVE_STAKE_MODIFIER)
+    if (!fRebuild && nStatus & BLOCK_HAVE_STAKE_MODIFIER)
         return true;
 
-    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock && !(nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
+    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock && (fRebuild || !(nStatus & BLOCK_HAVE_STAKE_MODIFIER))) {
         const CBlock& genesis = Params().GenesisBlock();
         hashProofOfStake = genesis.GetPoWHash();
         bnStakeModifier = 0;
         nStakeTime = 0;
-        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+
+        if (!(nStatus & BLOCK_HAVE_STAKE_MODIFIER)) nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         if (!SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
             LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
@@ -3128,34 +3129,30 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
     }
 
     if (pprev) {
-        if (!(pprev->nStatus & BLOCK_HAVE_DATA))
-            return false;
-
         CBlock prevBlock;
         if (!ReadBlockFromDisk(prevBlock, pprev, Params().GetConsensus())) {
             error("%s: *** ReadBlockFromDisk failed at %d, hash=%s", __func__, pprev->nHeight, pprev->GetBlockHash().ToString());
             return false;
         }
 
-        if (!pprev->BuildStakeModifier(prevBlock))
+        if (!pprev->BuildStakeModifier(prevBlock, fRebuild))
             return false;
     }
 
     {
         if (!SetStakeEntropyBit(block.GetStakeEntropyBit()))
-            LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
+            return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
 
         if (block.IsProofOfWork()) hashProofOfStake = block.GetPoWHash();
 
         bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
         nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
 
-
-        if (!CheckProofOfStake(block)) {
+        if (block.IsProofOfStake() && !CheckProofOfStake(block)) {
             return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
         }
 
-        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+        if (!(nStatus & BLOCK_HAVE_STAKE_MODIFIER)) nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         setDirtyBlockIndex.insert(this);
     }
@@ -3168,15 +3165,20 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
     if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfStake())
         return true;
 
-    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
-        return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+    if (!BuildStakeModifier(block))
+        return error("%s: BuildStakeModifier failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
 
+    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
+        BuildStakeModifier(block, true); // Try fully rebuild stake modifier tree
+        if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
+            return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+    }
     return true;
 }
 
 bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 {
-    if (!block.IsProofOfWork() || (GetBlockHash() == Params().GenesisBlock().GetHash()))
+    if (GetBlockHash() == Params().GenesisBlock().GetHash() || fReindex || fImporting || !block.IsProofOfWork())
         return true;
 
     if (!::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus()))
@@ -3188,6 +3190,8 @@ bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock, bool fCheckPoS)
 {
+    AssertLockHeld(cs_main);
+
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << *pblock;
     CBlock block;
@@ -3198,7 +3202,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
 
     if (fNewBlock) *fNewBlock = false;
-    AssertLockHeld(cs_main);
+
 
     CBlockIndex* pindex = ppindex ? *ppindex : (mapBlockIndex.count(hash) ? mapBlockIndex[hash] : nullptr);
     if (pindex == nullptr) {
