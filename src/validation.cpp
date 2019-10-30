@@ -2347,47 +2347,6 @@ static void NotifyBlockTip()
     }
 }
 
-bool BlockBuildStakeModifier(CBlockIndex* pindex)
-{
-    if (pindex->GetBlockHash() == Params().GenesisBlock().GetHash()) {
-        pindex->bnStakeModifier = 0;
-        pindex->hashProofOfStake = Params().GenesisBlock().GetPoWHash();
-        pindex->nStakeTime = 0;
-        return true;
-    }
-
-    if (!(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
-        bool fOk = BlockBuildStakeModifier(pindex->pprev);
-        if (fOk) pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
-    }
-
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
-        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-
-    if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
-        return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, pindex->nHeight, pindex->GetBlockHash().ToString());
-
-    pindex->bnStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
-    pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
-
-    if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
-
-    return true;
-}
-
-void BlockBuildStakeModifiers()
-{
-    CBlockIndex* pindex = chainActive.Genesis();
-    while (pindex) {
-        if (!(pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
-            BlockBuildStakeModifier(pindex);
-            pindex->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
-        }
-        pindex = chainActive.Next(pindex);
-    }
-}
-
 /**
  * Make the best chain active, in multiple steps. The result is either failure
  * or an activated best chain. pblock is either nullptr or a pointer to a block
@@ -2495,7 +2454,6 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
         masternodePayments.ProcessBlock(chainActive.Height() + 10);
     }
 
-    BlockBuildStakeModifiers();
 
     if (chainActive.Tip()->IsProofOfStake()) {
         if (chainActive.Tip()->nHeight < Params().GetConsensus().POSStart())
@@ -2508,7 +2466,6 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
 
     if (chainActive.Tip()->IsProofOfWork()) {
         bool fHasDevsubsidy = chainActive.Tip()->nFlags & CBlockIndex::BLOCK_SUBSIDY;
-
 
         if (!fHasDevsubsidy && chainActive.Tip()->nHeight > Params().GetConsensus().LastPowBlock())
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
@@ -3226,6 +3183,50 @@ bool CBlockIndex::CheckProofOfWork(const CBlock& block)
     return true;
 }
 
+
+bool BlockBuildStakeModifier(CBlockIndex* pindex)
+{
+    if (pindex->GetBlockHash() == Params().GenesisBlock().GetHash()) {
+        pindex->bnStakeModifier = 0;
+        pindex->hashProofOfStake = Params().GenesisBlock().GetPoWHash();
+        pindex->nStakeTime = 0;
+        return true;
+    }
+
+    if (!(pindex->pprev->nStatus & BLOCK_HAVE_STAKE_MODIFIER)) {
+        bool fOk = BlockBuildStakeModifier(pindex->pprev);
+        if (fOk) pindex->pprev->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+    }
+
+    CBlock block;
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
+        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+
+    if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
+        return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, pindex->nHeight, pindex->GetBlockHash().ToString());
+
+    pindex->bnStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
+    pindex->nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
+
+    if (block.IsProofOfWork()) pindex->hashProofOfStake = block.GetPoWHash();
+
+    pindex->nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
+
+    return true;
+}
+
+void BlockBuildStakeModifiers()
+{
+    CBlockIndex* pindex = chainActive.Genesis();
+    while (pindex) {
+        if (!(pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER))
+            BlockBuildStakeModifier(pindex);
+
+        pindex = chainActive.Next(pindex);
+    }
+}
+
+
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock, bool fCheckPoS)
 {
@@ -3324,6 +3325,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
 
     CheckBlockIndex(chainparams.GetConsensus());
+
+    BlockBuildStakeModifier(pindex);
 
     setDirtyBlockIndex.insert(pindex);
 
