@@ -477,6 +477,7 @@ public:
 
     bool BuildStakeModifier(const CBlock& block);
     bool CheckProofOfStake(const CBlock& block);
+    bool CheckProofOfWork(const CBlock& block);
 };
 
 arith_uint256 GetBlockTrust(const CBlockIndex& block);
