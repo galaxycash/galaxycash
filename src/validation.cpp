@@ -4743,6 +4743,9 @@ bool GetCoinAge(const CTransaction& tx, const CCoinsViewCache& view, uint64_t& n
     return true;
 }
 
+#include "key.h"
+#include "pubkey.h"
+
 // galaxycash: sign block
 typedef std::vector<unsigned char> valtype;
 bool SignBlock(CBlock& block, const CKeyStore& keystore)
@@ -4756,7 +4759,12 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
 
     if (whichType == TX_PUBKEY) {
         valtype& vchPubKey = vSolutions[0];
-        return CPubKey(vchPubKey).Sign(GetHash(), vchBlockSig);
+        CKey key;
+        if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
+            return false;
+        if (key.GetPubKey() != CPubKey(vchPubKey))
+            return false;
+        return key.Sign(block.GetHash(), block.vchBlockSig);
     }
     return false;
 }
@@ -4782,17 +4790,9 @@ bool CheckBlockSignature(const CBlock& block)
 
     if (whichType == TX_PUBKEY) {
         valtype& vchPubKey = vSolutions[0];
-        CKey key;
-        if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
-            return false;
-        if (key.GetPubKey() != CPubKey(vchPubKey))
-            return false;
-        return key.Sign(block.GetHash(), block.vchBlockSig);
+        return CPubKey(vchPubKey).Verify(block.GetHash(), block.vchBlockSig);
     }
 }
-
-#include "pubkey.h"
-
 
 bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint256& hash)
 {
