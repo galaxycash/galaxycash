@@ -3302,7 +3302,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     if (pindexPrev && block.IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, block.nBits, pindexPrev->GetBlockHeader(), *block.vtx[1], txPrev, block.vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
         return error("%s: CheckStakeKernelHash() failed", __func__);
 
-    if (!pindex->SetStakeEntropyBit(nEntropyBit))
+    if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
         return error("%s: SetStakeEntropyBit() failed", __func__);
 
 
