@@ -17,23 +17,6 @@ matrix:
         script:
           - ./archive.sh
           - docker build -f scripts/docker/debian/Dockerfile-jessie .
-      - os: linux
-        sudo: required
-        env:
-          - V=ubuntu
-        before_install:
-          - ./scripts/travis-uninstall-packages.sh
-          - ./scripts/dependencies-ubuntu.sh
-        install: true
-        script:
-          - ./scripts/install-ubuntu.sh
-      - os: linux
-        services: docker
-        env:
-          - V=windows-Dockerfile-wheezy
-        script:
-         - ./archive.sh
-          - travis_wait 60 docker build -f scripts/docker/windows-crosscompile/Dockerfile-wheezy .
       #  env:
       #    - V=windows-Dockerfile-xenial
       #  script:
