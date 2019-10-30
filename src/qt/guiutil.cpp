@@ -99,7 +99,7 @@ void SetGUIStyle(QWidget* widget)
     darkPalette.setColor(QPalette::HighlightedText, Qt::black);
 
     widget->setPalette(darkPalette);
-    widget->setStyleSheet("QMainWindow:before { background-image: url(:/images/logomask); background-repeat: no-repeat; background-position: bottom left; opacity: 0.6; color: #f0e7e700; } QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }");
+    widget->setStyleSheet("QMainWindow { background-image: url(:/images/logomask); background-repeat: no-repeat; background-position: bottom left; opacity: 0.6; color: #f0e7e700; } QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }");
 }
 QString dateTimeStr(const QDateTime& date)
 {
