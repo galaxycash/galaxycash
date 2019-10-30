@@ -1195,7 +1195,7 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("size_on_disk", CalculateCurrentUsage()));
 
     const CPubKey& pubkey = Params().DevPubKey();
-    obj.push_back(Pair("pubkey", HexStr(pubkey.begin(), pubkey.end()));
+    obj.push_back(Pair("pubkey", HexStr(pubkey.begin(), pubkey.end())));
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();
