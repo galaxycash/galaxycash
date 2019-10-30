@@ -1530,6 +1530,18 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
            (*pindex->phashBlock == block.GetHash()));
     int64_t nTimeStart = GetTimeMicros();
 
+    if (block.IsProofOfStake()) {
+        if (pindex->IsProofOfWork()) pindex->SetProofOfStake(); 
+        if (!pindex->BuildStakeModifier(block))
+            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        if (!pindex->CheckProofOfStake(block))
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+    } else {
+        if (pindex->IsProofOfStake()) pindex->SetProofOfWork();
+        if (!pindex->CheckProofOfWork(block))
+            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);    
+    }
+
     // Check it again in case a previous version let a bad block in
     // NOTE: We don't currently (re-)invoke ContextualCheckBlock() or
     // ContextualCheckBlockHeader() here. This means that if we add a new
@@ -1545,12 +1557,6 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     // GetAdjustedTime() to go backward).
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, !fJustCheck))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-
-    if (!pindex->BuildStakeModifier(block))
-        return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-
-    if (!pindex->CheckProofOfStake(block))
-        return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
 
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
@@ -2785,6 +2791,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
     }
 
+
     // Check the merkle root.
     if (fCheckMerkleRoot) {
         bool mutated;
@@ -3102,7 +3109,7 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
 
 bool CBlockIndex::BuildStakeModifier(const CBlock& block)
 {
-    if (nFlags & CBlockIndex::BLOCK_MODIFIER_MAKED)
+    if (nFlags & CBlockIndex::BLOCK_STAKE_MODIFIER)
         return true;
 
     if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
@@ -3110,7 +3117,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
         hashProofOfStake = genesis.GetPoWHash();
         bnStakeModifier = 0;
         nStakeTime = 0;
-        nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
+        nFlags |= CBlockIndex::BLOCK_STAKE_MODIFIER;
 
         if (!SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
             LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
@@ -3149,7 +3156,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
         if (block.IsProofOfStake() && !::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
             return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
         }
-        nFlags |= CBlockIndex::BLOCK_MODIFIER_MAKED;
+        nFlags |= CBlockIndex::BLOCK_STAKE_MODIFIER;
         nStakeModifierChecksum = GetStakeModifierChecksum(this);
         if (!CheckStakeModifierCheckpoints(nHeight, nStakeModifierChecksum))
             return error("%s: CheckStakeModifierCheckpoints failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
@@ -3175,6 +3182,19 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
     return true;
 }
 
+bool CBlockIndex::CheckProofOfWork(const CBlock& block)
+{
+    if (fReindex || fImporting)
+        return true;
+
+    if (!block.IsProofOfStake())
+        return true;
+
+    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
+        return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+
+    return true;
+}
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock, bool fCheckPoS)
@@ -3200,11 +3220,11 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         return false;
 
     if (pblock->IsProofOfStake()) {
-        pindex->InitAsProofOfStake();
+        pindex->SetProofOfStake();
     } else {
-        pindex->InitAsProofOfWork();
+        pindex->SetProofOfWork();
     }
-    
+
     g_chainstate.ResetBlockFailureFlags(pindex);
 
 
@@ -3309,11 +3329,11 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         if (fPoSDuplicate) *fPoSDuplicate = false;
 
         bool fHasDevblock = pblock->IsDeveloperBlock();
-        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, !fDevblock);
+        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, !fHasDevblock);
 
 
         if (ppindex)
-            *ppindex = (ret || fDevblock) ? pindex : nullptr;
+            *ppindex = (ret || fHasDevblock) ? pindex : nullptr;
 
         if (!fHasDevblock && !ret) {
             GetMainSignals().BlockChecked(*pblock, state);

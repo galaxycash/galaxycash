@@ -241,7 +241,7 @@ public:
     enum {
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
         BLOCK_STAKE_ENTROPY = (1 << 1),  // entropy bit for stake modifier
-        BLOCK_MODIFIER_MAKED = (1 << 2),
+        BLOCK_STAKE_MODIFIER = (1 << 2),
         BLOCK_DEVSUBSIDY = (1 << 3)
     };
     uint256 bnStakeModifier;
@@ -262,28 +262,14 @@ public:
 
     void SetProofOfStake()
     {
-        nFlags |= BLOCK_PROOF_OF_STAKE;
+        if (!(nFlags & BLOCK_PROOF_OF_STAKE)) nFlags |= BLOCK_PROOF_OF_STAKE;
     }
 
-    void InitAsProofOfStake()
+    void SetProofOfWork()
     {
-        nFlags = BLOCK_PROOF_OF_STAKE;
-        bnStakeModifier = 0;
-        nStakeModifierChecksum = 0;
-        prevoutStake.SetNull();
-        nStakeTime = 0;
-        hashProofOfStake = uint256();
+        if (nFlags & BLOCK_PROOF_OF_STAKE) nFlags &= ~BLOCK_PROOF_OF_STAKE;
     }
 
-    void InitAsProofOfWork()
-    {
-        nFlags = 0;
-        bnStakeModifier = 0;
-        nStakeModifierChecksum = 0;
-        prevoutStake.SetNull();
-        nStakeTime = 0;
-        hashProofOfStake = GetBlockHeader().GetPoWHash();
-    }
 
     unsigned int GetStakeEntropyBit() const
     {
