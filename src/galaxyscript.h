@@ -4,6 +4,8 @@
 #ifndef GALAXYCASH_EXT_SCRIPT_H
 #define GALAXYCASH_EXT_SCRIPT_H
 
+#include "random.h"
+
 // GalaxyCash Scripting language
 
 static const std::string CScriptKeywords[] = {
@@ -1071,7 +1073,7 @@ public:
     CScriptValueRef valueScope;
 
     std::vector<char> valueData;
-    std::string valueUniqueID;
+    uint256 valueUniqueID;
     int32_t flags;
 
     CScriptValue() : flags(0), uuid(GenUUID()) {}
@@ -1081,11 +1083,9 @@ public:
     }
     virtual ~CScriptValue() {}
 
-    static std::string GenUUID()
+    static uint256 GenUUID()
     {
-        char buf[16];
-        GetRandBytes(buf, sizeof(buf));
-        return buf;
+        return GetRandHash();
     }
 
     static std::string GenName()
@@ -1093,7 +1093,7 @@ public:
         return GenUUID();
     }
 
-    const std::string& uniqueID() const
+    const uint256& UniqueID() const
     {
         return valueUniqueID;
     }
@@ -1177,14 +1177,14 @@ public:
     virtual void FromValue(const Ref& value) {}
     virtual Ref AsValue() const { return shared_from_this(); }
 
-    virtual Ref valueByName(const std::string& id) const
+    virtual Ref ValueByName(const std::string& id) const
     {
-        return valueScope != nullptr ? valueScope->valueByName(id) : MakeNull();
+        return valueScope != nullptr ? valueModule->ValueByName(id) : MakeNull();
     }
 
-    virtual Ref valueByUniqueID(const std::string& id) const
+    virtual Ref ValueByUniqueID(const std::string& id) const
     {
-        return valueScope != nullptr ? valueScope->valueUniqueID(id) : MakeNull();
+        return valueScope != nullptr ? valueModule->ValueUniqueID(id) : MakeNull();
     }
 
     virtual Ref Clone()
@@ -1192,23 +1192,23 @@ public:
         return std::make_shared<CScriptValue>(*this);
     }
 
-    virtual void setPointer(const void* p) {}
+    virtual void SetPointer(const void* p) {}
     virtual void* AsPointer() const { return nullptr; }
 
-    virtual void setBoolean(const bool value) {}
+    virtual void SetBoolean(const bool value) {}
     virtual bool AsBoolean() const { return false; }
 
-    virtual void setInteger(const int64_t value);
+    virtual void SetInteger(const int64_t value);
     virtual int64_t AsInteger() const { return 0; }
 
-    virtual void setFloat(const double value) {}
+    virtual void SetFloat(const double value) {}
     virtual double AsFloat() const { return 0.0; }
 
-    virtual void setString(const std::string& value) {}
+    virtual void SetString(const std::string& value) {}
     virtual std::string AsString() const { return ""; }
 
-    virtual void setBignum(const uint256& bignum) {}
-    virtual uint256 getBignum() const { return uint256(); }
+    virtual void SetBignum(const uint256& bignum) {}
+    virtual uint256 AsBignum() const { return uint256(); }
 
 
     static Ref Parse(const Ref& value, const Ref& replacer);
@@ -1234,12 +1234,6 @@ public:
     static Ref MakeTransaction() { return std::make_shared<CScriptValue>(); }
     static Ref MakeBlock() { return std::make_shared<CScriptValue>(); }
     static Ref MakeChain() { return std::make_shared<CScriptValue>(); }
-
-    virtual bool isValue() const { return true; }
-    virtual bool isNull() const { return ValueType() == VALUE_NULL; }
-    virtual bool isVoid() const { return ValueType() == VALUE_VOID; }
-    virtual bool isObject() const { return ValueType() == VALUE_OBJECT; }
-    virtual bool isArray() const { return ValueType() == VALUE_ARRAY; }
 };
 
 class CScriptValueUndefined : public CScriptValue
@@ -1288,9 +1282,10 @@ public:
     CScriptVariable(const std::string& name, const CScriptValueRef& value, int32_t flags = 0) : CScriptValue(flags), name(name.empty() ? GenName() : name), value(value) {}
     virtual ~CScriptVariable() {}
 
-    virtual void AssignVariableByUUID(const std::string& uuid)
+    virtual void AssignVariable(const uint256& uuid)
     {
         if (valueScope) {
+            valueUUID = uuid;
             value = valueScope->valueByUUID(uuid);
         }
     }
@@ -1301,13 +1296,13 @@ public:
         ss >> valueUUID;
         ss >> name;
 
-        AssignVariableByUUID(valueUUID, value);
+        AssignVariable(valueUUID, value);
     }
 
     virtual void UnserializeValue(std::vector<char>& buffer)
     {
         CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-        ss << value != nullptr ? value->uniqueID() : "nullnullnullnull";
+        ss << value != nullptr ? value->UniqueID() : "nullnullnullnull";
         ss << name;
     }
 
@@ -1583,7 +1578,8 @@ class CScriptCallable : public CScriptValue
 {
 public:
     virtual bool isCallable() const { return true; }
-    virtual CScriptValueRef Execute(const CScriptValueRef& thisArg, const CScriptValueRef& arguments)
+
+    virtual CScriptValueRef Execute(const CScriptValueRef& thisArg, const CScriptValueRef& args, const CScriptValueRef& returnArg)
     {
         return MakeVoid();
     }

@@ -4753,15 +4753,10 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
+
     if (whichType == TX_PUBKEY) {
-        // Sign
-        const valtype& vchPubKey = vSolutions[0];
-        CKey key;
-        if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
-            return false;
-        if (key.GetPubKey() != CPubKey(vchPubKey))
-            return false;
-        return key.Sign(block.GetHash(), block.vchBlockSig);
+        valtype& vchPubKey = vSolutions[0];
+        return CPubKey(vchPubKey).Sign(GetHash(), vchBlockSig);
     }
     return false;
 }
@@ -4769,11 +4764,14 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
 // galaxycash: check block signature
 bool CheckBlockSignature(const CBlock& block)
 {
-    if (block.GetHash() == Params().GetConsensus().hashGenesisBlock)
+    if (block.IsProofOfWork() && !block.IsDeveloperBlock())
         return block.vchBlockSig.empty();
 
-    if (IsDeveloperBlock(block))
+    if (block.IsDeveloperBlock())
         return true;
+
+    if (block.vchBlockSig.empty())
+        return false;
 
     std::vector<valtype> vSolutions;
     txnouttype whichType;
@@ -4783,13 +4781,14 @@ bool CheckBlockSignature(const CBlock& block)
         return false;
 
     if (whichType == TX_PUBKEY) {
-        const valtype& vchPubKey = vSolutions[0];
-        CPubKey key(vchPubKey);
-        if (block.vchBlockSig.empty())
+        valtype& vchPubKey = vSolutions[0];
+        CKey key;
+        if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
             return false;
-        return key.Verify(block.GetHash(), block.vchBlockSig);
+        if (key.GetPubKey() != CPubKey(vchPubKey))
+            return false;
+        return key.Sign(block.GetHash(), block.vchBlockSig);
     }
-    return false;
 }
 
 #include "pubkey.h"
