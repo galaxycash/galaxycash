@@ -1536,24 +1536,11 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
             pindex->SetProofOfStake();
         }
-        if (pindex->nHeight < Params().GetConsensus().POSStart())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
-        if (!pindex->BuildStakeModifier(block))
-            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        if (!pindex->CheckProofOfStake(block)) {
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        }
     } else {
         if (pindex->IsProofOfStake()) {
             if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
             pindex->SetProofOfWork();
         }
-        if (!pindex->BuildStakeModifier(block))
-            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
-        if (!block.IsDeveloperBlock() && pindex->nHeight > Params().GetConsensus().LastPowBlock())
-            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
-        if (!block.IsDeveloperBlock() && !pindex->CheckProofOfWork(block))
-            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
     }
 
     // Check it again in case a previous version let a bad block in
@@ -1789,6 +1776,32 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     if (!WriteTxIndexDataForBlock(block, state, pindex))
         return false;
+
+
+    if (block.IsProofOfStake()) {
+        if (pindex->IsProofOfWork()) {
+            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
+            pindex->SetProofOfStake();
+        }
+        if (pindex->nHeight < Params().GetConsensus().POSStart())
+            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
+        if (!pindex->BuildStakeModifier(block))
+            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        if (!pindex->CheckProofOfStake(block)) {
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        }
+    } else {
+        if (pindex->IsProofOfStake()) {
+            if (pindex->nStatus & BLOCK_HAVE_STAKE_MODIFIER) pindex->nStatus &= ~BLOCK_HAVE_STAKE_MODIFIER;
+            pindex->SetProofOfWork();
+        }
+        if (!pindex->BuildStakeModifier(block))
+            return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+        if (!block.IsDeveloperBlock() && pindex->nHeight > Params().GetConsensus().LastPowBlock())
+            return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
+        if (!block.IsDeveloperBlock() && !pindex->CheckProofOfWork(block))
+            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
+    }
 
     assert(pindex->phashBlock);
     // add this block to the view's block chain
@@ -3112,11 +3125,14 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
 
 bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
 {
+    if (nStatus & BLOCK_HAVE_STAKE_MODIFIER) return true;
+
     if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
         const CBlock& genesis = Params().GenesisBlock();
         hashProofOfStake = genesis.GetPoWHash();
         bnStakeModifier = 0;
         nStakeTime = 0;
+        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         if (!SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
             LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
@@ -3145,10 +3161,7 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
 
         bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
         nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
-
-        if (block.IsProofOfStake() && !CheckKernel(pprev, block.nBits, *block.vtx[1], &hashProofOfStake)) {
-            return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
-        }
+        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
 
         setDirtyBlockIndex.insert(this);
     }
@@ -3475,6 +3488,7 @@ bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient, bool fForc
     if (ppindex)
         *ppindex = pindex;
 
+    LOCK(cs_main);
 
     // Check for duplicate
     uint256 hash = block.GetHash();
