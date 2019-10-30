@@ -2502,7 +2502,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoS Wave is not started");
 
         if (!chainActive.Tip()->CheckProofOfStake(*pblock)) {
-            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), pindex->nHeight);
+            return error("%s: CheckProofOfStake FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), chainActive.Tip()->nHeight);
         }
     }
 
@@ -2514,7 +2514,7 @@ bool CChainState::ActivateBestChain(CValidationState& state, const CChainParams&
             return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
 
         if (!fHasDevsubsidy && !chainActive.Tip()->CheckProofOfWork(*pblock))
-            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), pindex->nHeight);
+            return error("%s: CheckProofOfWork FAILED for block %d, %s", __func__, pblock->GetHash().ToString(), chainActive.Tip()->nHeight);
     }
 
     return true;
@@ -2923,28 +2923,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     }
 
     // masternode payments / budgets
-    CBlockIndex* pindexPrev = chainActive.Tip();
-    int nHeight = 0;
-    if (pindexPrev != NULL) {
-        if (pindexPrev->GetBlockHash() == block.hashPrevBlock) {
-            nHeight = pindexPrev->nHeight + 1;
-        } else { //out of order
-            BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
-            if (mi != mapBlockIndex.end() && (*mi).second)
-                nHeight = (*mi).second->nHeight + 1;
-        }
-
-        // PIVX
-        // It is entierly possible that we don't have enough data and this could fail
-        // (i.e. the block could indeed be valid). Store the block for later consideration
-        // but issue an initial reject message.
-        // The case also exists that the sending peer could not have enough data to see
-        // that this block is invalid, so don't issue an outright ban.
-        if (nHeight != 0 && !IsInitialBlockDownload()) {
-            if (!IsBlockPayeeValid(block, nHeight)) {
-                return state.DoS(0, error("%s : Couldn't find masternode/budget payment", __func__),
-                    REJECT_INVALID, "bad-cb-payee");
-            }
+    if (nHeight != 0 && !IsInitialBlockDownload()) {
+        if (!IsBlockPayeeValid(block, nHeight)) {
+            return state.DoS(0, error("%s : Couldn't find masternode/budget payment", __func__),
+                REJECT_INVALID, "bad-cb-payee");
         }
     }
 
