@@ -3184,14 +3184,11 @@ bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 
 bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 {
-    if (fReindex || fImporting)
+    if (!block.IsProofOfWork())
         return true;
 
-    if (!block.IsProofOfStake())
-        return true;
-
-    if (!::CheckProofOfStake(pprev, block.nBits, *block.vtx[1], hashProofOfStake))
-        return error("%s: CheckProofOfStake failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
+    if (!::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus()))
+        return error("%s: CheckProofOfWork failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
 
     return true;
 }
