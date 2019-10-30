@@ -1098,6 +1098,7 @@ public:
     virtual CScriptValueRef Value(const uint256& uuid);
     virtual CScriptModuleRef Module(const uint256& uuid);
     virtual CScriptModuleRef Import(const std::string& name);
+    virtual void             Export(const CScriptModuleRef &module, const std::string &name);
     virtual CScriptModuleRef Scope() const;
     virtual CScriptValueRef Void() const;
     virtual CScriptValueRef Null() const;

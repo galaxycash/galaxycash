@@ -57,8 +57,8 @@ static const int MAX_URI_LENGTH = 255;
 #define QAPP_APP_NAME_TESTNET "GalaxyCash-Qt-testnet"
 
 /* Colors for minting tab for each coin age group */
-#define COLOR_MINT_YOUNG QColor(255*0.75, 224*0.75, 226*0.75)
-#define COLOR_MINT_MATURE QColor(204*0.75, 255*0.75, 207*0.75)
-#define COLOR_MINT_OLD QColor(111*0.75, 252*0.75, 141*0.75)
+#define COLOR_MINT_YOUNG QColor(190, 170, 183)
+#define COLOR_MINT_MATURE QColor(160, 255, 165)
+#define COLOR_MINT_OLD QColor(111, 252, 141)
 
 #endif // BITCOIN_QT_GUICONSTANTS_H
