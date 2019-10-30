@@ -6,6 +6,7 @@
 
 #include "hash.h"
 #include "random.h"
+#include "serialize.h"
 #include "util.h"
 
 #include <algorithm>
