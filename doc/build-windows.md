@@ -86,7 +86,7 @@ The next three steps are an example of how to acquire the source in an appropria
 
     cd /usr/src
     sudo git clone https://github.com/galaxycash/galaxycash.git
-    sudo chmod -R a+x galaxycash
+    sudo chmod 755 -R galaxycash
 
 Once the source code is ready the build steps are below.
 
@@ -116,7 +116,7 @@ The next three steps are an example of how to acquire the source in an appropria
 
     cd /usr/src
     sudo git clone https://github.com/galaxycash/galaxycash.git
-    sudo chmod -R a+rw galaxycash
+    sudo chmod 755 -R galaxycash
 
 Then build using:
 

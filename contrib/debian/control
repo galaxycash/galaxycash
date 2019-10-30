@@ -1,7 +1,7 @@
 Source: galaxycash
 Section: utils
 Priority: optional
-Maintainer: Peerchemist <peerchemist@protonmail.ch>
+Maintainer: GalaxyCash developers galaxycashen@gmail.com
 Build-Depends: debhelper,
  devscripts,
  automake,
@@ -25,7 +25,7 @@ Build-Depends: debhelper,
  python,
  libzmq3-dev
 Standards-Version: 3.9.2
-Homepage: https://www.galaxycash.net/
+Homepage: https://galaxy-hub.online/
 Vcs-Git: git://github.com/galaxycash/galaxycash.git
 Vcs-Browser: https://github.com/galaxycash/galaxycash
 

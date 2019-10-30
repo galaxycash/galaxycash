@@ -465,7 +465,7 @@ RES_IMAGES =
 
 RES_MOVIES = $(wildcard $(srcdir)/qt/res/movies/spinner-*.png)
 
-BITCOIN_RC = qt/res/bitcoin-qt-res.rc
+BITCOIN_RC = qt/res/galaxycash-qt-res.rc
 
 BITCOIN_QT_INCLUDES = -DQT_NO_KEYWORDS
 
@@ -548,9 +548,9 @@ CLEAN_QT = $(nodist_qt_libbitcoinqt_a_SOURCES) $(QT_QM) $(QT_FORMS_H) qt/*.gcda 
 CLEANFILES += $(CLEAN_QT)
 
 galaxycash_qt_clean: FORCE
-	rm -f $(CLEAN_QT) $(qt_libbitcoinqt_a_OBJECTS) $(qt_galaxycash_qt_OBJECTS) qt/bitcoin-qt$(EXEEXT) $(LIBBITCOINQT)
+	rm -f $(CLEAN_QT) $(qt_libbitcoinqt_a_OBJECTS) $(qt_galaxycash_qt_OBJECTS) qt/galaxycash-qt$(EXEEXT) $(LIBBITCOINQT)
 
-galaxycash_qt : qt/bitcoin-qt$(EXEEXT)
+galaxycash_qt : qt/galaxycash-qt$(EXEEXT)
 
 ui_%.h: %.ui
 	@test -f $(UIC)

@@ -1,11 +1,11 @@
 Sample configuration files for:
 ```
-SystemD: bitcoind.service
-Upstart: bitcoind.conf
-OpenRC:  bitcoind.openrc
-         bitcoind.openrcconf
-CentOS:  bitcoind.init
-OS X:    org.bitcoin.bitcoind.plist
+SystemD: galaxycashd.service
+Upstart: galaxycashd.conf
+OpenRC:  galaxycashd.openrc
+         galaxycashd.openrcconf
+CentOS:  galaxycashd.init
+OS X:    org.galaxycash.galaxycashd.plist
 ```
 have been made available to assist packagers in creating node packages here.
 

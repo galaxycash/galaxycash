@@ -191,7 +191,7 @@ obj/build.h: FORCE
 	@$(top_srcdir)/share/genbuild.sh "$(abs_top_builddir)/src/obj/build.h" "$(abs_top_srcdir)"
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between bitcoind and bitcoin-qt
+# server: shared between galaxycashd and galaxycash-qt
 libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
@@ -447,13 +447,13 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # galaxycashd binary #
-galaxycashd_SOURCES = bitcoind.cpp
+galaxycashd_SOURCES = galaxycashd.cpp
 galaxycashd_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 galaxycashd_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 galaxycashd_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-galaxycashd_SOURCES += bitcoind-res.rc
+galaxycashd_SOURCES += galaxycashd-res.rc
 endif
 
 galaxycashd_LDADD = \
@@ -474,13 +474,13 @@ galaxycashd_LDADD = \
 galaxycashd_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # galaxycash-cli binary #
-galaxycash_cli_SOURCES = bitcoin-cli.cpp
+galaxycash_cli_SOURCES = galaxycash-cli.cpp
 galaxycash_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 galaxycash_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 galaxycash_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-galaxycash_cli_SOURCES += bitcoin-cli-res.rc
+galaxycash_cli_SOURCES += galaxycash-cli-res.rc
 endif
 
 galaxycash_cli_LDADD = \
@@ -494,14 +494,14 @@ galaxycash_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 
 # galaxycash-tx binary #
 galaxycash_tx_SOURCES = \
-  bitcoin-tx.cpp \
+  galaxycash-tx.cpp \
   timedatadummy.cpp
 galaxycash_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 galaxycash_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 galaxycash_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-galaxycash_tx_SOURCES += bitcoin-tx-res.rc
+galaxycash_tx_SOURCES += galaxycash-tx-res.rc
 endif
 
 galaxycash_tx_LDADD = \

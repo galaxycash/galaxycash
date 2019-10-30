@@ -61,11 +61,11 @@ src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp
 
-src/qt/bitcoin-qt.config
-src/qt/bitcoin-qt.creator
-src/qt/bitcoin-qt.creator.user
-src/qt/bitcoin-qt.files
-src/qt/bitcoin-qt.includes
+src/qt/galaxycash-qt.config
+src/qt/galaxycash-qt.creator
+src/qt/galaxycash-qt.creator.user
+src/qt/galaxycash-qt.files
+src/qt/galaxycash-qt.includes
 
 .deps
 .dirstamp
