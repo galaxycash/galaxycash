@@ -3296,10 +3296,11 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     pindex->bnStakeModifier = ComputeStakeModifier(pindexPrev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
 
     CTransactionRef txPrev;
+    uint256 txHash;
     if (pindexPrev && block.IsProofOfStake() && !GetTransaction(block.vtx[1]->vin[0].prevout.hash, txPrev, Params().GetConsensus(), &txHash, true))
         return error("%s: GetTransaction() for stake check failed", __func__);
 
-    if (pindexPrev && block.IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, block.nBits, pindexPrev->GetBlockHeader(), *block.vtx[1], txPrev, block.vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
+    if (pindexPrev && block.IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, block.nBits, pindexPrev->GetBlockHeader(), *block.vtx[1], *txPrev, block.vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
         return error("%s: CheckStakeKernelHash() failed", __func__);
 
     if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
