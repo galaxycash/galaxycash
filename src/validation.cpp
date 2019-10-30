@@ -2781,20 +2781,6 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSignature, bool fOldClient)
 {
-    CBlockIndex* pindexPrev = chainActive.Tip();
-    int nHeight = 0;
-    if (pindexPrev != NULL) {
-        if (pindexPrev->GetBlockHash() == block.hashPrevBlock) {
-            nHeight = pindexPrev->nHeight + 1;
-        } else { //out of order
-            BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
-            if (mi != mapBlockIndex.end() && (*mi).second)
-                nHeight = (*mi).second->nHeight + 1;
-        }
-
-
-        if (nHeight < 61000) return true;
-    }
     // These are checks that are independent of context.
     if (block.IsDeveloperBlock()) {
         block.fChecked = true;
@@ -2907,7 +2893,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
 {
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
-    if (nHeight < 61000) return true;
 
 
     // Check proof of work or proof-of-stake
@@ -2965,7 +2950,6 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
         return true;
 
     const int nHeight = pindexPrev->nHeight + 1;
-    if (nHeight < 61000) return true;
 
     // Start enforcing BIP113 (Median Time Past)
     int nLockTimeFlags = 0;
@@ -3096,51 +3080,6 @@ static CDiskBlockPos SaveBlockToDisk(const CBlock& block, int nHeight, const CCh
     return blockPos;
 }
 
-bool CBlockIndex::BuildStakeModifier(const CBlock& block, const bool fRebuild)
-{
-    if (nStatus & BLOCK_HAVE_STAKE_MODIFIER) return true;
-
-    if (GetBlockHash() == Params().GetConsensus().hashGenesisBlock) {
-        const CBlock& genesis = Params().GenesisBlock();
-        hashProofOfStake = genesis.GetPoWHash();
-        bnStakeModifier = 0;
-        nStakeTime = 0;
-        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
-
-        if (!SetStakeEntropyBit(genesis.GetStakeEntropyBit()))
-            LogPrintf("AddToBlockIndex() : SetStakeEntropyBit() failed \n");
-
-        setDirtyBlockIndex.insert(this);
-
-        return true;
-    }
-
-    if (pprev) {
-        CBlock prevBlock;
-        if (!ReadBlockFromDisk(prevBlock, pprev, Params().GetConsensus())) {
-            error("%s: *** ReadBlockFromDisk failed at %d, hash=%s", __func__, pprev->nHeight, pprev->GetBlockHash().ToString());
-            return false;
-        }
-
-        if (!pprev->BuildStakeModifier(prevBlock, fRebuild))
-            return false;
-    }
-
-    {
-        if (!SetStakeEntropyBit(block.GetStakeEntropyBit()))
-            return error("%s: SetStakeEntropyBit failed at %d, hash=%s", __func__, nHeight, GetBlockHash().ToString());
-
-        if (block.IsProofOfWork()) hashProofOfStake = block.GetPoWHash();
-
-        bnStakeModifier = ComputeStakeModifier(pprev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
-        nStakeTime = block.IsProofOfStake() ? block.vtx[1]->nTime : 0;
-        nStatus |= BLOCK_HAVE_STAKE_MODIFIER;
-
-        setDirtyBlockIndex.insert(this);
-    }
-
-    return true;
-}
 
 bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 {
@@ -3219,13 +3158,8 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 {
     AssertLockHeld(cs_main);
 
-    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-    ss << *pblock;
-    CBlock block;
-    ss >> block;
-
-    uint256 hash = block.GetHash();
-    bool fHasDevblock = block.IsDeveloperBlock();
+    uint256 hash = pblock->GetHash();
+    bool fHasDevblock = pblock->IsDeveloperBlock();
 
 
     if (fNewBlock) *fNewBlock = false;
@@ -3233,7 +3167,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CBlockIndex* pindex = ppindex ? *ppindex : (mapBlockIndex.count(hash) ? mapBlockIndex[hash] : nullptr);
     if (pindex == nullptr) {
-        pindex = AddToBlockIndex(block, block.IsProofOfStake());
+        pindex = AddToBlockIndex(*pblock, pblock->IsProofOfStake());
         if (ppindex) *ppindex = pindex;
     }
 
@@ -3283,7 +3217,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
     if (fNewBlock) *fNewBlock = true;
 
-    if (!fHasDevblock && (!CheckBlock(block, state, chainparams.GetConsensus()) || !ContextualCheckBlock(block, state, pindex->pprev))) {
+    if (!fHasDevblock && (!CheckBlock(*pblock, state, chainparams.GetConsensus()) || !ContextualCheckBlock(*pblock, state, pindex->pprev))) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             setDirtyBlockIndex.insert(pindex);
@@ -3293,21 +3227,18 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
 
     const CBlockIndex* pindexPrev = pindex->pprev;
-    pindex->bnStakeModifier = ComputeStakeModifier(pindexPrev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
+    pindex->bnStakeModifier = ComputeStakeModifier(pindexPrev, pblock->IsProofOfWork() ? pblock->GetPoWHash() : pblock->vtx[1]->vin[0].prevout.hash);
 
     CTransactionRef txPrev;
     uint256 txHash;
-    if (!fReindex && !fImporting && pindexPrev && block.IsProofOfStake() && !GetTransaction(block.vtx[1]->vin[0].prevout.hash, txPrev, Params().GetConsensus(), txHash, true))
+    if (!fReindex && !fImporting && pindexPrev && pblock->IsProofOfStake() && !GetTransaction(pblock->vtx[1]->vin[0].prevout.hash, txPrev, Params().GetConsensus(), txHash, true))
         return error("%s: GetTransaction() for stake check failed", __func__);
 
-    if (!fReindex && !fImporting && pindexPrev && block.IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, block.nBits, pindexPrev->GetBlockHeader(), *block.vtx[1], *txPrev, block.vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
+    if (!fReindex && !fImporting && pindexPrev && pblock->IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, pblock->nBits, pindexPrev->GetBlockHeader(), *pblock->vtx[1], *txPrev, pblock->vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
         return error("%s: CheckStakeKernelHash() failed", __func__);
 
-    if (!pindex->SetStakeEntropyBit(block.GetStakeEntropyBit()))
+    if (!pindex->SetStakeEntropyBit(pblock->GetStakeEntropyBit()))
         return error("%s: SetStakeEntropyBit() failed", __func__);
-
-
-    setDirtyBlockIndex.insert(pindex); // queue a write to disk
 
 
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
@@ -3317,13 +3248,13 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     // Write block to history file
     try {
-        CDiskBlockPos blockPos = SaveBlockToDisk(block, pindex->nHeight, chainparams, dbp);
+        CDiskBlockPos blockPos = SaveBlockToDisk(*pblock, pindex->nHeight, chainparams, dbp);
         if (blockPos.IsNull()) {
             state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
             return false;
         }
 
-        if (!ReceivedBlockTransactions(block, state, pindex, blockPos, chainparams.GetConsensus())) {
+        if (!ReceivedBlockTransactions(*pblock, state, pindex, blockPos, chainparams.GetConsensus())) {
             return error("AcceptBlock(): ReceivedBlockTransactions failed");
         }
     } catch (const std::runtime_error& e) {
