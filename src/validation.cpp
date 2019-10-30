@@ -3204,7 +3204,7 @@ void BlockBuildStakeModifiers()
             if (pindex != chainActive.Genesis() && !ReadBlockFromDisk(block, pindex->GetBlockPos(), Params().GetConsensus()))
                 return error("%s: BuildStakeModifier FAILED for block %d, %s", __func__, block.GetHash().ToString(), pindex->nHeight);
 
-            BlockBuildStakeModifier(pindex);
+            BlockBuildStakeModifier(pindex, block);
         }
 
         pindex = chainActive.Next(pindex);
