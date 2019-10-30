@@ -1074,6 +1074,7 @@ typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 class CScriptContext
 {
 public:
+    mutable std::vector<CScriptValueRef> mempool;
     mutable std::unordered_map<uint256, CScriptModuleRef> modules;
     mutable std::unordered_map<uint256, CScriptValueRef> values;
     mutable std::unordered_map<std::string, uint256> names;
@@ -1093,12 +1094,17 @@ public:
         return buf;
     }
 
+    virtual CScriptValueRef NewVariable(const std::string& name, const CScripValueRef& value);
+    virtual CScriptValueRef NewVariable(const CScriptValueRef& name, const CScripValueRef& value);
+
+    virtual bool Exists(const std::string& name) const;
     virtual uint256 UniqueID(const std::string& name);
+    virtual bool Exists(const uint256& uuid) const;
     virtual std::string Name(const uint256& uuid);
     virtual CScriptValueRef Value(const uint256& uuid);
     virtual CScriptModuleRef Module(const uint256& uuid);
     virtual CScriptModuleRef Import(const std::string& name);
-    virtual void             Export(const CScriptModuleRef &module, const std::string &name);
+    virtual void Export(const CScriptModuleRef& module, const std::string& name);
     virtual CScriptModuleRef Scope() const;
     virtual CScriptValueRef Void() const;
     virtual CScriptValueRef Null() const;
@@ -1117,9 +1123,9 @@ public:
 
     CScriptModuleRef module;
     CScriptValueRef scope;
+    uint256 uuid;
 
     std::vector<char> data;
-    uint256 uuid;
     int32_t flags;
 
     CScriptValue() : flags(0), uuid(GenUUID()) {}
@@ -1150,7 +1156,7 @@ public:
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(module);
+        READWRITE(context->NameOfModule(module));
         std::vector<char> buffer;
         if (ser_action.ForRead()) {
             READWRITE(buffer);
