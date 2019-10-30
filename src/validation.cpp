@@ -3292,54 +3292,19 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
 
 
-    uint256 hashProofOfStake = uint256();
+    const CBlockIndex* pindexPrev = pindex->pprev;
+    pindex->bnStakeModifier = ComputeStakeModifier(pindexPrev, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
 
-    // peercoin: verify hash target and signature of coinstake tx
-    if (block.IsProofOfStake() && !::CheckProofOfStake(pindex->pprev, block.nBits, *block.vtx[1], hashProofOfStake)) {
-        return error("%s:  check proof-of-stake failed for block %s\n", __func__, block.GetHash().ToString());
-    }
+    CTransactionRef txPrev;
+    if (pindexPrev && block.IsProofOfStake() && !GetTransaction(block.vtx[1]->vin[0].prevout.hash, txPrev, Params().GetConsensus(), &txHash, true))
+        return error("%s: GetTransaction() for stake check failed", __func__);
 
-    // check pow
-    if (block.IsProofOfWork() && !block.IsDeveloperBlock() && !::CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus())) {
-        return error("%s:  check proof-of-work failed for block %s\n", __func__, block.GetHash().ToString());
-    }
+    if (pindexPrev && block.IsProofOfStake() && !CheckStakeKernelHash(pindexPrev, block.nBits, pindexPrev->GetBlockHeader(), *block.vtx[1], txPrev, block.vtx[1]->vin[0].prevout, pindex->hashProofOfStake, false))
+        return error("%s: CheckStakeKernelHash() failed", __func__);
 
-    // peercoin: compute stake entropy bit for stake modifier
-    unsigned int nEntropyBit = GetStakeEntropyBit(block);
-
-    // peercoin: compute stake modifier
-    uint256 bnStakeModifier = ComputeStakeModifier(pindex, block.IsProofOfWork() ? block.GetPoWHash() : block.vtx[1]->vin[0].prevout.hash);
-
-
-    // compute nStakeModifierChecksum begin
-    unsigned int nFlagsBackup = pindex->nFlags;
-    uint256 bnStakeModifierBackup = pindex->bnStakeModifier;
-    uint256 hashProofOfStakeBackup = pindex->hashProofOfStake;
-
-    // set necessary pindex fields
     if (!pindex->SetStakeEntropyBit(nEntropyBit))
-        return error("ConnectBlock() : SetStakeEntropyBit() failed");
-    pindex->hashProofOfStake = hashProofOfStake;
+        return error("%s: SetStakeEntropyBit() failed", __func__);
 
-    unsigned int nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-
-    // undo pindex fields
-    pindex->nFlags = nFlagsBackup;
-    pindex->bnStakeModifier = bnStakeModifierBackup;
-    pindex->hashProofOfStake = hashProofOfStakeBackup;
-    // compute nStakeModifierChecksum end
-
-
-    // write everything to index
-    if (block.IsProofOfStake()) {
-        pindex->prevoutStake = block.vtx[1]->vin[0].prevout;
-        pindex->nStakeTime = block.vtx[1]->nTime;
-        pindex->hashProofOfStake = hashProofOfStake;
-    }
-    if (!pindex->SetStakeEntropyBit(nEntropyBit))
-        return error("ConnectBlock() : SetStakeEntropyBit() failed");
-
-    pindex->bnStakeModifier = bnStakeModifier;
 
     setDirtyBlockIndex.insert(pindex); // queue a write to disk
 
