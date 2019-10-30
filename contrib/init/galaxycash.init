@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  galaxycashd The bitcoin core server.
+#  galaxycashd The galaxycash core server.
 #
 #
 # chkconfig: 345 80 20

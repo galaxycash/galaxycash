@@ -77,7 +77,7 @@ public:
  *  * CKeyID: TX_PUBKEYHASH destination (P2PKH)
  *  * CScriptID: TX_SCRIPTHASH destination (P2SH)
 
- *  A CTxDestination is the internal data type encoded in a bitcoin address
+ *  A CTxDestination is the internal data type encoded in a galaxycash address
  */
 typedef boost::variant<CNoDestination, CKeyID, CScriptID> CTxDestination;
 

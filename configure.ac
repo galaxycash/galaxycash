@@ -14,7 +14,7 @@ define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[GalaxyCash]])
 AC_INIT([GalaxyCash],[_GALAXYCASH_VERSION_MAJOR._GALAXYCASH_VERSION_MINOR._GALAXYCASH_VERSION_REVISION],[https://github.com/galaxycash/galaxycash/issues],[galaxycash],[https://galaxycash.net/])
 AC_CONFIG_SRCDIR([src/validation.cpp])
-AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
+AC_CONFIG_HEADERS([src/config/galaxycash-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 BITCOIN_DAEMON_NAME=galaxycashd
 BITCOIN_GUI_NAME=galaxycash-qt
@@ -29,9 +29,9 @@ fi
 
 AC_CANONICAL_HOST
 
-AH_TOP([#ifndef BITCOIN_CONFIG_H])
-AH_TOP([#define BITCOIN_CONFIG_H])
-AH_BOTTOM([#endif //BITCOIN_CONFIG_H])
+AH_TOP([#ifndef GALAXYCASH_CONFIG_H])
+AH_TOP([#define GALAXYCASH_CONFIG_H])
+AH_BOTTOM([#endif //GALAXYCASH_CONFIG_H])
 
 dnl faketime breaks configure and is only needed for make. Disable it here.
 unset FAKETIME
@@ -85,7 +85,7 @@ AC_PATH_TOOL(RANLIB, ranlib)
 AC_PATH_TOOL(STRIP, strip)
 AC_PATH_TOOL(GCOV, gcov)
 AC_PATH_PROG(LCOV, lcov)
-dnl Python 3.x is supported from 3.4 on (see https://github.com/bitcoin/bitcoin/issues/7893)
+dnl Python 3.x is supported from 3.4 on (see https://github.com/galaxycash/galaxycash/issues/7893)
 AC_PATH_PROGS([PYTHON], [python3.6 python3.5 python3.4 python3 python2.7 python2 python])
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
@@ -124,25 +124,6 @@ AC_ARG_ENABLE([upnp-default],
   [use_upnp_default=$enableval],
   [use_upnp_default=no])
 
-AC_ARG_ENABLE(tests,
-    AS_HELP_STRING([--enable-tests],[compile tests (default is to not compile)]),
-    [use_tests=$enableval],
-    [use_tests=no])
-
-AC_ARG_ENABLE(gui-tests,
-    AS_HELP_STRING([--disable-gui-tests],[do not compile GUI tests (default is to compile if GUI and tests enabled)]),
-    [use_gui_tests=$enableval],
-    [use_gui_tests=$use_tests])
-
-AC_ARG_ENABLE(bench,
-    AS_HELP_STRING([--disable-bench],[do not compile benchmarks (default is to compile)]),
-    [use_bench=$enableval],
-    [use_bench=yes])
-
-AC_ARG_ENABLE([extended-functional-tests],
-    AS_HELP_STRING([--enable-extended-functional-tests],[enable expensive functional tests when using lcov (default no)]),
-    [use_extended_functional_tests=$enableval],
-    [use_extended_functional_tests=no])
 
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
@@ -303,20 +284,20 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
   [build galaxycash-cli galaxycash-tx (default=yes)])],
-  [build_bitcoin_utils=$withval],
-  [build_bitcoin_utils=yes])
+  [build_galaxycash_utils=$withval],
+  [build_galaxycash_utils=yes])
 
 AC_ARG_WITH([libs],
   [AS_HELP_STRING([--with-libs],
   [build libraries (default=yes)])],
-  [build_bitcoin_libs=$withval],
-  [build_bitcoin_libs=yes])
+  [build_galaxycash_libs=$withval],
+  [build_galaxycash_libs=yes])
 
 AC_ARG_WITH([daemon],
   [AS_HELP_STRING([--with-daemon],
   [build galaxycashd daemon (default=yes)])],
-  [build_bitcoind=$withval],
-  [build_bitcoind=yes])
+  [build_galaxycashd=$withval],
+  [build_galaxycashd=yes])
 
 use_pkgconfig=yes
 case $host in
@@ -514,7 +495,7 @@ AC_C_BIGENDIAN
 dnl Check for pthread compile/link requirements
 AX_PTHREAD
 
-# The following macro will add the necessary defines to bitcoin-config.h, but
+# The following macro will add the necessary defines to galaxycash-config.h, but
 # they also need to be passed down to any subprojects. Pull the results out of
 # the cache and add them to CPPFLAGS.
 AC_SYS_LARGEFILE
@@ -757,10 +738,10 @@ fi
 
 BITCOIN_QT_INIT
 
-dnl sets $bitcoin_enable_qt, $bitcoin_enable_qt_test, $bitcoin_enable_qt_dbus
+dnl sets $galaxycash_enable_qt, $galaxycash_enable_qt_test, $galaxycash_enable_qt_dbus
 BITCOIN_QT_CONFIGURE([$use_pkgconfig], [qt5])
 
-if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests$use_bench = xnonononono; then
     use_boost=no
 else
     use_boost=yes
@@ -774,7 +755,7 @@ define(MINIMUM_REQUIRED_BOOST, 1.47.0)
 dnl Check for boost libs
 AX_BOOST_BASE([MINIMUM_REQUIRED_BOOST])
 if test x$want_boost = xno; then
-    AC_MSG_ERROR([[only libbitcoinconsensus can be built without boost]])
+    AC_MSG_ERROR([[only libgalaxycashconsensus can be built without boost]])
 fi
 AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
@@ -813,37 +794,6 @@ if test x$use_reduce_exports = xyes; then
     AX_CHECK_LINK_FLAG([[-Wl,--exclude-libs,ALL]], [RELDFLAGS="-Wl,--exclude-libs,ALL"])
 fi
 
-if test x$use_tests = xyes; then
-
-  if test x$HEXDUMP = x; then
-    AC_MSG_ERROR(hexdump is required for tests)
-  fi
-
-
-  if test x$use_boost = xyes; then
-
-  AX_BOOST_UNIT_TEST_FRAMEWORK
-
-  dnl Determine if -DBOOST_TEST_DYN_LINK is needed
-  AC_MSG_CHECKING([for dynamic linked boost test])
-  TEMP_LIBS="$LIBS"
-  LIBS="$LIBS $BOOST_LDFLAGS $BOOST_UNIT_TEST_FRAMEWORK_LIB"
-  TEMP_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
-  AC_LINK_IFELSE([AC_LANG_SOURCE([
-       #define BOOST_TEST_DYN_LINK
-       #define BOOST_TEST_MAIN
-        #include <boost/test/unit_test.hpp>
-
-       ])],
-    [AC_MSG_RESULT(yes)]
-    [TESTDEFS="$TESTDEFS -DBOOST_TEST_DYN_LINK"],
-    [AC_MSG_RESULT(no)])
-  LIBS="$TEMP_LIBS"
-  CPPFLAGS="$TEMP_CPPFLAGS"
-
-  fi
-fi
 
 if test x$use_boost = xyes; then
 
@@ -949,7 +899,7 @@ if test x$use_pkgconfig = xyes; then
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
-      if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
+      if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests != xnononono; then
         PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
@@ -974,7 +924,7 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
-  if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
+  if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     if test x$TARGET_OS != xwindows; then
@@ -1023,7 +973,7 @@ dnl univalue check
 
 need_bundled_univalue=yes
 
-if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests$use_bench = xnonononono; then
   need_bundled_univalue=no
 else
 
@@ -1070,20 +1020,20 @@ AC_SUBST(UNIVALUE_LIBS)
 BITCOIN_QT_PATH_PROGS([PROTOC], [protoc],$protoc_bin_path)
 
 AC_MSG_CHECKING([whether to build galaxycashd])
-AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
-AC_MSG_RESULT($build_bitcoind)
+AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_galaxycashd = xyes])
+AC_MSG_RESULT($build_galaxycashd)
 
 AC_MSG_CHECKING([whether to build utils (galaxycash-cli galaxycash-tx)])
-AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_bitcoin_utils = xyes])
-AC_MSG_RESULT($build_bitcoin_utils)
+AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_galaxycash_utils = xyes])
+AC_MSG_RESULT($build_galaxycash_utils)
 
 AC_MSG_CHECKING([whether to build libraries])
-AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test x$build_bitcoin_libs = xyes])
-if test x$build_bitcoin_libs = xyes; then
+AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test x$build_galaxycash_libs = xyes])
+if test x$build_galaxycash_libs = xyes; then
   AC_DEFINE(HAVE_CONSENSUS_LIB, 1, [Define this symbol if the consensus lib has been built])
-  AC_CONFIG_FILES([libbitcoinconsensus.pc:libbitcoinconsensus.pc.in])
+  AC_CONFIG_FILES([libgalaxycashconsensus.pc:libgalaxycashconsensus.pc.in])
 fi
-AC_MSG_RESULT($build_bitcoin_libs)
+AC_MSG_RESULT($build_galaxycash_libs)
 
 AC_LANG_POP
 
@@ -1154,13 +1104,13 @@ fi
 
 dnl these are only used when qt is enabled
 BUILD_TEST_QT=""
-if test x$bitcoin_enable_qt != xno; then
+if test x$galaxycash_enable_qt != xno; then
   dnl enable dbus support
   AC_MSG_CHECKING([whether to build GUI with support for D-Bus])
-  if test x$bitcoin_enable_qt_dbus != xno; then
+  if test x$galaxycash_enable_qt_dbus != xno; then
     AC_DEFINE([USE_DBUS],[1],[Define if dbus support should be compiled in])
   fi
-  AC_MSG_RESULT($bitcoin_enable_qt_dbus)
+  AC_MSG_RESULT($galaxycash_enable_qt_dbus)
 
   dnl enable qr support
   AC_MSG_CHECKING([whether to build GUI with support for QR codes])
@@ -1183,8 +1133,8 @@ if test x$bitcoin_enable_qt != xno; then
     AC_MSG_WARN("xgettext is required to update qt translations")
   fi
 
-  AC_MSG_CHECKING([whether to build test_bitcoin-qt])
-  if test x$use_gui_tests$bitcoin_enable_qt_test = xyesyes; then
+  AC_MSG_CHECKING([whether to build test_galaxycash-qt])
+  if test x$use_gui_tests$galaxycash_enable_qt_test = xyesyes; then
     AC_MSG_RESULT([yes])
     BUILD_TEST_QT="yes"
   else
@@ -1194,7 +1144,7 @@ fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
 
-AC_MSG_CHECKING([whether to build test_bitcoin])
+AC_MSG_CHECKING([whether to build test_galaxycash])
 if test x$use_tests = xyes; then
   AC_MSG_RESULT([yes])
   BUILD_TEST="yes"
@@ -1210,8 +1160,8 @@ else
   AC_MSG_RESULT([no])
 fi
 
-if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests = xnononononono; then
-  AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
+if test x$build_galaxycash_utils$build_galaxycash_libs$build_galaxycashd$galaxycash_enable_qt = xnononononono; then
+  AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui])
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
@@ -1219,7 +1169,7 @@ AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_CHECKPOINTS],[test x$enable_checkpoints = xyes])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
-AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
+AM_CONDITIONAL([ENABLE_QT],[test x$galaxycash_enable_qt = xyes])
 AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
 AM_CONDITIONAL([USE_LCOV],[test x$use_lcov = xyes])
 AM_CONDITIONAL([GLIBC_BACK_COMPAT],[test x$use_glibc_compat = xyes])
@@ -1341,9 +1291,9 @@ echo
 echo "Options used to compile and link:"
 echo "  checkpoints   = $enable_checkpoints"
 echo "  with wallet   = $enable_wallet"
-echo "  with gui / qt = $bitcoin_enable_qt"
-if test x$bitcoin_enable_qt != xno; then
-    echo "    qt version  = $bitcoin_qt_got_major_vers"
+echo "  with gui / qt = $galaxycash_enable_qt"
+if test x$galaxycash_enable_qt != xno; then
+    echo "    qt version  = $galaxycash_qt_got_major_vers"
     echo "    with qr     = $use_qr"
 fi
 echo "  with zmq      = $use_zmq"

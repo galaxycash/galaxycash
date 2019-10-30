@@ -62,7 +62,7 @@ the pull request affects. Valid areas as:
   - *Net* or *P2P* for changes to the peer-to-peer network code
   - *RPC/REST/ZMQ* for changes to the RPC, REST or ZMQ APIs
   - *Scripts and tools* for changes to the scripts and tools
-  - *Tests* for changes to the bitcoin unit tests or QA tests
+  - *Tests* for changes to the galaxycash unit tests or QA tests
   - *Trivial* should **only** be used for PRs that do not change generated
     executable code. Notably, refactors (change of function arguments and code
     reorganization) and changes in behavior should **not** be marked as trivial.
@@ -82,7 +82,7 @@ Examples:
     Trivial: Fix typo in init.cpp
 
 Note that translations should not be submitted as pull requests, please see
-[Translation Process](https://github.com/bitcoin/bitcoin/blob/master/doc/translation_process.md) 
+[Translation Process](https://github.com/galaxycash/galaxycash/blob/master/doc/translation_process.md) 
 for more information on helping with translations.
 
 If a pull request is not to be considered for merging (yet), please

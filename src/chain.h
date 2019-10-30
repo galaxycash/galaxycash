@@ -406,7 +406,7 @@ public:
     }
 
     /**
-     * Duplicate from bitcoinrpc that originaly define this method.
+     * Duplicate from galaxycashrpc that originaly define this method.
      * May require some cleanup since this method should be available both for rpc
      * and qt clients.
      */

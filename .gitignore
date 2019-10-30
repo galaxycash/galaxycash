@@ -5,6 +5,7 @@ bin
 *.includes
 .deps
 *.user
+*.o
 
 main.pem
 main.hex
@@ -47,8 +48,8 @@ config.log
 config.status
 configure
 libtool
-src/config/bitcoin-config.h
-src/config/bitcoin-config.h.in
+src/config/galaxycash-config.h
+src/config/galaxycash-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -118,7 +119,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_bitcoin.coverage/
+test_galaxycash.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -133,7 +134,7 @@ test/cache/*
 
 /doc/doxygen/
 
-libbitcoinconsensus.pc
+libgalaxycashconsensus.pc
 contrib/devtools/split-debug.sh
 
 #python stuff

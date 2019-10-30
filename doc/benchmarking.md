@@ -6,9 +6,9 @@ for cryptographic algorithms such as SHA1, SHA256, SHA512 and RIPEMD160. As well
 
 Running
 ---------------------
-After compiling bitcoin-core, the benchmarks can be run with:
+After compiling galaxycash-core, the benchmarks can be run with:
 
-    src/bench/bench_bitcoin
+    src/bench/bench_galaxycash
 
 The output will look similar to:
 ```
@@ -43,7 +43,7 @@ Help
 ---------------------
 `-?` will print a list of options and exit:
 
-    src/bench/bench_bitcoin -?
+    src/bench/bench_galaxycash -?
 
 Notes
 ---------------------

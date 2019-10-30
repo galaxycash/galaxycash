@@ -13,7 +13,7 @@ can be found in the contrib/init folder.
 Service User
 ---------------------------------
 
-All three Linux startup configurations assume the existence of a "bitcoin" user
+All three Linux startup configurations assume the existence of a "galaxycash" user
 and group.  They must be created before attempting to use these scripts.
 The OS X configuration assumes galaxycashd will be set up for the current user.
 
@@ -44,7 +44,7 @@ This allows for running galaxycashd without having to do any manual configuratio
 relative to the data directory. `wallet` *only* supports relative paths.
 
 For an example configuration file that describes the configuration settings,
-see `contrib/debian/examples/bitcoin.conf`.
+see `contrib/debian/examples/galaxycash.conf`.
 
 Paths
 ---------------------------------
@@ -60,15 +60,15 @@ PID file:            `/var/run/galaxycashd/galaxycashd.pid` (OpenRC and Upstart)
 Lock file:           `/var/lock/subsys/galaxycashd` (CentOS)  
 
 The configuration file, PID directory (if applicable) and data directory
-should all be owned by the bitcoin user and group.  It is advised for security
+should all be owned by the galaxycash user and group.  It is advised for security
 reasons to make the configuration file and data directory only readable by the
-bitcoin user and group.  Access to galaxycash-cli and other galaxycashd rpc clients
+galaxycash user and group.  Access to galaxycash-cli and other galaxycashd rpc clients
 can then be controlled by group membership.
 
 ### Mac OS X
 
 Binary:              `/usr/local/bin/galaxycashd`  
-Configuration file:  `~/Library/Application Support/Bitcoin/bitcoin.conf`  
+Configuration file:  `~/Library/Application Support/Bitcoin/galaxycash.conf`  
 Data directory:      `~/Library/Application Support/Bitcoin`  
 Lock file:           `~/Library/Application Support/Bitcoin/.lock`  
 
@@ -109,14 +109,14 @@ setting the BITCOIND and FLAGS environment variables in the file
 
 ### Mac OS X
 
-Copy org.bitcoin.galaxycashd.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.bitcoin.galaxycashd.plist`.
+Copy org.galaxycash.galaxycashd.plist into ~/Library/LaunchAgents. Load the launch agent by
+running `launchctl load ~/Library/LaunchAgents/org.galaxycash.galaxycashd.plist`.
 
 This Launch Agent will cause galaxycashd to start whenever the user logs in.
 
 NOTE: This approach is intended for those wanting to run galaxycashd as the current user.
-You will need to modify org.bitcoin.galaxycashd.plist if you intend to use it as a
-Launch Daemon with a dedicated bitcoin user.
+You will need to modify org.galaxycash.galaxycashd.plist if you intend to use it as a
+Launch Daemon with a dedicated galaxycash user.
 
 Auto-respawn
 -----------------------------------

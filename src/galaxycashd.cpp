@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/galaxycash-config.h>
 #endif
 
 #include <chainparams.h>
@@ -62,7 +62,7 @@ bool AppInit(int argc, char* argv[])
     //
     // Parameters
     //
-    // If Qt is used, parameters/galaxycash.conf are parsed in qt/bitcoin.cpp's main()
+    // If Qt is used, parameters/galaxycash.conf are parsed in qt/galaxycash.cpp's main()
     gArgs.ParseParameters(argc, argv);
 
     // Process help and version before taking care about datadir

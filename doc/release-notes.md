@@ -1,13 +1,13 @@
 Bitcoin Core version 0.16.x is now available from:
 
-  <https://bitcoincore.org/bin/bitcoin-core-0.16.x/>
+  <https://bitcoincore.org/bin/galaxycash-core-0.16.x/>
 
 This is a new minor version release, with various bugfixes
 as well as updated translations.
 
 Please report bugs using the issue tracker at GitHub:
 
-  <https://github.com/bitcoin/bitcoin/issues>
+  <https://github.com/galaxycash/galaxycash/issues>
 
 To receive security and update notifications, please subscribe to:
 
@@ -67,4 +67,4 @@ And to those that reported security issues:
 
 (to be filled in)
 
-As well as everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/bitcoin/).
+As well as everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/galaxycash/).

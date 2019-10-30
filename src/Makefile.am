@@ -23,24 +23,24 @@ BITCOIN_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFL
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
-LIBBITCOIN_SERVER=libbitcoin_server.a
-LIBBITCOIN_COMMON=libbitcoin_common.a
-LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
-LIBBITCOIN_CLI=libbitcoin_cli.a
-LIBBITCOIN_UTIL=libbitcoin_util.a
-LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
-LIBBITCOINQT=qt/libbitcoinqt.a
+LIBBITCOIN_SERVER=libgalaxycash_server.a
+LIBBITCOIN_COMMON=libgalaxycash_common.a
+LIBBITCOIN_CONSENSUS=libgalaxycash_consensus.a
+LIBBITCOIN_CLI=libgalaxycash_cli.a
+LIBBITCOIN_UTIL=libgalaxycash_util.a
+LIBBITCOIN_CRYPTO=crypto/libgalaxycash_crypto.a
+LIBBITCOINQT=qt/libgalaxycashqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
 
 if ENABLE_ZMQ
-LIBBITCOIN_ZMQ=libbitcoin_zmq.a
+LIBBITCOIN_ZMQ=libgalaxycash_zmq.a
 endif
 if BUILD_BITCOIN_LIBS
 LIBBITCOINCONSENSUS=libgalaxycashconsensus.la
 endif
 if ENABLE_WALLET
-LIBBITCOIN_WALLET=libbitcoin_wallet.a
+LIBBITCOIN_WALLET=libgalaxycash_wallet.a
 endif
 
 $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
@@ -74,7 +74,7 @@ if BUILD_BITCOIN_UTILS
 endif
 
 .PHONY: FORCE check-symbols check-security
-# bitcoin core #
+# galaxycash core #
 BITCOIN_CORE_H = \
   galaxycash.h \
   galaxyscript.h \  
@@ -189,12 +189,12 @@ endif
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
 	@$(top_srcdir)/share/genbuild.sh "$(abs_top_builddir)/src/obj/build.h" "$(abs_top_srcdir)"
-libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
+libgalaxycash_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between galaxycashd and galaxycash-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
-libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_server_a_SOURCES = \
+libgalaxycash_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libgalaxycash_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_server_a_SOURCES = \
   addrdb.cpp \
   amount.cpp \
   addrman.cpp \
@@ -239,13 +239,13 @@ libbitcoin_server_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 if ENABLE_CHECKPOINTS
-  libbitcoin_server_a_SOURCES += checkpointsync.cpp
+  libgalaxycash_server_a_SOURCES += checkpointsync.cpp
 endif
 
 if ENABLE_ZMQ
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
-libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_zmq_a_SOURCES = \
+libgalaxycash_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+libgalaxycash_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
   zmq/zmqnotificationinterface.cpp \
   zmq/zmqpublishnotifier.cpp
@@ -254,9 +254,9 @@ endif
 
 # wallet: shared between galaxycashd and galaxycash-qt, but only linked
 # when wallet enabled
-libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_wallet_a_SOURCES = \
+libgalaxycash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libgalaxycash_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_wallet_a_SOURCES = \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/init.cpp \
@@ -269,9 +269,9 @@ libbitcoin_wallet_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
-crypto_libbitcoin_crypto_a_CPPFLAGS = $(AM_CPPFLAGS)
-crypto_libbitcoin_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-crypto_libbitcoin_crypto_a_SOURCES = \
+crypto_libgalaxycash_crypto_a_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libgalaxycash_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+crypto_libgalaxycash_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/chacha20.h \
@@ -330,13 +330,13 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sph_ripemd.h \
   crypto/blake2.h 
 if USE_ASM
-crypto_libbitcoin_crypto_a_SOURCES += crypto/sha256_sse4.cpp
+crypto_libgalaxycash_crypto_a_SOURCES += crypto/sha256_sse4.cpp
 endif
 
 # consensus: shared between all executables that validate any consensus rules.
-libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_consensus_a_SOURCES = \
+libgalaxycash_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libgalaxycash_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
@@ -354,7 +354,7 @@ libbitcoin_consensus_a_SOURCES = \
   primitives/transaction.h \
   pubkey.cpp \
   pubkey.h \
-  script/bitcoinconsensus.cpp \
+  script/galaxycashconsensus.cpp \
   script/interpreter.cpp \
   script/interpreter.h \
   script/script.cpp \
@@ -370,9 +370,9 @@ libbitcoin_consensus_a_SOURCES = \
   version.h
 
 # common: shared between galaxycashd, and galaxycash-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_common_a_SOURCES = \
+libgalaxycash_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libgalaxycash_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_common_a_SOURCES = \
   base58.cpp \
   bech32.cpp \
   chainparams.cpp \
@@ -394,9 +394,9 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_util_a_SOURCES = \
+libgalaxycash_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libgalaxycash_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_util_a_SOURCES = \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
@@ -418,7 +418,7 @@ libbitcoin_util_a_SOURCES = \
 
 
 if GLIBC_BACK_COMPAT
-libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
+libgalaxycash_util_a_SOURCES += compat/glibc_compat.cpp
 endif
 
 LIBGALAXYCASH = libgalaxycash.a
@@ -437,13 +437,13 @@ libgalaxycash_a_SOURCES += \
   $(BITCOIN_CORE_H)
 
 # cli: shared between galaxycash-cli and galaxycash-qt
-libbitcoin_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libbitcoin_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoin_cli_a_SOURCES = \
+libgalaxycash_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libgalaxycash_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libgalaxycash_cli_a_SOURCES = \
   rpc/client.cpp \
   $(BITCOIN_CORE_H)
 
-nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
+nodist_libgalaxycash_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # galaxycashd binary #
@@ -517,8 +517,8 @@ galaxycash_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 
 # galaxycashconsensus library #
 if BUILD_BITCOIN_LIBS
-include_HEADERS = script/bitcoinconsensus.h
-libgalaxycashconsensus_la_SOURCES = $(crypto_libbitcoin_crypto_a_SOURCES) $(libbitcoin_consensus_a_SOURCES)
+include_HEADERS = script/galaxycashconsensus.h
+libgalaxycashconsensus_la_SOURCES = $(crypto_libgalaxycash_crypto_a_SOURCES) $(libgalaxycash_consensus_a_SOURCES)
 
 if GLIBC_BACK_COMPAT
   libgalaxycashconsensus_la_SOURCES += compat/glibc_compat.cpp
@@ -556,12 +556,12 @@ CLEANFILES += obj/build.h
 EXTRA_DIST = $(CTAES_DIST)
 
 
-config/bitcoin-config.h: config/stamp-h1
+config/galaxycash-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)
-config/stamp-h1: $(top_srcdir)/$(subdir)/config/bitcoin-config.h.in $(top_builddir)/config.status
+config/stamp-h1: $(top_srcdir)/$(subdir)/config/galaxycash-config.h.in $(top_builddir)/config.status
 	$(AM_V_at)$(MAKE) -C $(top_builddir) $(subdir)/$(@)
-$(top_srcdir)/$(subdir)/config/bitcoin-config.h.in:  $(am__configure_deps)
-	$(AM_V_at)$(MAKE) -C $(top_srcdir) $(subdir)/config/bitcoin-config.h.in
+$(top_srcdir)/$(subdir)/config/galaxycash-config.h.in:  $(am__configure_deps)
+	$(AM_V_at)$(MAKE) -C $(top_srcdir) $(subdir)/config/galaxycash-config.h.in
 
 clean-local:
 	-$(MAKE) -C secp256k1 clean

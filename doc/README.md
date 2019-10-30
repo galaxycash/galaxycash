@@ -27,8 +27,8 @@ Drag GalaxyCash-Core to your applications folder, and then run GalaxyCash-Core.
 
 ### Need Help?
 
-* See the documentation at the [Bitcoin Wiki](https://en.bitcoin.it/wiki/Main_Page)
-for help and more information. GalaxyCash is very similar to bitcoin, so you can use their wiki.
+* See the documentation at the [Bitcoin Wiki](https://en.galaxycash.it/wiki/Main_Page)
+for help and more information. GalaxyCash is very similar to galaxycash, so you can use their wiki.
 * Ask for help on [#general](https://galaxycash.chat/) on galaxycash.chat.
 
 Building

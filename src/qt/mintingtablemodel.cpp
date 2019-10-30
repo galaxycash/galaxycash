@@ -7,7 +7,7 @@
 //#include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 #include <qt/guiconstants.h>
-#include <qt/bitcoinunits.h>
+#include <qt/galaxycashunits.h>
 #include <qt/optionsmodel.h>
 #include <qt/addresstablemodel.h>
 

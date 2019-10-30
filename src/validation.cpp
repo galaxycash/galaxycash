@@ -1754,7 +1754,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     pindex->nMint = nValueOut - nValueIn + nFees;
     pindex->nMoneySupply = (pindex->pprev ? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
-    // galaxycash: fees are not collected by miners as in bitcoin
+    // galaxycash: fees are not collected by miners as in galaxycash
     // galaxycash: fees are destroyed to compensate the entire network
     if (gArgs.GetBoolArg("-printcreation", false))
         LogPrintf("%s: destroy=%s nFees=%lld\n", __func__, FormatMoney(nFees), nFees);
@@ -2619,12 +2619,6 @@ CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, bool fSetAs
     if (pindexBestHeader == nullptr || pindexBestHeader->nChainTrust < pindexNew->nChainTrust)
         pindexBestHeader = pindexNew;
 
-    if (fSetAsProofOfstake)
-        pindexNew->InitAsProofOfStake();
-    else
-        pindexNew->InitAsProofOfWork();
-
-
     setDirtyBlockIndex.insert(pindexNew);
 
     return pindexNew;
@@ -2966,10 +2960,12 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
         return true;
     if (pindexPrev == NULL)
         return state.DoS(10, false, REJECT_INVALID, "bad-prev-blk", false, "Bad previous block");
+    if (block.IsDeveloperBlock())
+        return true;
 
     const int nHeight = pindexPrev->nHeight + 1;
 
-    if (block.IsProofOfWork() && !IsDeveloperBlock(block) && nHeight > Params().GetConsensus().LastPowBlock())
+    if (block.IsProofOfWork() && !block.IsDeveloperBlock() && nHeight > Params().GetConsensus().LastPowBlock())
         return state.DoS(100, false, REJECT_INVALID, "bad-type-blk", false, "PoW Wave is ended");
 
     if (block.IsProofOfStake() && nHeight < Params().GetConsensus().POSStart())
@@ -2982,7 +2978,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
 
 
     // Enforce rule that the coinbase starts with serialized block height
-    if (block.IsProofOfWork() && block.IsDeveloperBlock() && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
+    if (block.IsProofOfWork() && block.nVersion >= CBlockHeader::MINIMAL_VERSION) {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
             !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
@@ -3038,10 +3034,10 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
             }
         }
 
-        if (!fOldClient && *ppindex != NULL && pindexPrev != NULL && !ContextualCheckBlockHeader(block, fSetAsPos, state, chainparams, pindexPrev, GetAdjustedTime()))
+        if (*ppindex != NULL && pindexPrev != NULL && !ContextualCheckBlockHeader(block, fSetAsPos, state, chainparams, pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
-        if (!fOldClient && *ppindex != NULL && !pindexPrev->IsValid(BLOCK_VALID_SCRIPTS)) {
+        if (*ppindex != NULL && !pindexPrev->IsValid(BLOCK_VALID_SCRIPTS)) {
             for (const CBlockIndex* failedit : g_failed_blocks) {
                 if (pindexPrev->GetAncestor(failedit->nHeight) == failedit) {
                     assert(failedit->nStatus & BLOCK_FAILED_VALID);
@@ -3182,11 +3178,8 @@ bool CBlockIndex::BuildStakeModifier(const CBlock& block)
 
 bool CBlockIndex::CheckProofOfStake(const CBlock& block)
 {
-    if (fReindex)
+    if (fReindex || fImporting)
         return true;
-
-    if (!BuildStakeModifier(block))
-        return error("%s: build stake modifier failed for block %s", __func__, block.GetHash().ToString());
 
     if (!block.IsProofOfStake())
         return true;
@@ -3207,6 +3200,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     ss >> block;
 
     uint256 hash = block.GetHash();
+    bool fHasDevblock = block.IsDeveloperBlock();
 
     if (fNewBlock) *fNewBlock = false;
     AssertLockHeld(cs_main);
@@ -3219,19 +3213,21 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     if (block.IsProofOfStake()) {
         pindex->InitAsProofOfStake();
-        if (block.IsDeveloperBlock()) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
+        if (fHasDevblock) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
         block.nFlags = pindex->nFlags;
+        setDirtyBlockIndex.insert(pindex);
     } else {
         pindex->InitAsProofOfWork();
-        if (block.IsDeveloperBlock()) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
+        if (fHasDevblock) pindex->nFlags |= CBlockIndex::BLOCK_DEVSUBSIDY;
         block.nFlags = pindex->nFlags;
+        setDirtyBlockIndex.insert(pindex);
     }
 
-    if (!block.IsDeveloperBlock() && !AcceptBlockHeader(pindex->GetBlockHeader(), block.IsProofOfStake(), state, chainparams, &pindex))
+    if (!fHasDevblock && !AcceptBlockHeader(pindex->GetBlockHeader(), block.IsProofOfStake(), state, chainparams, &pindex))
         return false;
 
     // peercoin: we should only accept blocks that can be connected to a prev block with validated PoS
-    if (fCheckPoS && pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
+    if (!fHasDevblock && fCheckPoS && pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
         return error("%s: this block does not connect to any valid known block", __func__);
     }
 
@@ -3240,7 +3236,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     // advance our tip, and isn't too many blocks ahead.
     bool fAlreadyHave = pindex->nStatus & BLOCK_HAVE_DATA;
     bool fHasMoreOrSameWork = (chainActive.Tip() ? pindex->nChainTrust >= chainActive.Tip()->nChainTrust : true);
-    bool fHasDevblock = block.IsDeveloperBlock();
+    
 
     // Blocks that are too out-of-order needlessly limit the effectiveness of
     // pruning, because pruning will not delete block files that contain any
@@ -3257,7 +3253,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     // TODO: deal better with return value and error conditions for duplicate
     // and unrequested blocks.
     if (fAlreadyHave) return true;
-    if (!fRequested) {                        // If we didn't ask for it:
+    if (!fRequested && !fHasDevblock) {                        // If we didn't ask for it:
         if (pindex->nTx != 0) return true;    // This is a previously-processed block that was pruned
         if (!fHasMoreOrSameWork) return true; // Don't process less-work chains
         if (fTooFarAhead) return true;        // Block height is too high
@@ -3287,6 +3283,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     // Write block to history file
     try {
         block.nFlags = pindex->nFlags; // Again save nFlags
+        const_cast<CBlock&>(*pblock).nFlags = pindex->nFlags;
 
         CDiskBlockPos blockPos = SaveBlockToDisk(block, pindex->nHeight, chainparams, dbp);
         if (blockPos.IsNull()) {
@@ -3333,7 +3330,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         if (fPoSDuplicate) *fPoSDuplicate = false;
 
         bool fDevblock = IsDeveloperBlock(*pblock);
-        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, (!fDevblock) && pblock->IsProofOfStake());
+        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, false);
 
 
         if (ppindex)
@@ -4769,14 +4766,7 @@ bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint25
 
 bool IsDeveloperBlock(const CBlock& block)
 {
-    if (!block.IsProofOfWork())
-        return false;
-    if (block.nNonce != 0)
-        return false;
-    if (block.vchBlockSig.empty())
-        return false;
-
-    return CheckDeveloperSignature(block.vchBlockSig, block.GetHash());
+    return block.IsDeveloperBlock();
 }
 
 bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransaction& tx, bool fLimitFree, bool* pfMissingInputs, bool fRejectInsaneFee)

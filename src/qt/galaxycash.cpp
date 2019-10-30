@@ -3,10 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/galaxycash-config.h>
 #endif
 
-#include <qt/bitcoingui.h>
+#include <qt/galaxycashgui.h>
 
 #include <chainparams.h>
 #include <fs.h>
@@ -139,11 +139,11 @@ static void initTranslations(QTranslator& qtTranslatorBase, QTranslator& qtTrans
     if (qtTranslator.load("qt_" + lang_territory, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
         QApplication::installTranslator(&qtTranslator);
 
-    // Load e.g. bitcoin_de.qm (shortcut "de" needs to be defined in bitcoin.qrc)
+    // Load e.g. galaxycash_de.qm (shortcut "de" needs to be defined in galaxycash.qrc)
     if (translatorBase.load(lang, ":/translations/"))
         QApplication::installTranslator(&translatorBase);
 
-    // Load e.g. bitcoin_de_DE.qm (shortcut "de_DE" needs to be defined in bitcoin.qrc)
+    // Load e.g. galaxycash_de_DE.qm (shortcut "de_DE" needs to be defined in galaxycash.qrc)
     if (translator.load(lang_territory, ":/translations/"))
         QApplication::installTranslator(&translator);
 }
@@ -258,7 +258,7 @@ private:
     void startThread();
 };
 
-#include <qt/bitcoin.moc>
+#include <qt/galaxycash.moc>
 
 BitcoinCore::BitcoinCore() : QObject()
 {
@@ -491,7 +491,7 @@ void BitcoinApplication::initializeResult(bool success)
 
 #ifdef ENABLE_WALLET
         // Now that initialization/startup is done, process any command-line
-        // bitcoin: URIs or payment requests:
+        // galaxycash: URIs or payment requests:
         connect(paymentServer, SIGNAL(receivedPaymentRequest(SendCoinsRecipient)),
             window, SLOT(handlePaymentRequest(SendCoinsRecipient)));
         connect(window, SIGNAL(receivedURI(QString)),
@@ -546,8 +546,8 @@ int main(int argc, char* argv[])
     QTextCodec::setCodecForCStrings(QTextCodec::codecForTr());
 #endif
 
-    Q_INIT_RESOURCE(bitcoin);
-    Q_INIT_RESOURCE(bitcoin_locale);
+    Q_INIT_RESOURCE(galaxycash);
+    Q_INIT_RESOURCE(galaxycash_locale);
 
     BitcoinApplication app(argc, argv);
 #if QT_VERSION > 0x050100
@@ -607,7 +607,7 @@ int main(int argc, char* argv[])
     if (!Intro::pickDataDirectory())
         return EXIT_SUCCESS;
 
-    /// 6. Determine availability of data directory and parse bitcoin.conf
+    /// 6. Determine availability of data directory and parse galaxycash.conf
     /// - Do not call GetDataDir(true) before this step finishes
     if (!fs::is_directory(GetDataDir(false))) {
         QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
@@ -679,7 +679,7 @@ int main(int argc, char* argv[])
         exit(EXIT_SUCCESS);
 
     // Start up the payment server early, too, so impatient users that click on
-    // bitcoin: links repeatedly have their payment requests routed to this process:
+    // galaxycash: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
 #endif
 

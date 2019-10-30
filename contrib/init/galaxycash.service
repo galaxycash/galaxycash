@@ -13,7 +13,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/galaxycashd -daemon -conf=/etc/galaxycash/galaxycash.conf -pid=/run/galaxycashd/galaxycashd.pid
-# Creates /run/galaxycashd owned by bitcoin
+# Creates /run/galaxycashd owned by galaxycash
 RuntimeDirectory=galaxycashd
 User=galaxycash
 Type=forking
