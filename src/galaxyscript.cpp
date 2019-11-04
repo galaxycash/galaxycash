@@ -146,7 +146,7 @@ bool CScriptArray::Includes(const CScriptValueRef& value, size_t from) const
 
 CScriptFunction::CScriptFunction(const CScriptValueRef& root, const std::string& name, CScriptNativeFunction native, const uint32_t flags) : CScriptObject(root, nullptr, flags), name(name), native(native)
 {
-    arguments = AddKeyValue("arguments", std::make_shared<CScriptArray>(this, nullptr, 0)->AsValue(), 0)->AsArray();
+    arguments = AddKeyValue("arguments", CreateTyped(TYPE_ARRAY, nullptr))->AsArray();
 }
 
 std::string CScriptFunction::ToString() const
