@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <functional>
 #include <string>
-#include <literals>
 #include <typeinfo>
 #include <typeindex>
 #include <unordered_map>
