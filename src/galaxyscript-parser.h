@@ -4319,7 +4319,7 @@ struct Lexer {
     inline Token() {}
     inline Token(const Token &tok) : type(tok.type), first(tok.first), last(tok.last) {}
     inline Token(const TokenType intype) : type(intype) {}
-    inline Token(TokenType intype, InputIt infirst, InputIt inlast) : type(intype), first(infirst), last(inlast) {}
+    inline Token(const TokenType intype, const InputIt infirst, const InputIt inlast) : type(intype), first(infirst), last(inlast) {}
 
     inline Token &operator = (const Token &tok) {
       type = tok.type;
