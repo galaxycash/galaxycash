@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <serialize.h>
 #include <streams.h>
 #include <unordered_map>
@@ -256,7 +257,7 @@ public:
     }
 
     virtual Ref Assign(const CScriptValueRef& value);
-    virtual Ref AsValue() { return std::shared_ptr<CScriptValue>(this); }
+    virtual Ref AsValue() const { return std::const_pointer_cast<CScriptValue>(shared_from_this()); }
 
     virtual bool IsNumber() const { return false; }
     virtual bool IsBoolean() const { return false; }
@@ -343,14 +344,14 @@ public:
 
     virtual bool IsVariable() const { return true; }
     virtual bool IsProperty() const { return true; }
-    virtual Ref AsVariable() const { return std::dynamic_pointer_cast<CScriptVariable>(shared_from_this()); }
+    virtual Ref AsVariable() const { return std::const_pointer_cast<CScriptVariable>(std::dynamic_pointer_cast<const CScriptVariable>(shared_from_this())); }
 
     virtual bool AsBoolean() const { return (varValue && varValue != CScriptValue::Null() && varValue != CScriptValue::Undefined()) ? true : false; }
     virtual int64_t AsInteger() const { return varValue ? varValue->AsInteger() : 0; }
     virtual double AsFloat() const { return varValue ? varValue->AsFloat() : 0.0; }
     virtual std::string AsString() const { return varValue ? varValue->ToString() : "undefined"; }
 
-    virtual CScriptValueRef AsValue() { return varValue ? varValue : std::static_pointer_cast<CScriptValue>(shared_from_this()); }
+    virtual CScriptValueRef AsValue() const { return varValue ? std::const_pointer_cast<CScriptValue>(varValue) : std::const_pointer_cast<CScriptValue>(std::static_pointer_cast<CScriptValue>(shared_from_this())); }
 
     virtual uint8_t Typeid() const { return TYPE_VARIABLE; }
     virtual std::string ToString() const;
@@ -402,7 +403,7 @@ public:
     virtual CScriptStringArray Keys();
     virtual CScriptValueArray Values();
 
-    virtual Ref AsObject() const { return std::dynamic_pointer_cast<CScriptObject>(std::const_pointer_cast<CScriptValue>(shared_from_this())); }
+    virtual Ref AsObject() const { return std::const_pointer_cast<CScriptObject>(std::dynamic_pointer_cast<const CScriptObject>(shared_from_this())); }
 
     virtual bool IsObject() const { return true; }
     virtual bool AsBoolean() const { return !keys.empty(); }
@@ -425,7 +426,7 @@ public:
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
 
     virtual bool IsArray() const { return true; }
-    virtual Ref AsArray() const { return std::dynamic_pointer_cast<CScriptArray>(shared_from_this()); }
+    virtual Ref AsArray() const { return std::const_pointer_cast<CScriptArray>(std::dynamic_pointer_cast<const CScriptArray>(shared_from_this())); }
 
     virtual bool AsBoolean() const { return !values.empty(); }
     virtual int64_t AsInteger() const { return (int64_t)value.size(); }
@@ -518,7 +519,7 @@ public:
 
 
     virtual bool IsFunction() const { return true; }
-    virtual Ref AsFunction() const { return std::dynamic_pointer_cast<CScriptFunction>(shared_from_this()); }
+    virtual Ref AsFunction() const { return std::const_pointer_cast<CScriptFunction>(std::dynamic_pointer_cast<const CScriptFunction>(shared_from_this())); }
 
     void PushI8(int8_t code) { this->code.push_back(code); }
     void PushI16(int16_t code)
@@ -587,7 +588,7 @@ public:
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptNumber>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
 
     virtual bool IsNumber() const { return true; }
-    virtual Ref AsNumber() const { return std::dynamic_pointer_cast<CScriptNumber>(shared_from_this()); }
+    virtual Ref AsNumber() const { return std::const_pointer_cast<CScriptNumber>(std::dynamic_pointer_cast<CScriptNumber>(shared_from_this())); }
 
 
     virtual bool IsInteger() const { return !(Flags() & FLAG_REAL) && !(Flags() & FLAG_BOOLEAN) && !(Flags() & FLAG_BIGNUM); }
