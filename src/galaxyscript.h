@@ -335,7 +335,8 @@ public:
         if (!vch.size())
             return;
 
-        CDataStream s(vch, SER_DISK, PROTOCOL_VERSION);
+        CDataStream s(SER_DISK, PROTOCOL_VERSION);
+        s << vch;
         s >> varName;
         varValue = ReadValue(s, AsValue());
     }
