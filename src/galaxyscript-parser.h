@@ -4320,6 +4320,13 @@ struct Lexer {
     inline Token(const Token &tok) : type(tok.type), first(tok.first), last(tok.last) {}
     inline Token(const TokenType intype) : type(intype) {}
     inline Token(TokenType intype, InputIt infirst, InputIt inlast) : type(intype), first(infirst), last(inlast) {}
+
+    inline Token &operator = (const Token &tok) {
+      type = tok.type;
+      first = tok.first;
+      last = tok.last;
+      return *this;
+    }
   };
 
   Token current_matched_token = {TokenType::EMPTY}, last_matched_token;
@@ -5444,7 +5451,7 @@ struct Parser {
 
     auto pos    = ast.begin() + offset;
     auto node   = ast.emplace(pos, type<T>(), std::distance(pos, ast.end()) + 1);
-    node->token = {TokenType::EMPTY, first, last};
+    node->token = Lexer::Token(TokenType::EMPTY, first, last);
     //    auto parent  = node - 1;
     //    parent->size = node->size + 1;
     debug_ast(ast, offset);
