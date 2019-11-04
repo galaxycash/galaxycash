@@ -1704,20 +1704,6 @@ static const uint16_t propsTrie_index[21968]={
 0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0,0,0,0,0,0
 };
 
-static const UTrie2 propsTrie={
-    propsTrie_index,
-    propsTrie_index+4468,
-    NULL,
-    4468,
-    17500,
-    0xa40,
-    0x11f4,
-    0x0,
-    0x0,
-    0x110000,
-    0x55cc,
-    NULL, 0, FALSE, FALSE, 0, NULL
-};
 
 static const uint16_t propsVectorsTrie_index[30588]={
 0x4d6,0x4de,0x4e6,0x4ee,0x506,0x50e,0x516,0x51e,0x526,0x52e,0x536,0x53e,0x546,0x54e,0x556,0x55e,
@@ -4099,7 +4085,45 @@ static const uint16_t scriptExtensions[256]={
 0xed,0x19,0x1c,0x804f,0x37,0x804e,0x2f,0x31,0x8053,0x2f,0x8031,2,0x8007,0x89,0x7e,0x8087};
 
 static const int32_t indexes[UPROPS_INDEX_COUNT]={0x2afc,0x2afc,0x2afc,0x2afc,0x66be,3,0x8164,0x81e4,0x81e4,0x81e4,0xb2cbc,0x2a75a31,0,0,0,0};
+struct UTrie2 {
+    /* protected: used by macros and functions for reading values */
+    const uint16_t *index;
+    const uint16_t *data16;     /* for fast UTF-8 ASCII access, if 16b data */
+    const uint32_t *data32;     /* NULL if 16b data is used via index */
 
+    int32_t indexLength, dataLength;
+    uint16_t index2NullOffset;  /* 0xffff if there is no dedicated index-2 null block */
+    uint16_t dataNullOffset;
+    uint32_t initialValue;
+    /** Value returned for out-of-range code points and illegal UTF-8. */
+    uint32_t errorValue;
+
+    /* Start of the last range which ends at U+10ffff, and its value. */
+    uint32_t highStart;
+    int32_t highValueIndex;
+
+    /* private: used by builder and unserialization functions */
+    void *memory;           /* serialized bytes; NULL if not frozen yet */
+    int32_t length;         /* number of serialized bytes at memory; 0 if not frozen yet */
+    bool isMemoryOwned;    /* TRUE if the trie owns the memory */
+    bool padding1;
+    int16_t padding2;
+};
+
+static const UTrie2 propsTrie={
+    propsTrie_index,
+    propsTrie_index+4468,
+    NULL,
+    4468,
+    17500,
+    0xa40,
+    0x11f4,
+    0x0,
+    0x0,
+    0x110000,
+    0x55cc,
+    NULL, 0, false, false, 0
+};
 
 #define _UTRIE2_INDEX_FROM_SUPP(trieIndex, c) \
     (((int32_t)((trieIndex)[ \
@@ -4477,13 +4501,13 @@ struct Lexer {
                source;
     }
     source.resize(4, ' ');
-    std::transform(source.begin(), source.end(), source.begin(), [](auto c) {
+    std::transform(source.begin(), source.end(), source.begin(), [](char c) {
       if (c == '\n')
         return ' ';
       else
         return c;
     });
-    auto buffer = std::string("lexer: [") + source + "] " + str;
+    std::string buffer = std::string("lexer: [") + source + "] " + str;
     trace_strategy(buffer.data());
   }
 
