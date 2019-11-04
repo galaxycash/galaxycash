@@ -1266,7 +1266,7 @@ fi
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --with-bignum=no --enable-module-recovery --disable-jni"
 AC_CONFIG_SUBDIRS([src/secp256k1])
 
-ac_configure_args="${ac_configure_args} --disable-shared --with-cross-build=$(pwd)/build-host/"
+ac_configure_args="${ac_configure_args} --with-cross-build=$(pwd)/build-host/"
 AC_CONFIG_SUBDIRS([src/unicode])
 
 AC_OUTPUT
