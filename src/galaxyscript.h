@@ -59,7 +59,7 @@ typedef std::shared_ptr<CScriptFunction> CScriptFunctionRef;
 typedef std::vector<CScriptFunctionRef> CScriptFunctionArray;
 
 
-class CScriptValue : public std::enable_shared_from_this<CScriptObject>
+class CScriptValue : public std::enable_shared_from_this<CScriptValue>
 {
 public:
     typedef std::shared_ptr<CScriptValue> Ref;
