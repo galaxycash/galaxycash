@@ -677,13 +677,38 @@ static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef(Tx&& txIn)
 class CGalaxyCashConsensus
 {
 public:
-    uint32_t version, minVersion;
+    enum {
+        CURRENT_VERSION = 1,
+        MINIMAL_VERSION = CURRENT_VERSION
+    };
+    uint32_t version, minProtocolVersion;
     uint32_t height;
     int64_t reward;
     int64_t minfee;
     uint32_t spacing, timespan;
     std::vector<unsigned char>
         signature;
+
+    CGalaxyCashConsensus()
+    {
+        SetNull();
+    }
+
+    bool IsNull() const
+    {
+        return (version == 0) || signature.empty();
+    }
+
+    void SetNull()
+    {
+        version = CURRENT_VERSION;
+        minProtocolVersion = OLD_VERSION;
+        height = 0;
+        reward = 0;
+        minfee = 0;
+        spacing = timespan = 0;
+        signature.clear();
+    }
 
     ADD_SERIALIZE_METHODS;
 
