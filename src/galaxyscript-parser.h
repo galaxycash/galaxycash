@@ -4283,9 +4283,9 @@ inline const char* u_charCategory(int c)
   }
 }
 
-enum class TokenGroup : uint64_t { RESERVED_WORD = 0, LITERAL = 0x100 };
+enum TokenGroup : uint64_t { RESERVED_WORD = 0, LITERAL = 0x100 };
 
-enum class TokenType : uint64_t {
+enum TokenType : uint64_t {
   EMPTY = 0,
   WHITE_SPACE,
   LINE_TERMINATOR,
