@@ -133,8 +133,7 @@ public:
             std::string key;
             s >> key;
 
-            CScriptValueRef keyValue = CreateTyped(type);
-            s >> *keyValue;
+            CScriptValueRef keyValue = ReadValue(s, ret);
 
             ret->keys.insert(std::make_pair(key, keyValue));
         }
@@ -144,8 +143,7 @@ public:
             uint8_t type;
             s >> type;
 
-            CScriptValueRef newValue = CreateTyped(type);
-            s >> *newValue;
+            CScriptValueRef newValue = ReadValue(s, ret);
 
             ret->values.push_back(newValue);
         }
@@ -174,7 +172,7 @@ public:
             uint8_t type = (*it).second->Typeid();
             s << type;
             s << (*it).first;
-            s << *(*it).second;
+            WriteValue(s, (*it).second);
         }
 
         num = val->values.size();
@@ -182,7 +180,7 @@ public:
         for (std::vector<Ref>::iterator it = val->values.begin(); it != val->values.end(); it++) {
             uint8_t type = (*it)->Typeid();
             s << type;
-            s << *(*it);
+            WriteValue(s, (*it));
         }
 
 
