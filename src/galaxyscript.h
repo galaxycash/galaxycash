@@ -400,7 +400,7 @@ public:
     virtual CScriptStringArray Keys();
     virtual CScriptValueArray Values();
 
-    virtual Ref AsObject() const { return std::dynamic_pointer_cast<CScriptObject>(shared_from_this()); }
+    virtual Ref AsObject() const { return std::dynamic_pointer_cast<CScriptObject>(std::const_pointer_cast<CScriptValue>(shared_from_this())); }
 
     virtual bool IsObject() const { return true; }
     virtual bool AsBoolean() const { return !keys.empty(); }
