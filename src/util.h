@@ -393,12 +393,12 @@ inline double signBit(double d)
 
 inline bool isPosInf(double d)
 {
-    return _FPCLASS_PINF == _fpclass(d);
+    return d == std::numeric_limits<double>::infinity();
 }
 
 inline bool isNegInf(double d)
 {
-    return _FPCLASS_PINF == _fpclass(d);
+    return d == -std::numeric_limits<double>::infinity();
 }
 
 class instring
