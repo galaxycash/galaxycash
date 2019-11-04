@@ -428,8 +428,8 @@ public:
         return std::string(str);
     }
 
-    sdstring Str() const;
-    sdstring SoFar() const;
+    std::string Str() const;
+    std::string SoFar() const;
 
 private:
     char* str;
