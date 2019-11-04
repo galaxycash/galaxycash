@@ -4315,6 +4315,11 @@ struct Lexer {
   struct Token {
     TokenType type;
     InputIt first, last;
+
+    inline Token() {}
+    inline Token(const Token &tok) : type(tok.type), first(tok.first), last(tok.last) {}
+    inline Token(const TokenType intype) : type(intype) {}
+    inline Token(TokenType intype, InputIt infirst, InputIt inlast) : type(intype), first(infirst), last(inlast) {}
   };
 
   Token current_matched_token = {TokenType::EMPTY}, last_matched_token;
