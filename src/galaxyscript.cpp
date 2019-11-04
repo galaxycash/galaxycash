@@ -20,7 +20,7 @@ CScriptValue::CScriptValue()
 CScriptValue::CScriptValue(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags) : root(root), flags(flags)
 {
     if (prototype) {
-        for (std::map<std::string, CScriptValueRef>::iterator it = prototype->keys.begin(); it != prototype->PT_GUARDED_BYkeys.end(); it++) {
+        for (std::map<std::string, CScriptValueRef>::iterator it = prototype->keys.begin(); it != prototype->keys.end(); it++) {
         }
     }
 }
@@ -32,7 +32,7 @@ CScriptValue::~CScriptValue()
 
 CScriptValueRef CScriptValue::AddKeyValue(const std::string& key, const CScriptValueRef& value, const uint32_t flags = 0)
 {
-    keys[key] = std::make_shared<CScriptVariable>(key, value, flags);
+    keys[key] = std::make_shared<CScriptVariable>(key, value, key, flags);
     return value;
 }
 

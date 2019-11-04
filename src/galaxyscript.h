@@ -211,7 +211,8 @@ public:
     static Ref Prototype(const Ref& value, const Ref& root = Global(), uint32_t flags = 0);
 
 
-    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptValue>(root, this, this->Flags() | flags); }
+    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptValue>(root, shared_from_this(), this->Flags() | flags); }
+
     virtual void SerializeValue(std::vector<char>& vch) {}
     virtual void UnserializeValue(std::vector<char>& vch) {}
 
@@ -295,7 +296,7 @@ public:
     void* ptr_value;
 
     CScriptPointer();
-    CScriptPointer(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
+    CScriptPointer(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptPointer(const CScriptValueRef& root, const void* p, const uint32_t flags = 0);
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptPointer>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
@@ -320,8 +321,8 @@ public:
     CScriptValueRef varValue;
 
     CScriptVariable();
-    CScriptVariable(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
-    CScriptVariable(const CScriptValueRef& root, const std::string& name, const CScriptValueRef& var, const uint32_t flags = 0);
+    CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& variable, const std::string& name, const uint32_t flags = 0);
     virtual ~CScriptVariable() {}
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptVariable>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
@@ -365,7 +366,7 @@ public:
     std::string objectType;
     CScriptObjectRef prototype;
 
-    CScriptObject(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
+    CScriptObject(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptObject(const CScriptValueRef& root, const std::vector<KeyValue>& keys, const uint32_t flags = 0);
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptObject>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
@@ -418,7 +419,7 @@ class CScriptArray : public CScriptObject
 public:
     typedef std::shared_ptr<CScriptArray> Ref;
 
-    CScriptArray(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
+    CScriptArray(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptArray(const CScriptValueRef& root, const CScriptValueArray& value, const uint32_t flags = 0);
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
@@ -495,7 +496,7 @@ public:
     CScriptNativeFunction native;
     CScriptArrayRef arguments;
 
-    CScriptFunction(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
+    CScriptFunction(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptFunction(const CScriptValueRef& root, const std::string& name, CScriptNativeFunction native, const uint32_t flags = 0);
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptFunction>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
@@ -582,7 +583,7 @@ public:
     int64_t n;
 
     CScriptNumber();
-    CScriptNumber(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
+    CScriptNumber(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptNumber(const CScriptValueRef& root, const bool value, const uint32_t flags = 0);
     CScriptNumber(const CScriptValueRef& root, const int64_t value, const uint32_t flags = 0);
     CScriptNumber(const CScriptValueRef& root, const double value, const uint32_t flags = 0);
