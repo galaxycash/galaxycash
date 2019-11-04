@@ -724,11 +724,6 @@ public:
     void UpdateConsensus(const CGalaxyCashConsensusRef& consensus);
     bool GetConsensus(CGalaxyCashConsensusRef& consensus);
 
-    bool AddVariable(const std::string& name, const CScriptValueRef& variable);
-    bool GetVariable(const std::string& name, CScriptValueRef& variable);
-    bool GetVariables(const std::string& name, CScriptValueArrayRef& variables);
-
-
     bool AddToken(const CGalaxyCashTokenRef& token);
     bool GetTokenByHash(const uint256& hash, CGalaxyCashTokenRef& token);
     bool GetTokenBySymbol(const std::string& symbol, CGalaxyCashTokenRef& token);
