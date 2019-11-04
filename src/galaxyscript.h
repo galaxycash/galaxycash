@@ -319,7 +319,6 @@ public:
 
     CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptVariable(const std::string& name, const CScriptValueRef& root, const CScriptValueRef& variable, const uint32_t flags = 0);
-    virtual ~CScriptVariable() {}
 
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptVariable>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
     virtual void SerializeValue(std::vector<char>& vch)
