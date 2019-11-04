@@ -16,11 +16,8 @@
 #include <iostream>
 #include <stdexcept>
 
-#include <unicode/errorcode.h>
-#include <unicode/normalizer2.h>
 #include <unicode/uchar.h>
-#include <unicode/unistr.h>
-#include <unicode/unorm2.h>
+
 
 
 inline const char* u_charCategory(int c)
