@@ -277,6 +277,9 @@ public:
     virtual CScriptArrayRef AsArray() const { return nullptr; }
     virtual bool IsFunction() const { return false; }
     virtual CScriptFunctionRef AsFunction() const { return nullptr; }
+    virtual bool IsVariable() const { return false; }
+    virtual bool IsProperty() const { return false; }
+    virtual CScriptVariableRef AsVariable() const { return nullptr; }
 
     virtual Ref AddKeyValue(const std::string& key, const Ref& value, const uint32_t flags = 0);
     virtual Ref FindKeyValue(const std::string& key) const
@@ -313,6 +316,7 @@ public:
 class CScriptVariable : public CScriptValue
 {
 public:
+    typedef std::shared_ptr<CScriptVariable> Ref;
     std::string varName;
     CScriptValueRef varValue;
 
@@ -338,12 +342,14 @@ public:
 
     virtual bool IsVariable() const { return true; }
     virtual bool IsProperty() const { return true; }
+    virtual Ref AsVariable() const { return std::dynamic_pointer_cast<CScriptVariable>(shared_from_this()); }
+
     virtual bool AsBoolean() const { return (varValue && varValue != CScriptValue::Null() && varValue != CScriptValue::Undefined()) ? true : false; }
     virtual int64_t AsInteger() const { return varValue ? varValue->AsInteger() : 0; }
     virtual double AsFloat() const { return varValue ? varValue->AsFloat() : 0.0; }
     virtual std::string AsString() const { return varValue ? varValue->ToString() : "undefined"; }
 
-    virtual CScriptValueRef AsValue() { return varValue; }
+    virtual CScriptValueRef AsValue() { return varValue ? varValue : std::static_pointer_cast<CScriptValue>(shared_from_this()); }
 
     virtual uint8_t Typeid() const { return TYPE_VARIABLE; }
     virtual std::string ToString() const;
