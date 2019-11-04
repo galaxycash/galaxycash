@@ -91,13 +91,6 @@ CScriptObject::CScriptObject(const CScriptValueRef& root, const CScriptValueRef&
     prototype = AddKeyValue("prototype", prototype ? prototype->Copy() : this->Copy(), 0)->AsObject();
 }
 
-CScriptObject::CScriptObject(const CScriptValueRef& root, const std::vector<std::pair<std::string, CScriptValueRef>>& keyValues, const uint32_t flags) : CScriptValue(root, nullptr, flags), objectType("Object")
-{
-    for (std::vector<std::pair<std::string, CScriptValueRef>>::const_iterator it = keyValues.begin(); it != keyValues.end(); it++) {
-        keys.insert(std::make_pair((*it).first, (*it).second));
-    }
-    prototype = AddKeyValue("prototype", this->Copy(), 0)->AsObject();
-}
 
 std::string CScriptObject::ToString() const
 {
@@ -113,14 +106,6 @@ std::string CScriptObject::ToString() const
 CScriptArray::CScriptArray(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags) : CScriptObject(root, prototype, flags)
 {
     this->objectType = "Array";
-}
-
-CScriptArray::CScriptArray(const CScriptValueRef& root, const std::vector<CScriptValueRef>& values, const uint32_t flags) : CScriptObject(root, nullptr, flags)
-{
-    this->objectType = "Array";
-    for (std::vector<CScriptValueRef>::const_iterator it = values.begin(); it != values.end(); it++) {
-        this->values.push_back((*it));
-    }
 }
 
 std::string CScriptArray::ToString() const
@@ -143,11 +128,6 @@ bool CScriptArray::Includes(const CScriptValueRef& value, size_t from) const
     return false;
 }
 
-
-CScriptFunction::CScriptFunction(const CScriptValueRef& root, const std::string& name, CScriptNativeFunction native, const uint32_t flags) : CScriptObject(root, nullptr, flags), name(name), native(native)
-{
-    arguments = AddKeyValue("arguments", CreateTyped(TYPE_ARRAY, nullptr))->AsArray();
-}
 
 std::string CScriptFunction::ToString() const
 {
