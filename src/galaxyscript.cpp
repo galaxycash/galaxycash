@@ -162,7 +162,7 @@ std::string CScriptFunction::ToString() const
 }
 
 
-CScriptFloat::CScriptFloat(const CScriptValueRef& root, const double value, const uint32_t flags) : CScriptValue(root, value, flags), float_value(value)
+/*CScriptFloat::CScriptFloat(const CScriptValueRef& root, const double value, const uint32_t flags) : CScriptValue(root, value, flags), float_value(value)
 {
     std::ostringstream s(this->value);
     std::set_precission(10);
@@ -175,4 +175,4 @@ CScriptInteger::CScriptInteger(const CScriptValueRef& root, const int64_t value,
     std::ostringstream s(this->value);
     s.imbue(std::locale::classic());
     s << value;
-}
+}*/

@@ -134,7 +134,7 @@ public:
             s >> key;
 
             CScriptValueRef keyValue = CreateTyped(type);
-            s >> keyValue;
+            s >> *keyValue;
 
             ret->keys.insert(std::make_pair(key, keyValue));
         }
@@ -145,7 +145,7 @@ public:
             s >> type;
 
             CScriptValueRef newValue = CreateTyped(type);
-            s >> newValue;
+            s >> *newValue;
 
             ret->values.push_back(newValue);
         }
@@ -174,7 +174,7 @@ public:
             uint8_t type = (*it).second->Typeid();
             s << type;
             s << (*it).first;
-            s << (*it).second;
+            s << *(*it).second;
         }
 
         num = val->values.size();
@@ -182,7 +182,7 @@ public:
         for (std::vector<Ref>::iterator it = val->values.begin(); it != val->values.end(); it++) {
             uint8_t type = (*it)->Typeid();
             s << type;
-            s << (*it);
+            s << *(*it);
         }
 
 
@@ -298,7 +298,7 @@ public:
     CScriptPointer(const CScriptValueRef& root, const CScriptValueRef prototype, const uint32_t flags = 0);
     CScriptPointer(const CScriptValueRef& root, const void* p, const uint32_t flags = 0);
 
-    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptPointer>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptPointer>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
     virtual void SerializeValue(std::vector<char>& vch) {}
     virtual void UnserializeValue(std::vector<char>& vch) { ptr_value = nullptr; }
 
