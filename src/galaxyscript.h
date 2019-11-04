@@ -295,7 +295,6 @@ class CScriptPointer : public CScriptValue
 public:
     void* ptr_value;
 
-    CScriptPointer();
     CScriptPointer(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptPointer(const CScriptValueRef& root, const void* p, const uint32_t flags = 0);
 
@@ -320,7 +319,6 @@ public:
     std::string varName;
     CScriptValueRef varValue;
 
-    CScriptVariable();
     CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& variable, const std::string& name, const uint32_t flags = 0);
     virtual ~CScriptVariable() {}
