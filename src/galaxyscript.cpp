@@ -30,7 +30,7 @@ CScriptValue::~CScriptValue()
 }
 
 
-CScriptValueRef CScriptValue::AddKeyValue(const std::string& key, const CScriptValueRef& value, const uint32_t flags = 0)
+CScriptValueRef CScriptValue::AddKeyValue(const std::string& key, const CScriptValueRef& value, const uint32_t flags)
 {
     keys[key] = std::make_shared<CScriptVariable>(key, value, key, flags);
     return value;
