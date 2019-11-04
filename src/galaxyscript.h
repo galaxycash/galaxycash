@@ -330,7 +330,7 @@ public:
         WriteValue(s, varValue);
         vch.insert(vch.end(), s.begin(), s.end());
     }
-    virtual void UnserializeValue(std::vector<char>& vch)
+    virtual void UnserializeValue(const std::vector<char>& vch)
     {
         if (!vch.size())
             return;
