@@ -1259,15 +1259,20 @@ PKGCONFIG_LIBDIR_TEMP="$PKG_CONFIG_LIBDIR"
 unset PKG_CONFIG_LIBDIR
 PKG_CONFIG_LIBDIR="$PKGCONFIG_LIBDIR_TEMP"
 
+AC_CONFIGURE_ARGS_SAVE="${ac_configure_args}"
+
+ac_configure_args="${ac_configure_args} --with-cross-build=$(pwd)/build-host/"
+AC_CONFIG_SUBDIRS([src/unicode])
+ac_configure_args="${AC_CONFIGURE_ARGS_SAVE}"
+
 if test x$need_bundled_univalue = xyes; then
   AC_CONFIG_SUBDIRS([src/univalue])
 fi
 
+
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --with-bignum=no --enable-module-recovery --disable-jni"
 AC_CONFIG_SUBDIRS([src/secp256k1])
 
-ac_configure_args="${ac_configure_args} --with-cross-build=$(pwd)/build-host/"
-AC_CONFIG_SUBDIRS([src/unicode])
 
 AC_OUTPUT
 
