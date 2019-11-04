@@ -953,3 +953,60 @@ int64_t GetStartupTime()
 {
     return nStartupTime;
 }
+
+instring::instring(const char* in)
+{
+    m_size = strlen(in);
+    str = (char*)in;
+    wpos = str;
+}
+
+instring& instring::operator=(const instring& in)
+{
+    if (&in != this) {
+        m_size = in.m_size;
+        str = static_cast<char*>(malloc(m_size));
+        memcpy(str, in.str, m_size);
+        wpos = str + (in.wpos - in.str);
+        bMine = true;
+    }
+    return *this;
+}
+
+instring& instring::operator=(instring&& in)
+{
+    std::swap(str, in.str);
+    std::swap(wpos, in.wpos);
+    std::swap(m_size, in.m_size);
+    std::swap(bMine, in.bMine);
+    return *this;
+}
+
+instring::~instring()
+{
+    if (bMine) {
+        free(str);
+    }
+}
+
+void instring::seek(size_t newPos)
+{
+    if (newPos < m_size) {
+        wpos = str + newPos;
+    }
+}
+
+char* instring::getPos()
+{
+    return wpos;
+}
+
+std::string instring::Str() const
+{
+    return std::string(str);
+}
+
+std::string instring::SoFar() const
+{
+    return std::string(str, wpos - str);
+}

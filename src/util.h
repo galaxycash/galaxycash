@@ -20,10 +20,16 @@
 #include <tinyformat.h>
 #include <utiltime.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cfloat>
+#include <cmath>
 #include <exception>
+#include <functional>
+#include <limits>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -364,5 +370,72 @@ std::unique_ptr<T> MakeUnique(Args&&... args)
 {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
+
+inline bool isNaN(double d)
+{
+    return std::isnan(d);
+}
+
+inline bool isFinite(double d)
+{
+    return std::isfinite(d) != 0;
+}
+
+inline bool isInf(double d)
+{
+    return std::isinf(d);
+}
+
+inline double signBit(double d)
+{
+    return std::signbit(d);
+}
+
+inline bool isPosInf(double d)
+{
+    return _FPCLASS_PINF == _fpclass(d);
+}
+
+inline bool isNegInf(double d)
+{
+    return _FPCLASS_PINF == _fpclass(d);
+}
+
+class instring
+{
+public:
+    instring(const char* in);
+
+    ~instring();
+
+    char& take();
+    void skip();
+    char& peek() const;
+    size_t tell() const;
+    size_t size() const;
+    void seek(size_t newPos);
+    char* getPos();
+
+    instring& operator=(const instring& in);
+    instring& operator=(instring&& in);
+
+    void set(const std::string& in);
+    void set(const char* in);
+
+
+    operator std::string() const
+    {
+        return std::string(str);
+    }
+
+    sdstring Str() const;
+    sdstring SoFar() const;
+
+private:
+    char* str;
+    char* wpos;
+    size_t m_size;
+    bool bMine = false;
+};
 
 #endif // BITCOIN_UTIL_H

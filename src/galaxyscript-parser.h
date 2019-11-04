@@ -21,7 +21,7 @@
 #include <unicode/uchar.h>
 #include <unicode/unistr.h>
 #include <unicode/unorm2.h>
-//#include "token.h"
+
 
 inline const char* u_charCategory(int c)
 {
@@ -67,7 +67,6 @@ enum class TokenType : uint64_t {
   LINE_TERMINATOR,
   COMMENT,
   KEYWORD,
-  FUTURUE_RESERVED_WORD,
   PUNCTUATOR,
   DIV_PUNCTUATOR,
   NULL_LITERAL = 0x100 + 1,
@@ -127,22 +126,22 @@ struct Lexer {
                       {"void", TokenType::KEYWORD},
                       {"while", TokenType::KEYWORD},
                       {"with", TokenType::KEYWORD},
-                      {"class", TokenType::FUTURUE_RESERVED_WORD},
-                      {"const", TokenType::FUTURUE_RESERVED_WORD},
-                      {"enum", TokenType::FUTURUE_RESERVED_WORD},
-                      {"export", TokenType::FUTURUE_RESERVED_WORD},
-                      {"extends", TokenType::FUTURUE_RESERVED_WORD},
-                      {"import", TokenType::FUTURUE_RESERVED_WORD},
-                      {"super", TokenType::FUTURUE_RESERVED_WORD},
-                      {"implements", TokenType::FUTURUE_RESERVED_WORD},
-                      {"interface", TokenType::FUTURUE_RESERVED_WORD},
-                      {"yield", TokenType::FUTURUE_RESERVED_WORD},
-                      {"let", TokenType::FUTURUE_RESERVED_WORD},
-                      {"package", TokenType::FUTURUE_RESERVED_WORD},
-                      {"private", TokenType::FUTURUE_RESERVED_WORD},
-                      {"protected", TokenType::FUTURUE_RESERVED_WORD},
-                      {"public", TokenType::FUTURUE_RESERVED_WORD},
-                      {"static", TokenType::FUTURUE_RESERVED_WORD},
+                      {"class", TokenType::KEYWORD},
+                      {"const", TokenType::KEYWORD},
+                      {"enum", TokenType::KEYWORD},
+                      {"export", TokenType::KEYWORD},
+                      {"extends", TokenType::KEYWORD},
+                      {"import", TokenType::KEYWORD},
+                      {"super", TokenType::KEYWORD},
+                      {"implements", TokenType::KEYWORD},
+                      {"interface", TokenType::KEYWORD},
+                      {"yield", TokenType::KEYWORD},
+                      {"let", TokenType::KEYWORD},
+                      {"package", TokenType::KEYWORD},
+                      {"private", TokenType::KEYWORD},
+                      {"protected", TokenType::KEYWORD},
+                      {"public", TokenType::KEYWORD},
+                      {"static", TokenType::KEYWORD},
                       {"{", TokenType::PUNCTUATOR},
                       {"}", TokenType::PUNCTUATOR},
                       {"(", TokenType::PUNCTUATOR},

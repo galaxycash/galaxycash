@@ -1,4 +1,4 @@
 Gitian building
 ================
 
-This file was moved to [the Bitcoin Core documentation repository](https://github.com/galaxycash-core/docs/blob/master/gitian-building.md) at [https://github.com/galaxycash-core/docs](https://github.com/galaxycash-core/docs).
+This file was moved to [the Bitcoin Core documentation repository](https://github.com/galaxycash/galaxycash/doc/blob/master/gitian-building.md) at [https://github.com/galaxycash/galaxycash/doc](https://github.com/galaxycash/galaxycash/doc).

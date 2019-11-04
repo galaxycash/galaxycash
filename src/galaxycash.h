@@ -25,6 +25,8 @@
 
 #include <serialize.h>
 
+#include <galaxyscript.h>
+
 struct CGalaxyCashOperand {
     uint8_t type;
     std::vector<unsigned char> vch;
@@ -461,7 +463,7 @@ struct CGalaxyCashOpcode {
 struct CGalaxyCashToken {
     std::string name;
     std::string symbol;
-    int64_t supply;
+    int64_t supply, fee;
     CPubKey owner;
     bool minable;
     COutPoint proof;
@@ -475,6 +477,7 @@ struct CGalaxyCashToken {
         READWRITE(name);
         READWRITE(symbol);
         READWRITE(supply);
+        READWRITE(fee);
         READWRITE(owner);
         READWRITE(minable);
         READWRITE(proof);
@@ -539,16 +542,24 @@ inline CGalaxyCashOperand TokenAsOperand(const CGalaxyCashTokenRef& value)
     return ret;
 }
 
+#include "pubkey.h"
+
 class CGalaxyCashTransaction
 {
 public:
+    enum {
+        CURRENT_VERSION = 1,
+        MINIMAL_VERSION = CURRENT_VERSION
+    };
+
     uint32_t version;
     uint256 token;
-    uint160 address;
+    CKeyID address;
+    CPubKey pubKey;
     std::vector<CGalaxyCashOpcode>
         script;
     std::vector<unsigned char>
-        scriptSig;
+        signature;
 
     ADD_SERIALIZE_METHODS;
 
@@ -558,8 +569,9 @@ public:
         READWRITE(version);
         READWRITE(token);
         READWRITE(address);
+        GetPubKey(address, pubKey);
         READWRITE(script);
-        if (!(s.GetType() & SER_GETHASH)) READWRITE(scriptSig);
+        if (!(s.GetType() & SER_GETHASH)) READWRITE(signature);
     }
 
     CGalaxyCashTransaction()
@@ -570,9 +582,30 @@ public:
 
     void SetNull()
     {
+        version = CURRENT_VERSION;
+        address = CKeyID();
+        pubKey = CPubKey();
         script.clear();
-        scriptSig.clear();
+        signature.clear();
     }
+
+    void GetPubKey(const CKeyID& addr, CPubKey& pub);
+
+    uint256 GetHash() const
+    {
+        return SerializeHash(*this);
+    }
+
+    bool CheckSignature() const
+    {
+        if (!pubKey.IsValid())
+            return false;
+        return pubKey.Verify(GetHash(), signature);
+    }
+
+    bool CheckTransaction() const;
+
+    bool Sign();
 
     void AddCoinbase(const CGalaxyCashOpcode& op)
     {
@@ -631,8 +664,6 @@ public:
         }
         return false;
     }
-
-    uint256 GetHash() { return SerializeHash(*this); }
 };
 
 typedef std::shared_ptr<const CGalaxyCashTransaction> CGalaxyCashTransactionRef;
@@ -646,7 +677,8 @@ static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef(Tx&& txIn)
 class CGalaxyCashConsensus
 {
 public:
-    uint32_t version;
+    uint32_t version, minVersion;
+    uint32_t height;
     int64_t reward;
     int64_t minfee;
     uint32_t spacing, timespan;
@@ -659,14 +691,22 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(version);
+        READWRITE(minProtocolVersion);
+        READWRITE(height);
         READWRITE(reward);
         READWRITE(minfee);
         READWRITE(spacing);
         READWRITE(timespan);
-        READWRITE(signature);
+        if (!(s.GetType() & SER_GETHASH)) READWRITE(signature);
+    }
+
+    uint256 GetHash() const
+    {
+        return SerializeHash(*this);
     }
 
     bool CheckSignature() const;
+    bool Sign();
 };
 
 typedef std::shared_ptr<CGalaxyCashConsensus> CGalaxyCashConsensusRef;
@@ -683,6 +723,10 @@ public:
 
     void UpdateConsensus(const CGalaxyCashConsensusRef& consensus);
     bool GetConsensus(CGalaxyCashConsensusRef& consensus);
+
+    bool AddVariable(const std::string& name, const CScriptValueRef& variable);
+    bool GetVariable(const std::string& name, CScriptValueRef& variable);
+    bool GetVariables(const std::string& name, CScriptValueArrayRef& variables);
 
 
     bool AddToken(const CGalaxyCashTokenRef& token);
