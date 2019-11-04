@@ -31,6 +31,7 @@ LIBBITCOIN_UTIL=libgalaxycash_util.a
 LIBBITCOIN_CRYPTO=crypto/libgalaxycash_crypto.a
 LIBBITCOINQT=qt/libgalaxycashqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
+LIBUNICODE=unicode/libunicode.a
 
 
 if ENABLE_ZMQ
@@ -44,6 +45,9 @@ LIBBITCOIN_WALLET=libgalaxycash_wallet.a
 endif
 
 $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+
+$(LIBUNICODE): $(wildcard unicode/common/*) $(wildcard unicode/config/*)
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
 
 # Make is not made aware of per-object dependencies to avoid limiting building parallelization
