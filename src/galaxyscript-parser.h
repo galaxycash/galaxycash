@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <literals>
 #include <typeinfo>
 #include <typeindex>
 #include <unordered_map>
@@ -5399,16 +5400,14 @@ struct Parser {
   template <typename... Args>
   Parser(Args &&... args)
       : lexer(std::forward<Args>(args)...) {
-    lexer.set_trace_strategy([&](auto what) { trace(what); });
+    lexer.set_trace_strategy([&](const char *what) { trace(what); });
   }
 
   [[noreturn]] bool error(const char *message) {
-    using namespace std::string_literals;
     auto lines = std::count_if(lexer.buffer.begin(), lexer.cur,
                                Lexer::is_line_terminator) +
                  1;
-    throw std::runtime_error("Syntax error: "s + message + " at line " +
-                             std::to_string(lines));
+    throw std::runtime_error(std::string("Syntax error: ") + message + " at line " + std::to_string(lines));
   }
 
   template <typename Strategy> void set_trace_strategy(Strategy strategy) {
