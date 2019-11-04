@@ -330,7 +330,7 @@ public:
         WriteValue(s, varValue);
         vch.insert(vch.end(), s.begin(), s.end());
     }
-    virtual void UnserializeValue(const std::vector<char>& vch)
+    virtual void UnserializeValue(std::vector<char>& vch)
     {
         if (!vch.size())
             return;
@@ -511,7 +511,8 @@ public:
         if (!vch.size())
             return;
 
-        CDataStream s(*vch.begin(), *vch.end(), SER_DISK, PROTOCOL_VERSION);
+        CDataStream s(SER_DISK, PROTOCOL_VERSION);
+        s << vch;
         prototype = ReadValue(s, AsValue());
     }
 
