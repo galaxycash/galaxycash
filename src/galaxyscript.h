@@ -593,10 +593,10 @@ public:
 
     CScriptNumber(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptNumber>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptNumber>(root, shared_from_this(), this->Flags() | flags); }
 
     virtual bool IsNumber() const { return true; }
-    virtual Ref AsNumber() const { return std::const_pointer_cast<CScriptNumber>(std::dynamic_pointer_cast<CScriptNumber>(shared_from_this())); }
+    virtual Ref AsNumber() const { return std::const_pointer_cast<CScriptNumber>(std::dynamic_pointer_cast<const CScriptNumber>(shared_from_this())); }
 
 
     virtual bool IsInteger() const { return !(Flags() & FLAG_REAL) && !(Flags() & FLAG_BOOLEAN) && !(Flags() & FLAG_BIGNUM); }
