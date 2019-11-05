@@ -90,7 +90,7 @@ CScriptValueRef CScriptValue::CreateTyped(const uint8_t type, const CScriptValue
 
 CScriptObject::CScriptObject(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags) : CScriptValue(root, prototype, flags), objectType(prototype ? prototype->objectType : "Object")
 {
-    prototype = AddKeyValue("prototype", prototype ? prototype->Copy() : this->Copy(), 0)->AsObject();
+    prototype = AddKeyValue("prototype", prototype ? prototype->Copy(this->AsValue()) : this->Copy())->AsObject();
 }
 
 

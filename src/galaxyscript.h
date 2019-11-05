@@ -210,7 +210,7 @@ public:
     static Ref Prototype(const Ref& value, const Ref& root = Global(), uint32_t flags = 0);
 
 
-    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptValue>(root, shared_from_this(), this->Flags() | flags); }
+    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptValue>(root, shared_from_this(), this->Flags() | flags); }
 
     virtual void SerializeValue(std::vector<char>& vch) {}
     virtual void UnserializeValue(std::vector<char>& vch) {}
@@ -323,7 +323,7 @@ public:
 
     CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptVariable>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptVariable>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
@@ -370,7 +370,7 @@ public:
     CScriptObject(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
     CScriptObject(const CScriptValueRef& root, const std::vector<KeyValue>& keys, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptObject>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptObject>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
@@ -423,7 +423,7 @@ public:
 
     CScriptArray(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
 
     virtual bool IsArray() const { return true; }
     virtual Ref AsArray() const { return std::const_pointer_cast<CScriptArray>(std::dynamic_pointer_cast<const CScriptArray>(shared_from_this())); }
@@ -499,7 +499,7 @@ public:
 
     CScriptFunction(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptFunction>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptFunction>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
 
     virtual void SerializeValue(std::vector<char>& vch)
     {
