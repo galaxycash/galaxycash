@@ -434,7 +434,7 @@ public:
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
 
     virtual bool IsArray() const { return true; }
-    virtual Ref AsArray() const { return std::const_pointer_cast<CScriptArray>(std::dynamic_pointer_cast<const CScriptArray>(shared_from_this())); }
+    virtual Ref AsArray() const { return std::dynamic_pointer_cast<CScriptArray>(AsObject()); }
 
     virtual bool AsBoolean() const { return !values.empty(); }
     virtual int64_t AsInteger() const { return (int64_t)value.size(); }
@@ -523,7 +523,7 @@ public:
 
 
     virtual bool IsFunction() const { return true; }
-    virtual Ref AsFunction() const { return std::const_pointer_cast<CScriptFunction>(std::dynamic_pointer_cast<const CScriptFunction>(shared_from_this())); }
+    virtual Ref AsFunction() const { return std::dynamic_pointer_cast<CScriptFunction>(AsObject()); }
 
     void PushI8(int8_t code) { this->code.push_back(code); }
     void PushI16(int16_t code)
@@ -592,7 +592,7 @@ public:
     virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptNumber>(root, shared_from_this(), this->Flags() | flags); }
 
     virtual bool IsNumber() const { return true; }
-    virtual Ref AsNumber() const { return std::const_pointer_cast<CScriptNumber>(std::dynamic_pointer_cast<const CScriptNumber>(shared_from_this())); }
+    virtual Ref AsNumber() const { return std::dynamic_pointer_cast<CScriptNumber>(AsObject()); }
 
 
     virtual bool IsInteger() const { return !(Flags() & FLAG_REAL) && !(Flags() & FLAG_BOOLEAN) && !(Flags() & FLAG_BIGNUM); }
