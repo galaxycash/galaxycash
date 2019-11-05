@@ -394,7 +394,8 @@ public:
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
         s << vch;
         s >> objectType;
-        prototype = ReadValue(s, AsValue());
+        CScriptValueRef ptype = ReadValue(s, AsValue());
+        if (ptype && ptype->IsObject()) prototype = ptype->AsObject();
     }
 
     bool SetPrototype(const CScriptObjectRef& other);
@@ -512,17 +513,13 @@ public:
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
-        WriteValue(s, prototype->AsValue());
-        vch.insert(vch.end(), s.begin(), s.end());
+        CScriptObject::SerializeValue(vch);
     }
     virtual void UnserializeValue(std::vector<char>& vch)
     {
         if (!vch.size())
             return;
-
-        CDataStream s(SER_DISK, PROTOCOL_VERSION);
-        s << vch;
-        prototype = ReadValue(s, AsValue());
+        CScriptObject::UnserializeValue(vch);
     }
 
 
