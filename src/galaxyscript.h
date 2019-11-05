@@ -270,7 +270,7 @@ public:
     virtual Ref Assign(const CScriptValueRef& value);
     virtual Ref AsValue() const { return This(); }
 
-    virtual bool IsNumber() const { return false; }
+
     virtual bool IsBoolean() const { return false; }
     virtual bool AsBoolean() const { return false; }
     virtual bool IsInteger() const { return false; }
@@ -292,6 +292,8 @@ public:
     virtual bool IsVariable() const { return false; }
     virtual bool IsProperty() const { return false; }
     virtual CScriptVariableRef AsVariable() const { return nullptr; }
+    virtual bool IsNumber() const { return false; }
+    virtual CScriptNumberRef AsNumber() const { return nullptr; }
 
     virtual Ref AddKeyValue(const std::string& key, const Ref& value, const uint32_t flags = 0);
     virtual Ref FindKeyValue(const std::string& key) const
