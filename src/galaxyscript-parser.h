@@ -4329,7 +4329,7 @@ struct Lexer {
     }
   };
 
-  Token current_matched_token = {TokenType::EMPTY}, last_matched_token;
+  Token current_matched_token = Token(TokenType::EMPTY), last_matched_token = Token();
   std::function<void(const char *)> trace_strategy;
 
   template <typename InputIt>
