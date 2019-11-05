@@ -112,6 +112,14 @@ public:
     CScriptValue(const Ref& root, const Ref& prototype, const uint32_t flags = 0);
     virtual ~CScriptValue();
 
+    inline Ref This()
+    {
+        return shared_from_this();
+    }
+    inline Ref This() const
+    {
+        return std::const_pointer_cast<CScriptValue>(shared_from_this());
+    }
 
     static Ref CreateTyped(const uint8_t type, const Ref& prototype = nullptr, const Ref& root = Global());
 
@@ -210,7 +218,7 @@ public:
     static Ref Prototype(const Ref& value, const Ref& root = Global(), uint32_t flags = 0);
 
 
-    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptValue>(root, shared_from_this(), this->Flags() | flags); }
+    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptValue>(root, This(), this->Flags() | flags); }
 
     virtual void SerializeValue(std::vector<char>& vch) {}
     virtual void UnserializeValue(std::vector<char>& vch) {}
@@ -257,7 +265,7 @@ public:
     }
 
     virtual Ref Assign(const CScriptValueRef& value);
-    virtual Ref AsValue() const { return std::const_pointer_cast<CScriptValue>(shared_from_this()); }
+    virtual Ref AsValue() const { return This(); }
 
     virtual bool IsNumber() const { return false; }
     virtual bool IsBoolean() const { return false; }
