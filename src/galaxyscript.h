@@ -44,9 +44,9 @@ class CScriptVariable;
 typedef std::shared_ptr<CScriptVariable> CScriptVariableRef;
 typedef std::vector<CScriptVariableRef> CScriptVariableArray;
 
-class CScriptPrototype;
-typedef std::shared_ptr<CScriptPrototype> CScriptPrototypeRef;
-typedef std::vector<CScriptPrototypeRef> CScriptPrototypeArray;
+class CScriptPointer;
+typedef std::shared_ptr<CScriptPointer> CScriptPointerRef;
+typedef std::vector<CScriptPointerRef> CScriptPointerArray;
 
 class CScriptObject;
 typedef std::shared_ptr<CScriptObject> CScriptObjectRef;
@@ -58,6 +58,9 @@ typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 class CScriptFunction;
 typedef std::shared_ptr<CScriptFunction> CScriptFunctionRef;
 typedef std::vector<CScriptFunctionRef> CScriptFunctionArray;
+
+class CScriptNumber;
+typedef std::shared_ptr<CScriptNumber> CScriptNumberRef;
 
 
 class CScriptValue : public std::enable_shared_from_this<CScriptValue>
@@ -446,7 +449,6 @@ public:
 
     virtual bool Includes(const CScriptValueRef& value, size_t from = 0) const;
 };
-typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 
 typedef CScriptValueRef (*CScriptNativeFunction)(CScriptValueRef thisArg, CScriptValueRef args);
 CScriptValueRef ScriptGetArrayLength(const CScriptValueRef thisArg, const CScriptArrayRef args);
@@ -623,6 +625,5 @@ public:
     virtual std::string ToString() const;
     virtual std::string Typename() const { return "[object Number]"; }
 };
-typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
 
 #endif
