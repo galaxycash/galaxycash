@@ -3254,12 +3254,9 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         return AbortNode(state, std::string("System error: ") + e.what());
     }
 
-    //BlockBuildStakeModifier(pindex, *pblock);
 
     CheckBlockIndex(chainparams.GetConsensus());
 
-
-    setDirtyBlockIndex.insert(pindex);
 
     if (pindexBestBlock == nullptr) {
         pindexBestBlock = pindex;
@@ -3268,7 +3265,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
             pindexBestBlock = pindex;
     }
 
-    NotifyBlockTip();
 #ifdef ENABLE_CHECKPOINTS
     // peercoin: check pending sync-checkpoint
     AcceptPendingSyncCheckpoint();
@@ -3276,47 +3272,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     return true;
 }
-
-bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fOldClient, bool fForceProcessing, bool* fNewBlock, CBlockIndex** ppindex, bool* fPoSDuplicate)
-{
-    AssertLockNotHeld(cs_main);
-
-    CBlockIndex* pindex = *ppindex;
-    CValidationState state;
-    {
-        LOCK(cs_main);
-
-        if (ppindex == nullptr || *ppindex == nullptr) pindex = mapBlockIndex.count(pblock->GetHash()) ? mapBlockIndex[pblock->GetHash()] : nullptr;
-        if (fNewBlock) *fNewBlock = false;
-        if (fPoSDuplicate) *fPoSDuplicate = false;
-
-        bool fHasDevblock = pblock->IsDeveloperBlock();
-        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, !fHasDevblock);
-
-
-        if (ppindex)
-            *ppindex = pindex;
-
-        if (!ret) {
-            GetMainSignals().BlockChecked(*pblock, state);
-            return error("%s: AcceptBlock %s FAILED (%s)", __func__, pblock->GetHash().GetHex(), FormatStateMessage(state));
-        }
-    }
-
-    if (!g_chainstate.ActivateBestChain(state, chainparams, pblock)) {
-        return error("%s: ActivateBestChain failed", __func__);
-    }
-
-#ifdef ENABLE_CHECKPOINTS
-    // peercoin: if responsible for sync-checkpoint send it
-    if (Params().DevKey().IsValid() && (int)gArgs.GetArg("-checkpointdepth", -1) >= 0)
-        SendSyncCheckpoint(AutoSelectSyncCheckpoint());
-#endif
-
-
-    return true;
-}
-
 bool static IsDERSignature(const std::vector<unsigned char>& vchSig, bool haveHashType)
 {
     // See https://galaxycashtalk.org/index.php?topic=8392.msg127623#msg127623
@@ -3387,197 +3342,57 @@ bool static IsCanonicalBlockSignature(const CBlock* pblock, bool checkLowS)
     return checkLowS ? IsLowDERSignature(pblock->vchBlockSig, false) : IsDERSignature(pblock->vchBlockSig, false);
 }
 
-uint256 static GetOrphanRoot(const uint256& hash)
+bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fOldClient, bool fForceProcessing, bool* fNewBlock, CBlockIndex** ppindex, bool* fPoSDuplicate)
 {
-    std::map<uint256, COrphanBlock*>::iterator it = mapOrphanBlocks.find(hash);
-    if (it == mapOrphanBlocks.end())
-        return hash;
+    AssertLockNotHeld(cs_main);
 
-    // Work back to the first block in the orphan chain
-    do {
-        std::map<uint256, COrphanBlock*>::iterator it2 = mapOrphanBlocks.find(it->second->hashPrev);
-        if (it2 == mapOrphanBlocks.end())
-            return it->first;
-        it = it2;
-    } while (true);
-}
+    CBlockIndex* pindex = *ppindex;
+    CValidationState state;
+    {
+        LOCK(cs_main);
 
-// ppcoin: find block wanted by given orphan block
-uint256 WantedByOrphan(const COrphanBlock* pblockOrphan)
-{
-    // Work back to the first block in the orphan chain
-    while (mapOrphanBlocks.count(pblockOrphan->hashPrev))
-        pblockOrphan = mapOrphanBlocks[pblockOrphan->hashPrev];
-    return pblockOrphan->hashPrev;
-}
+        if (ppindex == nullptr || *ppindex == nullptr) pindex = mapBlockIndex.count(pblock->GetHash()) ? mapBlockIndex[pblock->GetHash()] : nullptr;
+        if (fNewBlock) *fNewBlock = false;
+        if (fPoSDuplicate) *fPoSDuplicate = false;
 
 
-// Remove a random orphan block (which does not have any dependent orphans).
-void static PruneOrphanBlocks()
-{
-    size_t nMaxOrphanBlocksSize = gArgs.GetArg("-maxorphanblocksmib", 128) * ((size_t)1 << 20);
-    while (nOrphanBlocksSize > nMaxOrphanBlocksSize) {
-        // Pick a random orphan block.
-        int pos = rand() % mapOrphanBlocksByPrev.size();
-        std::multimap<uint256, COrphanBlock*>::iterator it = mapOrphanBlocksByPrev.begin();
-        while (pos--)
-            it++;
-
-        // As long as this block has other orphans depending on it, move to one of those successors.
-        do {
-            std::multimap<uint256, COrphanBlock*>::iterator it2 = mapOrphanBlocksByPrev.find(it->second->hashBlock);
-            if (it2 == mapOrphanBlocksByPrev.end())
-                break;
-            it = it2;
-        } while (1);
-
-        setStakeSeenOrphan.erase(it->second->stake);
-        uint256 hash = it->second->hashBlock;
-        nOrphanBlocksSize -= it->second->vchBlock.size();
-        delete it->second;
-        mapOrphanBlocksByPrev.erase(it);
-        mapOrphanBlocks.erase(hash);
-    }
-}
+        bool fHasDevblock = pblock->IsDeveloperBlock();
+        bool ret = g_chainstate.AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock, !fHasDevblock);
 
 
-bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient, bool fForceProcessing, bool* fNewBlock, CBlockIndex** ppindex, bool* fPoSDuplicate)
-{
-    AssertLockHeld(cs_main);
+        if (ppindex)
+            *ppindex = pindex;
 
-    std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
-    CDataStream ss(SER_DISK, CLIENT_VERSION);
-    ss << block;
-    ss >> *pblock;
-
-    CBlockIndex* pindex = mapBlockIndex.count(pblock->GetHash()) ? mapBlockIndex[pblock->GetHash()] : nullptr;
-    if (fNewBlock) *fNewBlock = false;
-    if (fPoSDuplicate) *fPoSDuplicate = false;
-
-    if (ppindex)
-        *ppindex = pindex;
-
-    LOCK(cs_main);
-
-    // Check for duplicate
-    uint256 hash = block.GetHash();
-    if (mapBlockIndex.count(hash) && pindex->nStatus & BLOCK_HAVE_DATA) {
-        return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString());
-    }
-    if (mapOrphanBlocks.count(hash))
-        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString());
-
-    // ppcoin: check proof-of-stake
-    // Limited duplicity on stake: prevents block flood attack
-    // Duplicate stake allowed only when there is orphan child block
-    if (!fReindex && !fImporting && pindex->nStatus & BLOCK_HAVE_DATA && block.IsProofOfStake() && setStakeSeen.count(block.GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash)) {
-        if (fPoSDuplicate) *fPoSDuplicate = true;
-        return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", block.GetProofOfStake().first.ToString(), block.GetProofOfStake().second, hash.ToString());
-    }
-
-    if (block.IsProofOfStake()) {
-        if (!IsCanonicalBlockSignature(pblock.get(), false)) {
-            if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_VERSION)
-                Misbehaving(pfrom->GetId(), 100);
-
-            return error("ProcessBlock(): bad block signature encoding");
+        if (!ret) {
+            GetMainSignals().BlockChecked(*pblock, state);
+            return error("%s: AcceptBlock %s FAILED (%s)", __func__, pblock->GetHash().GetHex(), FormatStateMessage(state));
         }
 
-        if (!IsCanonicalBlockSignature(pblock.get(), true)) {
-            if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_LOW_S_VERSION) {
-                Misbehaving(pfrom->GetId(), 100);
-                return error("ProcessBlock(): bad block signature encoding (low-s)");
-            }
+        if (pindex->IsProofOfStake()) {
+            int32_t ndx = univHash(pindex->hashProofOfStake);
+            if (fPoSDuplicate && vStakeSeen[ndx] == pindex->hashProofOfStake)
+                *fPoSDuplicate = true;
+            vStakeSeen[ndx] = pindex->hashProofOfStake;
         }
     }
 
-    if (pblock->GetHash() != Params().GetConsensus().hashGenesisBlock && pfrom != NULL) {
-        //if we get this far, check if the prev block is our prev block, if not then request sync and return false
-        BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
-        if (mi == mapBlockIndex.end()) {
-            g_connman->PushMessage(pfrom, CNetMsgMaker(pfrom->GetRecvVersion()).Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexBestBlock ? pindexBestBlock : chainActive.Genesis()), uint256(0)));
-            return false;
-        }
+    NotifyHeaderTip();
+
+    if (!g_chainstate.ActivateBestChain(state, chainparams, pblock)) {
+        return error("%s: ActivateBestChain failed", __func__);
     }
 
 
-    if (!mapBlockIndex.count(block.hashPrevBlock)) {
-        LogPrintf("ProcessBlock: ORPHAN BLOCK %lu, prev=%s\n", (unsigned long)mapOrphanBlocks.size(), block.hashPrevBlock.ToString());
-
-        // Accept orphans as long as there is a node to request its parents from
-        if (pfrom) {
-            // ppcoin: check proof-of-stake
-            if (block.IsProofOfStake()) {
-                // Limited duplicity on stake: prevents block flood attack
-                // Duplicate stake allowed only when there is orphan child block
-                if (setStakeSeenOrphan.count(block.GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
-                    return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for orphan block %s", block.GetProofOfStake().first.ToString(), block.GetProofOfStake().second, hash.ToString());
-            }
-            PruneOrphanBlocks();
-            COrphanBlock* pblock2 = new COrphanBlock();
-            {
-                CDataStream ss(SER_DISK, CLIENT_VERSION);
-                ss << block;
-                pblock2->vchBlock = std::vector<unsigned char>(ss.begin(), ss.end());
-            }
-            pblock2->hashBlock = hash;
-            pblock2->hashPrev = block.hashPrevBlock;
-            pblock2->stake = block.GetProofOfStake();
-            nOrphanBlocksSize += pblock2->vchBlock.size();
-            mapOrphanBlocks.insert(std::make_pair(hash, pblock2));
-            mapOrphanBlocksByPrev.insert(std::make_pair(pblock2->hashPrev, pblock2));
-            if (block.IsProofOfStake())
-                setStakeSeenOrphan.insert(block.GetProofOfStake());
-
-            // Ask this guy to fill in what we're missing
-            g_connman->PushMessage(pfrom, CNetMsgMaker(pfrom->GetRecvVersion()).Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(chainActive.Tip()), GetOrphanRoot(hash)));
-            // ppcoin: getblocks may not obtain the ancestor block rejected
-            // earlier by duplicate-stake check so we ask for it again directly
-            if (!IsInitialBlockDownload())
-                pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
-        }
-
-        return true;
-    }
-
-
-    // Store to disk
-    if (!ProcessNewBlock(Params(), pblock, pfrom ? pfrom->GetRecvVersion() <= OLD_VERSION : false, fForceProcessing, fNewBlock, ppindex, fPoSDuplicate)) {
-        return error("ProcessBlock() : ProcessNewBlock FAILED");
-    }
-
-    // Recursively process any orphan blocks that depended on this one
-    std::vector<uint256> vWorkQueue;
-    vWorkQueue.push_back(hash);
-    for (unsigned int i = 0; i < vWorkQueue.size(); i++) {
-        uint256 hashPrev = vWorkQueue[i];
-        for (std::multimap<uint256, COrphanBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
-             mi != mapOrphanBlocksByPrev.upper_bound(hashPrev);
-             ++mi) {
-            std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
-            {
-                CDataStream ss(mi->second->vchBlock, SER_DISK, CLIENT_VERSION);
-                ss >> *pblock;
-            }
-            bool mutated;
-            pblock->hashMerkleRoot = BlockMerkleRoot(block, &mutated);
-
-            if (ProcessNewBlock(Params(), pblock, false, true, nullptr, nullptr, nullptr))
-                vWorkQueue.push_back(mi->second->hashBlock);
-
-            mapOrphanBlocks.erase(mi->second->hashBlock);
-            setStakeSeenOrphan.erase(pblock->GetProofOfStake());
-            nOrphanBlocksSize -= mi->second->vchBlock.size();
-            delete mi->second;
-        }
-        mapOrphanBlocksByPrev.erase(hashPrev);
-    }
-
-    LogPrintf("ProcessBlock: ACCEPTED (%s)\n", pblock->IsProofOfStake() ? "PoS" : "PoW");
+#ifdef ENABLE_CHECKPOINTS
+    // peercoin: if responsible for sync-checkpoint send it
+    if (Params().DevKey().IsValid() && (int)gArgs.GetArg("-checkpointdepth", -1) >= 0)
+        SendSyncCheckpoint(AutoSelectSyncCheckpoint());
+#endif
 
 
     return true;
 }
+
 
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
 {

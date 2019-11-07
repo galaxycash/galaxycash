@@ -2252,7 +2252,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             bool fNewBlock = true;
             bool fPoSDuplicate = false;
-            bool fOk = ProcessBlock(pfrom, *pblock, pfrom->GetRecvVersion() <= OLD_VERSION, forceProcessing, &fNewBlock, &pindexLastAccepted, &fPoSDuplicate); //ProcessNewBlock(chainparams, pblock, pfrom->GetRecvVersion() <= OLD_VERSION, forceProcessing, &fNewBlock, &pindexLastAccepted, &fPoSDuplicate);
+            bool fOk = ProcessNewBlock(chainparams, pblock, pfrom->GetRecvVersion() <= OLD_VERSION, forceProcessing, &fNewBlock, &pindexLastAccepted, &fPoSDuplicate);
             if (fNewBlock) {
                 pfrom->nLastBlockTime = GetTime();
             } else {
@@ -2890,7 +2890,6 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                     pindexStart = pindexStart->pprev;
                 LogPrint(BCLog::NET, "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->GetId(), pto->nStartingHeight);
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexStart), uint256()));
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexStart), uint256()));
             }
         }
 
@@ -3216,12 +3215,6 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
             std::vector<const CBlockIndex*> vToDownload;
             NodeId staller = -1;
             FindNextBlocksToDownload(pto->GetId(), MAX_BLOCKS_IN_TRANSIT_PER_PEER - state.nBlocksInFlight, vToDownload, staller, consensusParams);
-            while (const CBlockIndex* pindex = (pindexBestBlock ? chainActive.Next(pindexBestBlock) : nullptr)) {
-                if (find(vToDownload.begin(), vToDownload.end(), pindex) == vToDownload.end()) {
-                    if (!mapBlocksInFlight.count(pindex->GetBlockHash()))
-                        vToDownload.push_back(pindex);
-                }
-            }
             for (const CBlockIndex* pindex : vToDownload) {
                 vGetData.push_back(CInv(MSG_BLOCK, pindex->GetBlockHash()));
                 MarkBlockAsInFlight(pto->GetId(), pindex->GetBlockHash(), pindex);
