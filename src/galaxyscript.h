@@ -25,7 +25,7 @@
 // GalaxyCash Scripting engine
 
 
-inline std::string ScriptPointerAsString(const void* p)
+inline std::string ScriptPointerAsString(void* p)
 {
     std::string value;
     std::ostringstream s(value);
@@ -37,37 +37,19 @@ inline std::string ScriptPointerAsString(const void* p)
 typedef std::vector<std::string> CScriptStringArray;
 
 class CScriptValue;
-typedef std::shared_ptr<CScriptValue> CScriptValueRef;
-typedef std::vector<CScriptValueRef> CScriptValueArray;
-
 class CScriptVariable;
-typedef std::shared_ptr<CScriptVariable> CScriptVariableRef;
-typedef std::vector<CScriptVariableRef> CScriptVariableArray;
-
 class CScriptPointer;
-typedef std::shared_ptr<CScriptPointer> CScriptPointerRef;
-typedef std::vector<CScriptPointerRef> CScriptPointerArray;
-
 class CScriptObject;
-typedef std::shared_ptr<CScriptObject> CScriptObjectRef;
-typedef std::vector<CScriptObjectRef> CScriptObjectArray;
-
 class CScriptArray;
-typedef std::shared_ptr<CScriptArray> CScriptArrayRef;
-
 class CScriptFunction;
-typedef std::shared_ptr<CScriptFunction> CScriptFunctionRef;
-typedef std::vector<CScriptFunctionRef> CScriptFunctionArray;
-
+class CScriptAsyncFunction;
 class CScriptNumber;
-typedef std::shared_ptr<CScriptNumber> CScriptNumberRef;
+class CScriptModule;
 
-
-class CScriptValue : public std::enable_shared_from_this<CScriptValue>
+class CScriptValue
 {
 public:
-    typedef std::shared_ptr<CScriptValue> Ref;
-    typedef std::vector<Ref> ValueArray;
+    typedef std::vector<CScriptValue*> ValueArray;
 
     enum {
         TYPE_UNDEFINED = 0,
@@ -80,8 +62,10 @@ public:
         TYPE_OBJECT,
         TYPE_ARRAY,
         TYPE_FUNCTION,
+        TYPE_ASYNC_FUNCTION,
         TYPE_STRING,
-        TYPE_NUMBER
+        TYPE_NUMBER,
+        TYPE_MODULE
     };
 
 
@@ -101,63 +85,83 @@ public:
         FLAG_SYMBOL = (1 << 12),
         FLAG_BOOLEAN = (1 << 13),
         FLAG_REAL = (1 << 14),
-        FLAG_BIGNUM = (1 << 15)
+        FLAG_BIGNUM = (1 << 15),
+        FLAG_CALLABLE = (1 << 16),
+        FLAG_ASYNC = (1 << 17),
+        FLAG_HIDDEN = (1 << 18)
     };
 
-    mutable Ref root;
+    mutable size_t refCount;
+    mutable CScriptValue* root;
     mutable uint32_t flags;
+    mutable std::string name;
     mutable std::string value;
-    mutable std::map<std::string, Ref> keys;
-    mutable std::vector<Ref> values;
-
+    mutable std::map<std::string, CScriptValue*> keys;
+    mutable std::vector<CScriptValue*> values;
 
     CScriptValue();
-    CScriptValue(const Ref& root, const Ref& prototype, const uint32_t flags = 0);
+    CScriptValue(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
     virtual ~CScriptValue();
 
-    inline Ref This()
+    inline CScriptValue* Unref()
     {
-        return shared_from_this();
-    }
-    inline Ref This() const
-    {
-        return std::const_pointer_cast<CScriptValue>(shared_from_this());
+        refCount--;
+        if (refCount == 0) {
+            delete this;
+            return nullptr;
+        }
+        return this;
     }
 
-    static Ref CreateTyped(const uint8_t type, const Ref& prototype = nullptr, const Ref& root = Global());
+    inline CScriptValue* Ref()
+    {
+        refCount++;
+        return this;
+    }
 
-    static Ref ReadValue(CDataStream& s, const Ref& root = Global())
+    template <typename Ty>
+    inline Ty& Cast()
+    {
+        return dynamic_cast<Ty*>(this);
+    }
+
+    template <typename Ty>
+    inline const Ty& Cast() const
+    {
+        return dynamic_cast<Ty*>(this);
+    }
+
+    virtual void SetName(const std::string& name) { this->name = name; }
+    virtual std::string& GetName() const { return name; }
+    virtual std::string GetFullName() const { return root ? (root->GetFullName() + ":" + name) : name; }
+
+    virtual void SetValue(const std::string& value) { this->value = value; }
+    virtual std::string& GetValue() const { return value; }
+
+    static CScriptValue* CreateTyped(uint8_t type, CScriptValue* prototype = nullptr, CScriptValue* root = Global());
+
+    static CScriptValue* ReadValue(CDataStream& s, CScriptValue* root = Global())
     {
         uint8_t type;
         s >> type;
 
-        Ref ret = CreateTyped(type);
 
-        s >> ret->flags;
+        CScriptValue* ret = CreateTyped(type);
+        s >> ret->name;
         s >> ret->value;
+        s >> ret->flags;
 
         uint32_t num;
         s >> num;
         for (uint32_t i = 0; i < num; i++) {
-            uint8_t type;
-            s >> type;
-
             std::string key;
             s >> key;
-
-            CScriptValueRef keyValue = ReadValue(s, ret);
-
-            ret->keys.insert(std::make_pair(key, keyValue));
+            ret->keys.insert(std::make_pair(key, ReadValue(s, ret)));
         }
 
         s >> num;
         for (uint32_t i = 0; i < num; i++) {
-            uint8_t type;
-            s >> type;
-
-            CScriptValueRef newValue = ReadValue(s, ret);
-
-            ret->values.push_back(newValue);
+            ret->values.push_back(ReadValue(s, ret));
         }
 
 
@@ -168,19 +172,20 @@ public:
         return ret;
     }
 
-    static void WriteValue(CDataStream& s, const Ref& val)
+    static void WriteValue(CDataStream& s, CScriptValue* val)
     {
         if (!val)
             return;
 
         uint8_t type = val->Typeid();
         s << type;
-        s << val->flags;
+        s << val->name;
         s << val->value;
+        s << val->flags;
 
         uint32_t num = val->keys.size();
         s << num;
-        for (std::map<std::string, Ref>::iterator it = val->keys.begin(); it != val->keys.end(); it++) {
+        for (std::map<std::string, CScriptValue*>::iterator it = val->keys.begin(); it != val->keys.end(); it++) {
             uint8_t type = (*it).second->Typeid();
             s << type;
             s << (*it).first;
@@ -189,7 +194,7 @@ public:
 
         num = val->values.size();
         s << num;
-        for (std::vector<Ref>::iterator it = val->values.begin(); it != val->values.end(); it++) {
+        for (std::vector<CScriptValue*>::iterator it = val->values.begin(); it != val->values.end(); it++) {
             uint8_t type = (*it)->Typeid();
             s << type;
             WriteValue(s, (*it));
@@ -201,30 +206,21 @@ public:
         s << vch;
     }
 
-    static Ref Undefined();
-    static Ref Null();
-    static Ref Void();
-    static Ref Global();
+    static CScriptValue* Undefined();
+    static CScriptValue* Null();
+    static CScriptValue* Void();
+    static CScriptValue* Global();
 
-    static Ref Pointer(const void* value, const Ref& root = Global(), const uint32_t flags = 0);
-    static Ref Boolean(const bool value, const Ref& root = Global(), const uint32_t flags = 0);
-    static Ref Integer(const int64_t value, const Ref& root = Global(), const uint32_t flags = 0);
-    static Ref Float(const double value, const Ref& root = Global(), const uint32_t flags = 0);
-    static Ref String(const std::string& value, const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Symbol(const std::string& value, const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Variable(const Ref& value, const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Property(const Ref& object, const Ref& value, uint32_t flags = 0);
-    static Ref Array(const ValueArray& initializer, const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Object(const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Function(const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Create(const Ref& prototype, const Ref& root = Global(), uint32_t flags = 0);
-    static Ref Prototype(const Ref& value, const Ref& root = Global(), uint32_t flags = 0);
-
-
-    virtual Ref Copy(const Ref& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptValue>(root, This(), this->Flags() | flags); }
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptValue(root, const_cast<CScriptValue*>(this), Flags() | flags); }
 
     virtual void SerializeValue(std::vector<char>& vch) {}
-    virtual void UnserializeValue(std::vector<char>& vch) {}
+    virtual void UnserializeValue(const std::vector<char>& vch) {}
+
+    virtual CScriptValue* GetVariable(const std::string& name)
+    {
+        if (root) return root->GetVariable(name);
+        return Undefined();
+    }
 
     virtual uint32_t Flags() const { return flags; }
     virtual uint8_t Typeid() const
@@ -253,23 +249,24 @@ public:
         return "undefined";
     }
 
-    virtual bool HaveKey(const std::string& name) const { return keys.count(name); }
-    virtual bool HaveIndex(const int64_t index) const { return values.size() > index; }
+    virtual bool HaveKey(const std::string& name) { return keys.count(name); }
+    virtual bool HaveIndex(int64_t index) { return values.size() > index; }
 
-    virtual Ref Push(const Ref& value)
+    virtual CScriptValue* Push(CScriptValue* value)
     {
-        values.push_back(value);
-        return value;
+        values.push_back(value->Ref());
+        return values.back();
     }
 
-    virtual size_t Length() const
+    virtual size_t Length()
     {
         return values.size();
     }
 
-    virtual Ref Assign(const CScriptValueRef& value);
-    virtual Ref AsValue() const { return This(); }
-
+    virtual void SetNull();
+    virtual void SetUndefined();
+    virtual CScriptValue* Assign(CScriptValue* value);
+    virtual CScriptValue* AsValue() { return this; }
 
     virtual bool IsBoolean() const { return false; }
     virtual bool AsBoolean() const { return false; }
@@ -280,41 +277,59 @@ public:
     virtual bool IsBignum() const { return false; }
     virtual uint256 AsBignum() const { return uint256(0); }
     virtual bool IsString() const { return Flags() & FLAG_SYMBOL || Flags() & FLAG_STRING; }
+    virtual bool IsSymbol() const { return Flags() & FLAG_SYMBOL; }
+    virtual std::string AsSymbol() const { return value; }
     virtual std::string AsString() const { return value; }
     virtual bool IsPointer() const { return false; }
     virtual void* AsPointer() const { return nullptr; }
     virtual bool IsObject() const { return false; }
-    virtual CScriptObjectRef AsObject() const { return nullptr; }
+    virtual CScriptObject* AsObject() { return nullptr; }
     virtual bool IsArray() const { return false; }
-    virtual CScriptArrayRef AsArray() const { return nullptr; }
+    virtual CScriptArray* AsArray() { return nullptr; }
     virtual bool IsFunction() const { return false; }
-    virtual CScriptFunctionRef AsFunction() const { return nullptr; }
+    virtual CScriptFunction* AsFunction() { return nullptr; }
+    virtual bool IsAsyncFunction() const { return false; }
+    virtual CScriptAsyncFunction* AsAsyncFunction() { return nullptr; }
+    virtual bool IsModule() const { return false; }
+    virtual CScriptModule* AsModule() { return nullptr; }
     virtual bool IsVariable() const { return false; }
     virtual bool IsProperty() const { return false; }
-    virtual CScriptVariableRef AsVariable() const { return nullptr; }
+    virtual CScriptVariable* AsVariable() { return nullptr; }
     virtual bool IsNumber() const { return false; }
-    virtual CScriptNumberRef AsNumber() const { return nullptr; }
+    virtual CScriptNumber* AsNumber() { return nullptr; }
+    virtual bool IsUndefined() const { return Flags() & FLAG_INVALID; }
+    virtual bool IsNull() const { return Flags() & FLAG_NULL; }
+    virtual bool IsVoid() const { return Flags() & FLAG_VOID; }
 
-    virtual Ref AddKeyValue(const std::string& key, const Ref& value, const uint32_t flags = 0);
-    virtual Ref FindKeyValue(const std::string& key) const
+    virtual CScriptValue* SetKeyValue(const std::string& key, CScriptValue* value, const uint32_t flags = 0);
+    virtual CScriptValue* FindKeyValue(const std::string& key)
     {
         if (keys.count(key)) return keys[key];
         return nullptr;
     }
 
-    virtual int CompareTo(const Ref& other) const;
+    virtual int CompareTo(CScriptValue* other);
 };
+typedef std::vector<CScriptValue*> CScriptValueArray;
 
 class CScriptPointer : public CScriptValue
 {
 public:
     void* ptr_value;
 
-    CScriptPointer(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptPointer();
+    CScriptPointer(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) { return std::make_shared<CScriptPointer>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    inline CScriptPointer* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptPointer(root, const_cast<CScriptPointer*>(this), Flags() | flags); }
+
     virtual void SerializeValue(std::vector<char>& vch) {}
-    virtual void UnserializeValue(std::vector<char>& vch) { ptr_value = nullptr; }
+    virtual void UnserializeValue(const std::vector<char>& vch) { ptr_value = nullptr; }
 
     virtual bool IsPointer() const { return true; }
     virtual bool AsBoolean() const { return ptr_value ? true : false; }
@@ -330,67 +345,116 @@ public:
 class CScriptVariable : public CScriptValue
 {
 public:
-    typedef std::shared_ptr<CScriptVariable> Ref;
-    std::string varName;
-    CScriptValueRef varValue;
+    CScriptValue* var;
 
-    CScriptVariable(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptVariable();
+    CScriptVariable(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptVariable>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    inline CScriptVariable* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptVariable(root, const_cast<CScriptVariable*>(this), this->Flags() | flags); }
+
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
-        s << varName;
-        WriteValue(s, varValue);
+        s << var->GetFullName();
         vch.insert(vch.end(), s.begin(), s.end());
     }
-    virtual void UnserializeValue(std::vector<char>& vch)
+    virtual void UnserializeValue(const std::vector<char>& vch)
     {
         if (!vch.size())
             return;
 
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
         s << vch;
-        s >> varName;
-        varValue = ReadValue(s, AsValue());
+
+        std::string fullname;
+        s >> fullname;
+        if (root) {
+            var = root->GetVariable(fullname)->Ref();
+        } else
+            var = Undefined()->Ref();
     }
 
     virtual bool IsVariable() const { return true; }
     virtual bool IsProperty() const { return true; }
-    virtual Ref AsVariable() const { return std::const_pointer_cast<CScriptVariable>(std::dynamic_pointer_cast<const CScriptVariable>(shared_from_this())); }
+    virtual CScriptVariable* AsVariable() { return this; }
 
-    virtual bool AsBoolean() const { return (varValue && varValue != CScriptValue::Null() && varValue != CScriptValue::Undefined()) ? true : false; }
-    virtual int64_t AsInteger() const { return varValue ? varValue->AsInteger() : 0; }
-    virtual double AsFloat() const { return varValue ? varValue->AsFloat() : 0.0; }
-    virtual std::string AsString() const { return varValue ? varValue->ToString() : "undefined"; }
+    virtual bool AsBoolean() const { return var ? var->AsBoolean() : false; }
+    virtual int64_t AsInteger() const { return var ? var->AsInteger() : 0; }
+    virtual double AsFloat() const { return var ? var->AsFloat() : 0.0; }
+    virtual std::string AsString() const { return var ? var->AsString() : "undefined"; }
+    virtual std::string AsSymbol() const { return var ? var->AsSymbol() : "undefined"; }
+    virtual void* AsPointer() const { return var ? var->AsPointer() : (void*)(this); }
+    virtual uint256 AsBignum() const { return var ? var->AsBignum() : uint256(); }
+    virtual CScriptObject* AsObject() { return var ? var->AsObject() : nullptr; }
+    virtual CScriptArray* AsArray() { return var ? var->AsArray() : nullptr; }
+    virtual CScriptFunction* AsFunction() { return var ? var->AsFunction() : nullptr; }
+    virtual CScriptModule* AsModule() { return var ? var->AsModule() : nullptr; }
+    virtual CScriptNumber* AsNumber() { return var ? var->AsNumber() : nullptr; }
 
-    virtual CScriptValueRef AsValue() const { return varValue ? std::const_pointer_cast<CScriptValue>(varValue) : std::const_pointer_cast<CScriptValue>(std::static_pointer_cast<CScriptValue>(shared_from_this())); }
+    virtual bool IsBoolean() const { return var ? var->IsBoolean() : false; }
+    virtual bool IsInteger() const { return var ? var->IsInteger() : false; }
+    virtual bool IsFloat() const { return var ? var->IsFloat() : false; }
+    virtual bool IsBignum() const { return var ? var->IsBignum() : false; }
+    virtual bool IsString() const { return var ? var->IsString() : false; }
+    virtual bool IsSymbol() const { return var ? var->IsSymbol() : false; }
+    virtual bool IsPointer() const { return var ? var->IsPointer() : false; }
+    virtual bool IsObject() const { return var ? var->IsObject() : false; }
+    virtual bool IsArray() const { return var ? var->IsArray() : false; }
+    virtual bool IsFunction() const { return var ? var->IsFunction() : false; }
+    virtual bool IsModule() const { return var ? var->IsModule() : false; }
+    virtual bool IsNumber() const { return var ? var->IsNumber() : false; }
+    virtual bool IsUndefined() const { return var ? var->IsUndefined() : false; }
+    virtual bool IsNull() const { return var ? var->IsNull() : true; }
+    virtual bool IsVoid() const { return var ? var->IsVoid() : false; }
 
+    virtual CScriptValue* AsValue()
+    {
+        if (var)
+            return (var);
+        else
+            return Undefined();
+    }
+    virtual CScriptValue* Assign(CScriptValue* value);
+
+    virtual std::string ToString() const { return var ? var->ToString() : "undefined"; }
     virtual uint8_t Typeid() const { return TYPE_VARIABLE; }
-    virtual std::string ToString() const;
-    virtual std::string Typename() const { return varValue ? varValue->Typename() : "undefined"; }
+    virtual std::string Typename() const { return var ? var->Typename() : "undefined"; }
 };
+typedef std::vector<CScriptVariable*> CScriptVariableArray;
 
 class CScriptObject : public CScriptValue
 {
 public:
-    typedef std::pair<std::string, CScriptValueRef> KeyValue;
-    typedef std::shared_ptr<CScriptObject> Ref;
+    typedef std::pair<std::string, CScriptValue*> KeyValue;
 
     std::string objectType;
-    CScriptObjectRef prototype;
+    CScriptObject* prototype;
 
-    CScriptObject(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptObject();
+    CScriptObject(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptObject>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    inline CScriptObject* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptObject(root, const_cast<CScriptObject*>(this), Flags() | flags); }
+
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
         s << objectType;
-        WriteValue(s, prototype->AsValue());
+        WriteValue(s, prototype);
         vch.insert(vch.end(), s.begin(), s.end());
     }
-    virtual void UnserializeValue(std::vector<char>& vch)
+    virtual void UnserializeValue(const std::vector<char>& vch)
     {
         if (!vch.size())
             return;
@@ -398,25 +462,55 @@ public:
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
         s << vch;
         s >> objectType;
-        CScriptValueRef ptype = ReadValue(s, AsValue());
-        if (ptype && ptype->IsObject()) prototype = ptype->AsObject();
+        CScriptValue* ptype = ReadValue(s, this);
+        if (ptype && ptype->IsObject())
+            prototype = ptype->Ref()->AsObject();
+        else if (ptype)
+            delete ptype;
     }
 
-    bool SetPrototype(const CScriptObjectRef& other);
-    CScriptObjectRef GetPrototype() const;
-    bool IsPrototypeOf(const CScriptObjectRef& other) const;
+    bool SetPrototype(CScriptObject* other);
+    CScriptObject* GetPrototype() { return prototype; }
+    bool IsPrototypeOf(CScriptObject* other) { return (other && other->GetPrototype() == prototype) ? true : false; }
 
-    bool SetOwnProperty(const std::string& name, const CScriptValueRef& value);
-    CScriptValueRef GetOwnProperty(const std::string& name) const;
-    bool HasOwnProperty(const std::string& name) const
+    CScriptValue* SetOwnProperty(const std::string& name, CScriptValue* value)
     {
-        return keys.count(name);
+        if (HasOwnProperty(name)) {
+            keys[name]->Assign(value);
+            return keys[name];
+        }
+        keys[name] = new CScriptVariable(this, nullptr, 0);
+        keys[name]->Assign(value);
+        keys[name]->SetName(name);
+        return keys[name];
     }
 
-    virtual CScriptStringArray Keys();
-    virtual CScriptValueArray Values();
+    template <typename Ty>
+    Ty* SetOwnPropertyT(const std::string& name, CScriptValue* value)
+    {
+        return dynamic_cast<Ty*>(SetOwnProperty(name, value));
+    }
 
-    virtual Ref AsObject() const { return std::const_pointer_cast<CScriptObject>(std::dynamic_pointer_cast<const CScriptObject>(shared_from_this())); }
+    CScriptValue* GetOwnProperty(const std::string& name)
+    {
+        if (!keys.count(name)) return Null();
+        return keys[name];
+    }
+
+    template <typename Ty>
+    Ty* GetOwnPropertyT(const std::string& name)
+    {
+        return dynamic_cast<Ty*>(GetOwnProperty(name));
+    }
+
+    bool HasOwnProperty(const std::string& name)
+    {
+        if (keys.count(name))
+            return keys[name] != nullptr;
+        return false;
+    }
+
+    virtual CScriptObject* AsObject() { return this; }
 
     virtual bool IsObject() const { return true; }
     virtual bool AsBoolean() const { return !keys.empty(); }
@@ -432,14 +526,19 @@ public:
 class CScriptArray : public CScriptObject
 {
 public:
-    typedef std::shared_ptr<CScriptArray> Ref;
+    CScriptArray();
+    CScriptArray(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    CScriptArray(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    inline CScriptArray* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptArray>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptArray(root, const_cast<CScriptArray*>(this), Flags() | flags); }
 
     virtual bool IsArray() const { return true; }
-    virtual Ref AsArray() const { return std::dynamic_pointer_cast<CScriptArray>(AsObject()); }
+    virtual CScriptArray* AsArray() { return this; }
 
     virtual bool AsBoolean() const { return !values.empty(); }
     virtual int64_t AsInteger() const { return (int64_t)value.size(); }
@@ -449,14 +548,17 @@ public:
     virtual uint8_t Typeid() const { return TYPE_ARRAY; }
     virtual std::string ToString() const;
 
-    virtual bool Includes(const CScriptValueRef& value, size_t from = 0) const;
+    virtual bool Includes(CScriptValue* value, size_t from = 0) const;
 };
 
-typedef CScriptValueRef (*CScriptNativeFunction)(CScriptValueRef thisArg, CScriptValueRef args);
-CScriptValueRef ScriptGetArrayLength(const CScriptValueRef thisArg, const CScriptArrayRef args);
+typedef CScriptValue* (*CScriptNativeFunction)(CScriptValue* thisArg, CScriptArray* args);
+CScriptValue* ScriptGetArrayLength(CScriptValue* thisArg, CScriptArray* args);
 
 
 typedef std::vector<char> CScriptBytecode;
+
+typedef std::vector<char> CScriptData;
+typedef std::vector<CScriptData> CScriptDataArray;
 
 #include "compat/endian.h"
 
@@ -472,26 +574,26 @@ public:
         FINISHED
     };
 
-    Ref caller;
-    mutable std::vector<CScriptValueRef> stack;
-    CScriptFunctionRef scope;
-    size_t pc;
+    mutable Ref caller;
+    mutable std::vector<CScriptValue*> stack;
+    mutable CScriptFunction* scope;
+    mutable size_t pc;
 
 
-    size_t Length() const { return stack.size(); }
+    size_t Length() { return stack.size(); }
 
-    void Push(const CScriptValueRef& value)
+    void Push(CScriptValue* value)
     {
         stack.push_back(value);
     }
-    CScriptValueRef Pop() const
+    CScriptValue* Pop()
     {
         if (stack.size() == 0) return nullptr;
-        CScriptValueRef val = stack[0];
+        CScriptValue* val = stack[0];
         stack.erase(stack.begin());
         return val;
     }
-    CScriptValueRef Top() const
+    CScriptValue* Top()
     {
         if (stack.size() == 0) return nullptr;
         return stack[0];
@@ -499,26 +601,54 @@ public:
 };
 typedef std::shared_ptr<CScriptFrame> CScriptFrameRef;
 
+
 class CScriptFunction : public CScriptObject
 {
 public:
-    typedef std::shared_ptr<CScriptFunction> Ref;
-
-    std::string name;
+    CScriptDataArray datas;
+    CScriptValueArray literals;
     CScriptBytecode code;
     CScriptNativeFunction native;
-    CScriptArrayRef arguments;
+    CScriptVariable* thisArg;
+    CScriptValue *functionName, *displayName;
+    CScriptFunction* caller;
+    CScriptFunction* length;
+    CScriptArray* arguments;
 
-    CScriptFunction(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptFunction();
+    CScriptFunction(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptFunction>(root, std::static_pointer_cast<CScriptValue>(shared_from_this()), this->Flags() | flags); }
+
+    inline CScriptFunction* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* GetVariable(const std::string& name)
+    {
+        if (GetFullName() == name) return this;
+        for (std::map<std::string, CScriptValue*>::iterator it = keys.begin(); it != keys.end(); it++) {
+            if ((*it).second && ((*it).second->GetFullName() == name)) return (*it).second;
+        }
+        return (root != nullptr) ? root->GetVariable(name) : Undefined();
+    }
+
+
+    void SetName(const std::string& name);
+    std::string& GetName() const;
+
+    void SetDisplayName(const std::string& name);
+    std::string& GetDisplayName() const;
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptFunction(root, const_cast<CScriptFunction*>(this), Flags() | flags); }
 
     virtual void SerializeValue(std::vector<char>& vch)
     {
         CDataStream s(SER_DISK, PROTOCOL_VERSION);
         CScriptObject::SerializeValue(vch);
     }
-    virtual void UnserializeValue(std::vector<char>& vch)
+    virtual void UnserializeValue(const std::vector<char>& vch)
     {
         if (!vch.size())
             return;
@@ -527,7 +657,7 @@ public:
 
 
     virtual bool IsFunction() const { return true; }
-    virtual Ref AsFunction() const { return std::dynamic_pointer_cast<CScriptFunction>(AsObject()); }
+    virtual CScriptFunction* AsFunction() { return this; }
 
     void PushI8(int8_t code) { this->code.push_back(code); }
     void PushI16(int16_t code)
@@ -561,71 +691,257 @@ public:
     }
     void PushVCH(const std::vector<char>& vch)
     {
-        this->code.insert(this->code.end(), vch.begin(), vch.end());
+        code.insert(code.end(), vch.begin(), vch.end());
     }
     void PushStr(const std::string& str)
     {
         PushI32(str.length() + 1);
-        this->code.insert(this->code.end(), str.begin(), str.end());
+        code.insert(code.end(), str.begin(), str.end());
     }
 
     template <typename Ty>
-    void PushT(const Ty& value)
+    void PushT(Ty& value)
     {
         CDataStream ss(SER_DISK, PROTOCOL_VERSION);
         ss << value;
-        code.insert(code.begin() + code.size(), ss.begin(), ss.end());
+        code.insert(code.end(), ss.begin(), ss.end());
     }
 
-    virtual bool Call(const CScriptFrameRef& frame);
+    virtual bool Call(CScriptFrameRef& frame);
 
     virtual uint8_t Typeid() const { return TYPE_FUNCTION; }
     virtual std::string ToString() const;
 };
 
+class CScriptAsyncFunction : public CScriptFunction
+{
+public:
+    CScriptAsyncFunction();
+    CScriptAsyncFunction(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptAsyncFunction(root, const_cast<CScriptAsyncFunction*>(this), Flags() | flags); }
+
+    inline CScriptAsyncFunction* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+
+    virtual bool IsAsyncFunction() const { return true; }
+    virtual CScriptAsyncFunction* AsAsyncFunction() { return this; }
+
+    virtual bool Call(CScriptFrameRef& frame);
+
+    virtual uint32_t Flags() const { return flags | FLAG_ASYNC; }
+    virtual uint8_t Typeid() const { return TYPE_ASYNC_FUNCTION; }
+    virtual std::string ToString() const;
+};
+
+class CScriptString : public CScriptObject
+{
+public:
+    CScriptString();
+    CScriptString(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
+
+
+    inline CScriptString* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptString(root, const_cast<CScriptString*>(this), Flags() | flags); }
+
+    virtual CScriptValue* Assign(CScriptValue* value);
+
+    virtual uint8_t Typeid() const { return TYPE_STRING; }
+    virtual std::string ToString() const { return value; }
+    virtual std::string Typename() const { return "[object String]"; }
+};
+
+class CScriptSymbol : public CScriptString
+{
+public:
+    CScriptSymbol();
+    CScriptSymbol(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
+
+
+    inline CScriptSymbol* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptSymbol(root, const_cast<CScriptSymbol*>(this), Flags() | flags); }
+
+    virtual uint8_t Typeid() const { return TYPE_SYMBOL; }
+    virtual std::string Typename() const { return "[object Symbol]"; }
+};
+
 class CScriptNumber : public CScriptObject
 {
 public:
-    typedef std::shared_ptr<CScriptNumber> Ref;
-
     uint256 bn;
     int64_t n;
 
-    CScriptNumber(const CScriptValueRef& root, const CScriptValueRef& prototype, const uint32_t flags = 0);
+    CScriptNumber();
+    CScriptNumber(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
 
-    virtual CScriptValueRef Copy(const CScriptValueRef& root = Global(), const uint32_t flags = 0) const { return std::make_shared<CScriptNumber>(root, shared_from_this(), this->Flags() | flags); }
+    inline CScriptNumber* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+    virtual CScriptValue* Copy(CScriptValue* root = Global(), const uint32_t flags = 0) const { return new CScriptNumber(root, const_cast<CScriptNumber*>(this), Flags() | flags); }
 
     virtual bool IsNumber() const { return true; }
-    virtual Ref AsNumber() const { return std::dynamic_pointer_cast<CScriptNumber>(AsObject()); }
+    virtual CScriptNumber* AsNumber() { return this; }
 
 
     virtual bool IsInteger() const { return !(Flags() & FLAG_REAL) && !(Flags() & FLAG_BOOLEAN) && !(Flags() & FLAG_BIGNUM); }
-    virtual int64_t AsInteger() const { return n; }
+    virtual void AssignInteger(int64_t number)
+    {
+        if (Flags() & FLAG_BIGNUM) {
+            bn = uint256(number);
+        } else if (Flags() & FLAG_REAL) {
+            *((double*)&n) = (double)number;
+        } else if (Flags() & FLAG_BOOLEAN) {
+            n = number > 0 ? 1 : 0;
+        } else {
+            n = number;
+        }
+    }
+    virtual void SetInteger(int64_t number)
+    {
+        n = number;
+        if (flags & FLAG_BIGNUM) flags &= ~FLAG_BIGNUM;
+        if (flags & FLAG_REAL) flags &= ~FLAG_REAL;
+        if (flags & FLAG_BOOLEAN) flags &= ~FLAG_BOOLEAN;
+    }
+    virtual int64_t AsInteger() const
+    {
+        if (Flags() & FLAG_BIGNUM)
+            return bn.GetUint64(0);
+        return n;
+    }
     virtual bool IsBoolean() const { return (Flags() & FLAG_BOOLEAN); }
-    virtual void AssignBoolean(const bool number)
+    virtual void AssignBoolean(bool value)
     {
-        if (Flags() & FLAG_BOOLEAN) flags |= FLAG_BOOLEAN;
+        if (Flags() & FLAG_BIGNUM) {
+            bn = uint256(value ? 1 : 0);
+        } else if (Flags() & FLAG_REAL) {
+            *((double*)&n) = value ? 1.0 : 0.0;
+        } else {
+            n = value ? 1 : 0;
+        }
+    }
+    virtual void SetBoolean(bool number)
+    {
         n = number ? 1 : 0;
+        if (flags & FLAG_BIGNUM) flags &= ~FLAG_BIGNUM;
+        if (flags & FLAG_REAL) flags &= ~FLAG_REAL;
+        if (!(flags & FLAG_BOOLEAN)) flags |= FLAG_BOOLEAN;
     }
-    virtual bool AsBoolean() const { return n; }
-    virtual bool IsFloat() const { return (Flags() & FLAG_REAL); }
-    virtual void AssignFloat(const double number)
+    virtual bool AsBoolean() const
     {
-        if (Flags() & FLAG_REAL) flags |= FLAG_REAL;
-        *((double*)&n) = number;
+        if (Flags() & FLAG_BIGNUM)
+            return bn.GetUint64(0) > 0 ? true : false;
+        return n > 0 ? true : false;
     }
-    virtual double AsFloat() const { return *((double*)&n); }
+    virtual bool IsFloat() const { return (Flags() & FLAG_REAL); }
+    virtual void AssignFloat(double number)
+    {
+        if (Flags() & FLAG_BIGNUM) {
+            bn = uint256((int64_t)number);
+        } else if (Flags() & FLAG_REAL) {
+            *((double*)&n) = number;
+        } else if (Flags() & FLAG_BOOLEAN) {
+            n = number > 0.0 ? 1 : 0;
+        } else {
+            n = (int64_t)number;
+        }
+    }
+    virtual void SetFloat(double number)
+    {
+        *((double*)&n) = number;
+        if (flags & FLAG_BIGNUM) flags &= ~FLAG_BIGNUM;
+        if (!(flags & FLAG_REAL)) flags |= FLAG_REAL;
+        if (flags & FLAG_BOOLEAN) flags &= ~FLAG_BOOLEAN;
+    }
+    virtual double AsFloat() const
+    {
+        if (Flags() & FLAG_BIGNUM)
+            return bn.getdouble();
+        return *((double*)&n);
+    }
     virtual bool IsBignum() const { return (Flags() & FLAG_BIGNUM); }
     virtual void AssignBignum(const uint256& number)
     {
-        if (Flags() & FLAG_BIGNUM) flags |= FLAG_BIGNUM;
-        bn = number;
+        if (Flags() & FLAG_BIGNUM) {
+            bn = number;
+        } else if (Flags() & FLAG_REAL) {
+            *((double*)&n) = number.getdouble();
+        } else if (Flags() & FLAG_BOOLEAN) {
+            n = number.GetUint64(0) > 0 ? 1 : 0;
+        } else {
+            n = number.GetUint64(0);
+        }
     }
-    virtual uint256 AsBignum() const { return bn; }
+    virtual void SetBignum(const uint256& number)
+    {
+        bn = number;
+        if (!(flags & FLAG_BIGNUM)) flags |= FLAG_BIGNUM;
+        if (flags & FLAG_REAL) flags &= ~FLAG_REAL;
+        if (flags & FLAG_BOOLEAN) flags &= ~FLAG_BOOLEAN;
+    }
+    virtual uint256 AsBignum() const
+    {
+        if (Flags() & FLAG_BIGNUM)
+            return bn;
+        else
+            return uint256(n);
+    }
+
+    virtual CScriptValue* Assign(CScriptValue* value);
 
     virtual uint8_t Typeid() const { return TYPE_NUMBER; }
     virtual std::string ToString() const;
     virtual std::string Typename() const { return "[object Number]"; }
+};
+
+class CScriptModule : public CScriptObject
+{
+public:
+    CScriptFunction* entrypoint;
+
+    CScriptModule();
+    CScriptModule(CScriptValue* root, CScriptValue* prototype, const uint32_t flags = 0);
+    ~CScriptModule();
+
+
+    void initStdlib();
+
+    bool Compile(const std::string& name, std::string& source, CScriptValue* root = nullptr);
+    bool CompileFile(const std::string& name, std::string& path, CScriptValue* root = nullptr);
+
+    inline CScriptModule* Ref()
+    {
+        CScriptValue::Ref();
+        return this;
+    }
+
+
+    bool SetPrototype(CScriptObject* other) { return false; }
+
+    bool HasProgram() const { return (entrypoint != nullptr); }
+    CScriptFunction* Entrypoint() { return entrypoint; }
+
+    virtual uint8_t Typeid() const { return TYPE_MODULE; }
+    virtual std::string ToString() const;
+    virtual std::string Typename() const { return "[object Module]"; }
 };
 
 #endif

@@ -16,6 +16,30 @@
 #include <iostream>
 #include <stdexcept>
 
+struct UTrie2 {
+    /* protected: used by macros and functions for reading values */
+    const uint16_t *index;
+    const uint16_t *data16;     /* for fast UTF-8 ASCII access, if 16b data */
+    const uint32_t *data32;     /* NULL if 16b data is used via index */
+
+    int32_t indexLength, dataLength;
+    uint16_t index2NullOffset;  /* 0xffff if there is no dedicated index-2 null block */
+    uint16_t dataNullOffset;
+    uint32_t initialValue;
+    /** Value returned for out-of-range code points and illegal UTF-8. */
+    uint32_t errorValue;
+
+    /* Start of the last range which ends at U+10ffff, and its value. */
+    uint32_t highStart;
+    int32_t highValueIndex;
+
+    /* private: used by builder and unserialization functions */
+    void *memory;           /* serialized bytes; NULL if not frozen yet */
+    int32_t length;         /* number of serialized bytes at memory; 0 if not frozen yet */
+    bool isMemoryOwned;    /* TRUE if the trie owns the memory */
+    bool padding1;
+    int16_t padding2;
+};
 
 /* indexes[] entries */
 enum {
@@ -3632,7 +3656,7 @@ static const UTrie2 propsVectorsTrie={
     0x0,
     0x110000,
     0x7778,
-    NULL, 0, false, false, 0, NULL
+    NULL, 0, false, false, 0
 };
 
 static const uint32_t propsVectors[6822]={
@@ -4085,30 +4109,7 @@ static const uint16_t scriptExtensions[256]={
 0xed,0x19,0x1c,0x804f,0x37,0x804e,0x2f,0x31,0x8053,0x2f,0x8031,2,0x8007,0x89,0x7e,0x8087};
 
 static const int32_t indexes[UPROPS_INDEX_COUNT]={0x2afc,0x2afc,0x2afc,0x2afc,0x66be,3,0x8164,0x81e4,0x81e4,0x81e4,0xb2cbc,0x2a75a31,0,0,0,0};
-struct UTrie2 {
-    /* protected: used by macros and functions for reading values */
-    const uint16_t *index;
-    const uint16_t *data16;     /* for fast UTF-8 ASCII access, if 16b data */
-    const uint32_t *data32;     /* NULL if 16b data is used via index */
 
-    int32_t indexLength, dataLength;
-    uint16_t index2NullOffset;  /* 0xffff if there is no dedicated index-2 null block */
-    uint16_t dataNullOffset;
-    uint32_t initialValue;
-    /** Value returned for out-of-range code points and illegal UTF-8. */
-    uint32_t errorValue;
-
-    /* Start of the last range which ends at U+10ffff, and its value. */
-    uint32_t highStart;
-    int32_t highValueIndex;
-
-    /* private: used by builder and unserialization functions */
-    void *memory;           /* serialized bytes; NULL if not frozen yet */
-    int32_t length;         /* number of serialized bytes at memory; 0 if not frozen yet */
-    bool isMemoryOwned;    /* TRUE if the trie owns the memory */
-    bool padding1;
-    int16_t padding2;
-};
 
 static const UTrie2 propsTrie={
     propsTrie_index,
@@ -4156,16 +4157,8 @@ static const UTrie2 propsTrie={
 #define UTRIE2_GET16(trie, c) _UTRIE2_GET((trie), index, (trie)->indexLength, (c))
 #define GET_PROPS(c, result) ((result)=UTRIE2_GET16(&propsTrie, c))
 
-inline int8_t u_charType(uint32_t c) {
-    uint32_t props;
-    GET_PROPS(c, props);
-    return (int8_t)GET_CATEGORY(props);
-}
-/**
- * Data for enumerated Unicode general category types.
- * See http://www.unicode.org/Public/UNIDATA/UnicodeData.html .
- * @stable ICU 2.0
- */
+
+
 typedef enum UCharCategory
 {
     /*
@@ -4247,6 +4240,12 @@ typedef enum UCharCategory
     U_CHAR_CATEGORY_COUNT
 } UCharCategory;
 
+inline int8_t u_charType(uint32_t c) {
+    uint32_t props;
+    GET_PROPS(c, props);
+    return (int8_t)GET_CATEGORY(props);
+}
+
 inline const char* u_charCategory(int c)
 {
   switch (u_charType(c)) {
@@ -4283,45 +4282,83 @@ inline const char* u_charCategory(int c)
   }
 }
 
-enum TokenGroup : uint64_t { RESERVED_WORD = 0, LITERAL = 0x100 };
 
-enum TokenType : uint64_t {
-  EMPTY = 0,
-  WHITE_SPACE,
-  LINE_TERMINATOR,
-  COMMENT,
-  KEYWORD,
-  PUNCTUATOR,
-  DIV_PUNCTUATOR,
-  NULL_LITERAL = 0x100 + 1,
-  BOOLEAN_LITERAL,
-  NUMERIC_LITERAL,
-  STRING_LITERAL,
-  REGULAR_EXPRESSION_LITERAL,
-  IDENTIFIER = 0x200
+
+struct CTokenGroup {
+    static const CTokenGroup RESERVED_WORD;
+    static const CTokenGroup LITERAL;
+
+    uint64_t group;
+
+    CTokenGroup() : group(0) {}
+    CTokenGroup(const CTokenGroup &g) : group(g.group) {}
+    CTokenGroup(const uint64_t g) : group(g) {}
+    operator uint64_t&() { return group; }
+    operator const uint64_t&() const { return group; }
+};
+const CTokenGroup CTokenGroup::RESERVED_WORD(0);
+const CTokenGroup CTokenGroup::LITERAL(0x100);
+
+struct CTokenType {
+    static const CTokenType EMPTY;
+    static const CTokenType WHITE_SPACE;
+    static const CTokenType LINE_TERMINATOR;
+    static const CTokenType COMMENT;
+    static const CTokenType KEYWORD;
+    static const CTokenType PUNCTUATOR;
+    static const CTokenType DIV_PUNCTUATOR;
+    static const CTokenType NULL_LITERAL;
+    static const CTokenType BOOLEAN_LITERAL;
+    static const CTokenType NUMERIC_LITERAL;
+    static const CTokenType STRING_LITERAL;
+    static const CTokenType REGULAR_EXPRESSION_LITERAL;
+    static const CTokenType IDENTIFIER;
+
+    uint64_t type;
+
+    CTokenType() : type(0) {}
+    CTokenType(const CTokenType &t) : type(t.type) {}
+    CTokenType(const uint64_t t) : type(t) {}
+    operator uint64_t&() { return type; }
+    operator const uint64_t&() const { return type; }
 };
 
-struct Lexer {
+const CTokenType CTokenType::EMPTY(0);
+const CTokenType CTokenType::WHITE_SPACE(CTokenType::EMPTY + 1);
+const CTokenType CTokenType::LINE_TERMINATOR(CTokenType::WHITE_SPACE + 1);
+const CTokenType CTokenType::COMMENT(CTokenType::LINE_TERMINATOR + 1);
+const CTokenType CTokenType::KEYWORD(CTokenType::COMMENT + 1);
+const CTokenType CTokenType::PUNCTUATOR(CTokenType::KEYWORD + 1);
+const CTokenType CTokenType::DIV_PUNCTUATOR(CTokenType::PUNCTUATOR + 1);
+const CTokenType CTokenType::NULL_LITERAL(CTokenGroup::LITERAL + 1);
+const CTokenType CTokenType::BOOLEAN_LITERAL(CTokenType::NULL_LITERAL + 1);
+const CTokenType CTokenType::NUMERIC_LITERAL(CTokenType::BOOLEAN_LITERAL + 1);
+const CTokenType CTokenType::STRING_LITERAL(CTokenType::NUMERIC_LITERAL + 1);
+const CTokenType CTokenType::REGULAR_EXPRESSION_LITERAL(CTokenType::STRING_LITERAL + 1);
+const CTokenType CTokenType::IDENTIFIER(0x200);
 
-  using code_point_t = uint16_t;
+struct CLexer {
 
-  std::vector<code_point_t> buffer;
-  using InputIt = decltype(buffer.begin());
+  typedef wchar_t code_point_t;
+    
 
-  std::unordered_map<std::string, TokenType> reserved_words;
+  std::vector<wchar_t> buffer;
+  typedef std::vector<wchar_t>::iterator InputIt;
+  std::unordered_map<std::string, uint64_t> reserved_words;
 
   InputIt first, cur, last;
 
-  struct Token {
-    TokenType type;
+
+  struct CToken {
+    uint64_t type;
     InputIt first, last;
 
-    inline Token() {}
-    inline Token(const Token &tok) : type(tok.type), first(tok.first), last(tok.last) {}
-    inline Token(const TokenType intype) : type(intype) {}
-    inline Token(const TokenType intype, const InputIt infirst, const InputIt inlast) : type(intype), first(infirst), last(inlast) {}
+    inline CToken() {}
+    inline CToken(const CToken &tok) : type(tok.type), first(tok.first), last(tok.last) {}
+    inline CToken(const uint64_t intype) : type(intype) {}
+    inline CToken(const uint64_t intype, const InputIt infirst, const InputIt inlast) : type(intype), first(infirst), last(inlast) {}
 
-    inline Token &operator = (const Token &tok) {
+    inline CToken &operator = (const CToken &tok) {
       type = tok.type;
       first = tok.first;
       last = tok.last;
@@ -4329,170 +4366,180 @@ struct Lexer {
     }
   };
 
-  Token current_matched_token = Token(TokenType::EMPTY), last_matched_token = Token();
+  CToken current_matched_token = CToken(CTokenType::EMPTY), last_matched_token = CToken();
   std::function<void(const char *)> trace_strategy;
 
-  template <typename InputIt>
-  Lexer(InputIt first, InputIt last)
-      : buffer{first, last}, first(buffer.begin()), cur(buffer.begin()),
+  
+  CLexer(InputIt first, InputIt last)
+      : buffer(first, last), first(buffer.begin()), cur(buffer.begin()),
         last(buffer.end()) {
-    reserved_words = {{"break", TokenType::KEYWORD},
-                      {"case", TokenType::KEYWORD},
-                      {"catch", TokenType::KEYWORD},
-                      {"continue", TokenType::KEYWORD},
-                      {"debugger", TokenType::KEYWORD},
-                      {"default", TokenType::KEYWORD},
-                      {"delete", TokenType::KEYWORD},
-                      {"do", TokenType::KEYWORD},
-                      {"else", TokenType::KEYWORD},
-                      {"finally", TokenType::KEYWORD},
-                      {"for", TokenType::KEYWORD},
-                      {"function", TokenType::KEYWORD},
-                      {"if", TokenType::KEYWORD},
-                      {"in", TokenType::KEYWORD},
-                      {"instanceof", TokenType::KEYWORD},
-                      {"new", TokenType::KEYWORD},
-                      {"return", TokenType::KEYWORD},
-                      {"switch", TokenType::KEYWORD},
-                      {"this", TokenType::KEYWORD},
-                      {"throw", TokenType::KEYWORD},
-                      {"try", TokenType::KEYWORD},
-                      {"typeof", TokenType::KEYWORD},
-                      {"var", TokenType::KEYWORD},
-                      {"void", TokenType::KEYWORD},
-                      {"while", TokenType::KEYWORD},
-                      {"with", TokenType::KEYWORD},
-                      {"class", TokenType::KEYWORD},
-                      {"const", TokenType::KEYWORD},
-                      {"enum", TokenType::KEYWORD},
-                      {"export", TokenType::KEYWORD},
-                      {"extends", TokenType::KEYWORD},
-                      {"import", TokenType::KEYWORD},
-                      {"super", TokenType::KEYWORD},
-                      {"implements", TokenType::KEYWORD},
-                      {"interface", TokenType::KEYWORD},
-                      {"yield", TokenType::KEYWORD},
-                      {"let", TokenType::KEYWORD},
-                      {"package", TokenType::KEYWORD},
-                      {"private", TokenType::KEYWORD},
-                      {"protected", TokenType::KEYWORD},
-                      {"public", TokenType::KEYWORD},
-                      {"static", TokenType::KEYWORD},
-                      {"{", TokenType::PUNCTUATOR},
-                      {"}", TokenType::PUNCTUATOR},
-                      {"(", TokenType::PUNCTUATOR},
-                      {")", TokenType::PUNCTUATOR},
-                      {"[", TokenType::PUNCTUATOR},
-                      {"]", TokenType::PUNCTUATOR},
-                      {".", TokenType::PUNCTUATOR},
-                      {";", TokenType::PUNCTUATOR},
-                      {",", TokenType::PUNCTUATOR},
-                      {"<", TokenType::PUNCTUATOR},
-                      {">", TokenType::PUNCTUATOR},
-                      {"<=", TokenType::PUNCTUATOR},
-                      {">=", TokenType::PUNCTUATOR},
-                      {"==", TokenType::PUNCTUATOR},
-                      {"!=", TokenType::PUNCTUATOR},
-                      {"===", TokenType::PUNCTUATOR},
-                      {"!==", TokenType::PUNCTUATOR},
-                      {"+", TokenType::PUNCTUATOR},
-                      {"-", TokenType::PUNCTUATOR},
-                      {"*", TokenType::PUNCTUATOR},
-                      {"%", TokenType::PUNCTUATOR},
-                      {"++", TokenType::PUNCTUATOR},
-                      {"--", TokenType::PUNCTUATOR},
-                      {"<<", TokenType::PUNCTUATOR},
-                      {">>", TokenType::PUNCTUATOR},
-                      {">>>", TokenType::PUNCTUATOR},
-                      {"&", TokenType::PUNCTUATOR},
-                      {"|", TokenType::PUNCTUATOR},
-                      {"^", TokenType::PUNCTUATOR},
-                      {"!", TokenType::PUNCTUATOR},
-                      {"~", TokenType::PUNCTUATOR},
-                      {"&&", TokenType::PUNCTUATOR},
-                      {"||", TokenType::PUNCTUATOR},
-                      {"?", TokenType::PUNCTUATOR},
-                      {":", TokenType::PUNCTUATOR},
-                      {"=", TokenType::PUNCTUATOR},
-                      {"+=", TokenType::PUNCTUATOR},
-                      {"-=", TokenType::PUNCTUATOR},
-                      {"*=", TokenType::PUNCTUATOR},
-                      {"%=", TokenType::PUNCTUATOR},
-                      {"<<=", TokenType::PUNCTUATOR},
-                      {">>=", TokenType::PUNCTUATOR},
-                      {">>>=", TokenType::PUNCTUATOR},
-                      {"&=", TokenType::PUNCTUATOR},
-                      {"|=", TokenType::PUNCTUATOR},
-                      {"^=", TokenType::PUNCTUATOR},
-                      {"/", TokenType::DIV_PUNCTUATOR},
-                      {"/=", TokenType::DIV_PUNCTUATOR},
-                      {"null", TokenType::NULL_LITERAL},
-                      {"true", TokenType::BOOLEAN_LITERAL},
-                      {"false", TokenType::BOOLEAN_LITERAL}};
+          reserved_words = std::unordered_map<std::string, uint64_t>({
+                      {"break", CTokenType::KEYWORD},
+                      {"case", CTokenType::KEYWORD},
+                      {"catch", CTokenType::KEYWORD},
+                      {"continue", CTokenType::KEYWORD},
+                      {"debugger", CTokenType::KEYWORD},
+                      {"default", CTokenType::KEYWORD},
+                      {"delete", CTokenType::KEYWORD},
+                      {"do", CTokenType::KEYWORD},
+                      {"else", CTokenType::KEYWORD},
+                      {"finally", CTokenType::KEYWORD},
+                      {"for", CTokenType::KEYWORD},
+                      {"function", CTokenType::KEYWORD},
+                      {"if", CTokenType::KEYWORD},
+                      {"in", CTokenType::KEYWORD},
+                      {"instanceof", CTokenType::KEYWORD},
+                      {"new", CTokenType::KEYWORD},
+                      {"return", CTokenType::KEYWORD},
+                      {"switch", CTokenType::KEYWORD},
+                      {"this", CTokenType::KEYWORD},
+                      {"throw", CTokenType::KEYWORD},
+                      {"try", CTokenType::KEYWORD},
+                      {"typeof", CTokenType::KEYWORD},
+                      {"var", CTokenType::KEYWORD},
+                      {"void", CTokenType::KEYWORD},
+                      {"while", CTokenType::KEYWORD},
+                      {"with", CTokenType::KEYWORD},
+                      {"class", CTokenType::KEYWORD},
+                      {"const", CTokenType::KEYWORD},
+                      {"enum", CTokenType::KEYWORD},
+                      {"export", CTokenType::KEYWORD},
+                      {"extends", CTokenType::KEYWORD},
+                      {"import", CTokenType::KEYWORD},
+                      {"super", CTokenType::KEYWORD},
+                      {"implements", CTokenType::KEYWORD},
+                      {"interface", CTokenType::KEYWORD},
+                      {"yield", CTokenType::KEYWORD},
+                      {"let", CTokenType::KEYWORD},
+                      {"package", CTokenType::KEYWORD},
+                      {"private", CTokenType::KEYWORD},
+                      {"protected", CTokenType::KEYWORD},
+                      {"public", CTokenType::KEYWORD},
+                      {"static", CTokenType::KEYWORD},
+                      {"async", CTokenType::KEYWORD},
+                      {"await", CTokenType::KEYWORD},
+                      {"(", CTokenType::PUNCTUATOR},
+                      {"", CTokenType::PUNCTUATOR},
+                      {"(", CTokenType::PUNCTUATOR},
+                      {"}", CTokenType::PUNCTUATOR},
+                      {"[", CTokenType::PUNCTUATOR},
+                      {"]", CTokenType::PUNCTUATOR},
+                      {".", CTokenType::PUNCTUATOR},
+                      {";", CTokenType::PUNCTUATOR},
+                      {",", CTokenType::PUNCTUATOR},
+                      {"<", CTokenType::PUNCTUATOR},
+                      {">", CTokenType::PUNCTUATOR},
+                      {"<=", CTokenType::PUNCTUATOR},
+                      {">=", CTokenType::PUNCTUATOR},
+                      {"==", CTokenType::PUNCTUATOR},
+                      {"!=", CTokenType::PUNCTUATOR},
+                      {"===", CTokenType::PUNCTUATOR},
+                      {"!==", CTokenType::PUNCTUATOR},
+                      {"+", CTokenType::PUNCTUATOR},
+                      {"-", CTokenType::PUNCTUATOR},
+                      {"*", CTokenType::PUNCTUATOR},
+                      {"%", CTokenType::PUNCTUATOR},
+                      {"++", CTokenType::PUNCTUATOR},
+                      {"--", CTokenType::PUNCTUATOR},
+                      {"<<", CTokenType::PUNCTUATOR},
+                      {">>", CTokenType::PUNCTUATOR},
+                      {">>>", CTokenType::PUNCTUATOR},
+                      {"&", CTokenType::PUNCTUATOR},
+                      {"|", CTokenType::PUNCTUATOR},
+                      {"^", CTokenType::PUNCTUATOR},
+                      {"!", CTokenType::PUNCTUATOR},
+                      {"~", CTokenType::PUNCTUATOR},
+                      {"&&", CTokenType::PUNCTUATOR},
+                      {"||", CTokenType::PUNCTUATOR},
+                      {"?", CTokenType::PUNCTUATOR},
+                      {":", CTokenType::PUNCTUATOR},
+                      {"=", CTokenType::PUNCTUATOR},
+                      {"+=", CTokenType::PUNCTUATOR},
+                      {"-=", CTokenType::PUNCTUATOR},
+                      {"*=", CTokenType::PUNCTUATOR},
+                      {"%=", CTokenType::PUNCTUATOR},
+                      {"<<=", CTokenType::PUNCTUATOR},
+                      {">>=", CTokenType::PUNCTUATOR},
+                      {">>>=", CTokenType::PUNCTUATOR},
+                      {"&=", CTokenType::PUNCTUATOR},
+                      {"|=", CTokenType::PUNCTUATOR},
+                      {"^=", CTokenType::PUNCTUATOR},
+                      {"/", CTokenType::DIV_PUNCTUATOR},
+                      {"/=", CTokenType::DIV_PUNCTUATOR},
+                      {"null", CTokenType::NULL_LITERAL},
+                      {"true", CTokenType::BOOLEAN_LITERAL},
+                      {"false", CTokenType::BOOLEAN_LITERAL}
+                      });
   }
 
-  template <typename T>
-  Lexer(const T &source)
-      : Lexer(std::begin(source), std::end(source)) {}
 
-  Token token() const { return last_matched_token; }
+  CLexer(std::vector<wchar_t> source)
+      : CLexer(std::begin(source), std::end(source)) {}
+
+  CToken &token() { return last_matched_token; }
+  const CToken &token() const { return last_matched_token; }
 
   bool done() const { return first == last; }
 
   bool next(bool no_div = false, bool match_line_terminator = false) {
 
     while (true) {
-      switch (current_matched_token.type) {
-      case TokenType::EMPTY:
+      if (current_matched_token.type == CTokenType::EMPTY) {
         if (!scan_input_element_div())
           return false;
         else
           continue;
-      case TokenType::WHITE_SPACE: consume(); continue;
-      case TokenType::COMMENT:
+      }
+      else if (current_matched_token.type == CTokenType::WHITE_SPACE) {
+        consume(); continue;
+      }
+      else if (current_matched_token.type == CTokenType::COMMENT) {
         // TODO handle match_line_terminator case
         consume();
         continue;
-      case TokenType::LINE_TERMINATOR:
+      }
+      else if (current_matched_token.type == CTokenType::LINE_TERMINATOR) {
         consume();
         if (match_line_terminator) return true;
         continue;
-      case TokenType::DIV_PUNCTUATOR:
+      }
+      else if (current_matched_token.type == CTokenType::DIV_PUNCTUATOR) {
         if (no_div) {
           first = cur = current_matched_token.first;
           if (!scan_regular_expression_literal()) return false;
         }
         return true;
-      default: return true;
       }
+      else
+        return true;
     }
   }
 
   bool match(const char *token) {
     return (next() &&
-            std::string{current_matched_token.first,
-                        current_matched_token.last} == token) ?
+            std::string(current_matched_token.first,
+                        current_matched_token.last) == token) ?
                consume() :
                false;
   }
   bool lookahead_impl(const char *token) {
     return (next() &&
-            std::string{current_matched_token.first,
-                        current_matched_token.last} == token) ?
+            std::string(current_matched_token.first,
+                        current_matched_token.last) == token) ?
                true :
                false;
   }
 
-  bool match(const TokenType &type) {
+  bool match(const CTokenType &type) {
 
-    return (next(false, type == TokenType::LINE_TERMINATOR) &&
+    return (next(false, type == CTokenType::LINE_TERMINATOR) &&
             current_matched_token.type == type) ?
                consume() :
                false;
   }
 
-  bool match(const TokenGroup &type) {
-    return (next(type == TokenGroup::LITERAL) &&
+  bool match(const CTokenGroup &type) {
+    return (next(type == CTokenGroup::LITERAL) &&
             (static_cast<uint64_t>(current_matched_token.type) &
              static_cast<uint64_t>(type)) == static_cast<uint64_t>(type)) ?
                consume() :
@@ -4504,13 +4551,11 @@ struct Lexer {
   }
 
   void trace(const char *str) {
-    std::string source = {cur -
-                              std::min(2L, std::distance(buffer.begin(), cur)),
-                          cur + std::min(2L, std::distance(cur, last))};
-    if (std::min(2L, std::distance(buffer.begin(), cur)) < 2L) {
-      source = std::string(2 - std::min(2L, std::distance(buffer.begin(), cur)),
-                           ' ') +
-               source;
+    std::string source = std::string(cur -
+                              std::min(std::size_t(2L), (std::size_t) std::distance(buffer.begin(), cur)),
+                          cur + std::min(std::size_t(2L), (std::size_t) std::distance(cur, last)));
+    if (std::min(std::size_t(2L), (std::size_t) std::distance(buffer.begin(), cur)) < 2L) {
+      source = std::string(2 - std::min(std::size_t(2L), (std::size_t) std::distance(buffer.begin(), cur)), ' ') + source;
     }
     source.resize(4, ' ');
     std::transform(source.begin(), source.end(), source.begin(), [](char c) {
@@ -4530,13 +4575,13 @@ struct Lexer {
   }
 
   [[noreturn]] bool error(const char *str) {
-    auto line = std::count(buffer.begin(), cur, '\n') + 1;
-    throw std::runtime_error(std::string{str} + "\n" + std::string{first, cur} +
+    std::size_t line = std::count(buffer.begin(), cur, '\n') + 1;
+    throw std::runtime_error(std::string{str} + "\n" + std::string(first, cur) +
                              " at line " + std::to_string(line));
   }
 
   bool lookahead_impl(code_point_t c) const noexcept {
-    auto next = cur;
+    InputIt next = cur;
     return next != last && *next == c;
   }
 
@@ -4551,7 +4596,7 @@ struct Lexer {
   }
 
   bool scan_impl(const char *str) {
-    auto mark = cur;
+    InputIt mark = cur;
     while (*str) {
       if (!scan_impl(*str++)) return cur = mark, false;
     }
@@ -4566,14 +4611,14 @@ struct Lexer {
 
   bool consume() {
     last_matched_token    = current_matched_token;
-    current_matched_token = {TokenType::EMPTY};
+    current_matched_token = CToken(CTokenType::EMPTY);
     first                 = cur;
     return true;
   }
 
-  bool commit(TokenType type) {
-    trace(":commit: 0x%016llx: %s", type, std::string{first, cur}.data());
-    current_matched_token = {type, first, cur};
+  bool commit(const CTokenType &type) {
+    trace(":commit: 0x%016llx: %s", type, std::string(first, cur).data());
+    current_matched_token = CToken(type, first, cur);
     return true;
   }
 
@@ -4582,9 +4627,9 @@ struct Lexer {
     return false;
   }
 
-  bool rollback(const Token &token) {
+  bool rollback(const CToken &token) {
     first = cur = token.last;
-    last_matched_token    = {TokenType::EMPTY};
+    last_matched_token    = CToken(CTokenType::EMPTY);
     current_matched_token = token;
     return false;
   }
@@ -4624,7 +4669,7 @@ struct Lexer {
       }
     }
     ++cur;
-    return commit(TokenType::WHITE_SPACE);
+    return commit(CTokenType::WHITE_SPACE);
   }
 
   // 7.3
@@ -4641,7 +4686,7 @@ struct Lexer {
       break;
     default: return false;
     }
-    return commit(TokenType::LINE_TERMINATOR);
+    return commit(CTokenType::LINE_TERMINATOR);
   }
 
   static bool is_line_terminator(const code_point_t &c) {
@@ -4666,7 +4711,7 @@ struct Lexer {
     if (!scan("/*")) return false;
     scan_multi_line_comment_chars();
     if (!scan("*/")) return error("unterminated comment");
-    return commit(TokenType::COMMENT);
+    return commit(CTokenType::COMMENT);
   }
 
   bool scan_multi_line_comment_chars() {
@@ -4676,7 +4721,7 @@ struct Lexer {
       return true;
     }
     trace("checking *");
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan("*")) {
       if (lookahead('/')) {
         trace("found /, rollback");
@@ -4694,7 +4739,7 @@ struct Lexer {
       scan_multi_line_comment_chars();
       return true;
     }
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan("*")) {
       if (lookahead('/')) return cur = mark, false;
       scan_post_asterisk_comment_chars();
@@ -4717,7 +4762,7 @@ struct Lexer {
     trace("scan_single_line_comment");
     if (!scan("//")) return false;
     scan_single_line_comment_chars();
-    return commit(TokenType::COMMENT);
+    return commit(CTokenType::COMMENT);
   }
 
   bool scan_single_line_comment_chars() {
@@ -4729,7 +4774,7 @@ struct Lexer {
   }
 
   bool scan_single_line_comment_char() {
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan_line_terminator()) return cur = mark, false;
     return ++cur, true;
   }
@@ -4747,12 +4792,11 @@ struct Lexer {
     if (!scan_identifier_start()) return false;
     while (scan_identifier_part()) continue;
 
-    auto identifier_name = std::string{first, cur};
-    auto it              = reserved_words.find(identifier_name);
-
+    std::string identifier_name = std::string(first, cur);
+    std::unordered_map<std::string, uint64_t>::iterator it = reserved_words.find(identifier_name);
     if (it != reserved_words.end()) return commit(it->second);
 
-    return commit(TokenType::IDENTIFIER);
+    return commit(CTokenType::IDENTIFIER);
   }
 
   bool scan_identifier_start() {
@@ -4859,7 +4903,7 @@ struct Lexer {
           }
         }
       }
-      return commit(TokenType::PUNCTUATOR);
+      return commit(CTokenType::PUNCTUATOR);
     case '=':
       if (++cur == last) break;
       switch (*cur) {
@@ -4928,14 +4972,14 @@ struct Lexer {
       break;
     default: return false;
     }
-    return commit(TokenType::PUNCTUATOR);
+    return commit(CTokenType::PUNCTUATOR);
   }
 
   bool scan_div_punctuator() {
     trace("scan_div_punctuator");
     if (!scan('/')) return false;
     scan('=');
-    return commit(TokenType::DIV_PUNCTUATOR);
+    return commit(CTokenType::DIV_PUNCTUATOR);
   }
 
   // 7.8
@@ -4961,16 +5005,16 @@ struct Lexer {
   // 7.8.3
   bool scan_numeric_literal() {
     trace("scan_numeric_literal");
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan_decimal_literal() && !scan_identifier_start() &&
         !scan_decimal_digit()) {
-      return commit(TokenType::NUMERIC_LITERAL);
+      return commit(CTokenType::NUMERIC_LITERAL);
     }
     cur = mark;
     if (scan_hex_integer_literal() && !scan_identifier_start() &&
         !scan_decimal_digit()) {
       trace("Committing hex");
-      return commit(TokenType::NUMERIC_LITERAL);
+      return commit(CTokenType::NUMERIC_LITERAL);
     }
     cur = mark;
     return false;
@@ -5063,11 +5107,11 @@ struct Lexer {
     if (scan('"')) {
       scan_double_string_characters();
       if (!scan('"')) return error("unterminated string literal");
-      return commit(TokenType::STRING_LITERAL);
+      return commit(CTokenType::STRING_LITERAL);
     } else if (scan('\'')) {
       scan_single_string_characters();
       if (!scan('\'')) return error("unterminated string literal");
-      return commit(TokenType::STRING_LITERAL);
+      return commit(CTokenType::STRING_LITERAL);
     }
 
     return false;
@@ -5091,7 +5135,7 @@ struct Lexer {
 
   bool scan_double_string_character() {
     trace("scan_double_string_character");
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan('"')) return cur = mark, false;
     if (scan('\\')) {
       if (!scan_escape_sequence()) return error(""); // TODO
@@ -5103,7 +5147,7 @@ struct Lexer {
 
   bool scan_single_string_character() {
     trace("scan_single_string_character");
-    auto mark = cur;
+    InputIt mark = cur;
     if (scan('\'')) return cur = mark, false;
     if (scan('\\')) {
       if (!scan_escape_sequence()) return error(""); // TODO
@@ -5114,7 +5158,7 @@ struct Lexer {
 
   bool scan_line_continuation() {
     trace("scan_line_continuation");
-    auto mark = cur;
+    InputIt mark = cur;
     if (!scan('\\')) return false;
     if (!scan_line_terminator()) return cur = mark, false;
     return true;
@@ -5151,7 +5195,7 @@ struct Lexer {
 
   bool scan_hex_escape_sequence() {
     trace("scan_hex_escape_sequence");
-    auto mark = cur;
+    InputIt mark = cur;
     if (!scan('x')) return false;
     for (int i = 0; i < 2; ++i)
       if (!scan_hex_digit()) return cur = mark, false;
@@ -5160,7 +5204,7 @@ struct Lexer {
 
   bool scan_unicode_escape_sequence() {
     trace("scan_unicode_escape_sequence");
-    auto mark = cur;
+    InputIt mark = cur;
     if (!scan('u')) return false;
     for (int i = 0; i < 4; ++i)
       if (!scan_hex_digit()) return cur = mark, false;
@@ -5173,7 +5217,7 @@ struct Lexer {
     if (!scan('/')) return false;
     return scan_regular_expression_body() && scan('/') &&
                    scan_regular_expression_flags() ?
-               commit(TokenType::REGULAR_EXPRESSION_LITERAL) :
+               commit(CTokenType::REGULAR_EXPRESSION_LITERAL) :
                error("unterminated regular expression literal");
   }
 
@@ -5208,7 +5252,7 @@ struct Lexer {
 
   bool scan_regular_expression_backslash_sequence() {
     trace("scan_regular_expression_backslash_sequence");
-    auto mark = cur;
+    InputIt mark = cur;
     return !(scan('\\') && scan_regular_expression_non_terminator()) ?
            cur = mark,
            false : true;
@@ -5282,8 +5326,9 @@ TAG(0x12, binary_expression);
 TAG(0x13, sequence_expression);
 TAG(0x14, member_expression);
 TAG(0x15, new_expression);
-TAG(0x16, call_expression);
-TAG(0x17, conditional_expression);
+TAG(0x16, await_expression);
+TAG(0x17, call_expression);
+TAG(0x18, conditional_expression);
 
 TAG(0x0100, statement);
 TAG(0x0101, variable_statement, statement);
@@ -5308,115 +5353,98 @@ TAG(0x0121, variable_declaration);
 
 TAG(0x0201, program);
 TAG(0x0202, function);
-TAG(0x0203, function_expression);
+TAG(0x0203, async_function);
+TAG(0x0204, function_expression);
+TAG(0x0205, async_function_expression);
 
-struct Node {
+struct CNode {
   std::size_t type;
   std::size_t size;
-  Lexer::Token token;
-  Node(std::size_t type, std::size_t size = 1) : type(type), size(size) {}
+  CLexer::CToken token;
+  CNode() : type(0), size(0), token(CLexer::CToken()) {}
+  CNode(const CNode &node) : type(node.type), size(node.size), token(node.token) {}
+  CNode(std::size_t type, std::size_t size = 1) : type(type), size(size) {}
+  CNode(std::size_t type, std::size_t size, CLexer::CToken token) : type(type), size(size), token(token) {}
 };
 }
 
-template <typename T> constexpr std::size_t type() {
+template <typename T> std::size_t type() {
   return T::index();
 }
 
-constexpr const char *name(std::size_t index) {
+const char *name(std::size_t index) {
   switch (index) {
   case ast::literal_tag::index(): return ast::literal_tag::name();
   case ast::null_literal_tag::index(): return ast::null_literal_tag::name();
-  case ast::boolean_literal_tag::index():
-    return ast::boolean_literal_tag::name();
-  case ast::numeric_literal_tag::index():
-    return ast::numeric_literal_tag::name();
+  case ast::boolean_literal_tag::index(): return ast::boolean_literal_tag::name();
+  case ast::numeric_literal_tag::index(): return ast::numeric_literal_tag::name();
   case ast::string_literal_tag::index(): return ast::string_literal_tag::name();
   case ast::identifier_tag::index(): return ast::identifier_tag::name();
-  case ast::assignment_expression_tag::index():
-    return ast::assignment_expression_tag::name();
-  case ast::unary_expression_tag::index():
-    return ast::unary_expression_tag::name();
-  case ast::binary_expression_tag::index():
-    return ast::binary_expression_tag::name();
-  case ast::sequence_expression_tag::index():
-    return ast::sequence_expression_tag::name();
-  case ast::member_expression_tag::index():
-    return ast::member_expression_tag::name();
+  case ast::assignment_expression_tag::index(): return ast::assignment_expression_tag::name();
+  case ast::unary_expression_tag::index(): return ast::unary_expression_tag::name();
+  case ast::binary_expression_tag::index(): return ast::binary_expression_tag::name();
+  case ast::sequence_expression_tag::index(): return ast::sequence_expression_tag::name();
+  case ast::member_expression_tag::index(): return ast::member_expression_tag::name();
   case ast::new_expression_tag::index(): return ast::new_expression_tag::name();
-  case ast::call_expression_tag::index():
-    return ast::call_expression_tag::name();
-  case ast::conditional_expression_tag::index():
-    return ast::conditional_expression_tag::name();
+  case ast::await_expression_tag::index(): return ast::await_expression_tag::name();
+  case ast::call_expression_tag::index(): return ast::call_expression_tag::name();
+  case ast::conditional_expression_tag::index(): return ast::conditional_expression_tag::name();
 
   case ast::statement_tag::index(): return ast::statement_tag::name();
-  case ast::variable_statement_tag::index():
-    return ast::variable_statement_tag::name();
-  case ast::empty_statement_tag::index():
-    return ast::empty_statement_tag::name();
-  case ast::expression_statement_tag::index():
-    return ast::expression_statement_tag::name();
+  case ast::variable_statement_tag::index(): return ast::variable_statement_tag::name();
+  case ast::empty_statement_tag::index(): return ast::empty_statement_tag::name();
+  case ast::expression_statement_tag::index(): return ast::expression_statement_tag::name();
   case ast::if_statement_tag::index(): return ast::if_statement_tag::name();
-  case ast::do_while_statement_tag::index():
-    return ast::do_while_statement_tag::name();
-  case ast::while_statement_tag::index():
-    return ast::while_statement_tag::name();
+  case ast::do_while_statement_tag::index(): return ast::do_while_statement_tag::name();
+  case ast::while_statement_tag::index(): return ast::while_statement_tag::name();
   case ast::for_statement_tag::index(): return ast::for_statement_tag::name();
-  case ast::for_in_statement_tag::index():
-    return ast::for_in_statement_tag::name();
-  case ast::continue_statement_tag::index():
-    return ast::continue_statement_tag::name();
-  case ast::break_statement_tag::index():
-    return ast::break_statement_tag::name();
-  case ast::return_statement_tag::index():
-    return ast::return_statement_tag::name();
+  case ast::for_in_statement_tag::index(): return ast::for_in_statement_tag::name();
+  case ast::continue_statement_tag::index(): return ast::continue_statement_tag::name();
+  case ast::break_statement_tag::index(): return ast::break_statement_tag::name();
+  case ast::return_statement_tag::index(): return ast::return_statement_tag::name();
   case ast::with_statement_tag::index(): return ast::with_statement_tag::name();
-  case ast::switch_statement_tag::index():
-    return ast::switch_statement_tag::name();
-  case ast::labelled_statement_tag::index():
-    return ast::labelled_statement_tag::name();
-  case ast::throw_statement_tag::index():
-    return ast::throw_statement_tag::name();
+  case ast::switch_statement_tag::index(): return ast::switch_statement_tag::name();
+  case ast::labelled_statement_tag::index(): return ast::labelled_statement_tag::name();
+  case ast::throw_statement_tag::index(): return ast::throw_statement_tag::name();
   case ast::try_statement_tag::index(): return ast::try_statement_tag::name();
-  case ast::debugger_statement_tag::index():
-    return ast::debugger_statement_tag::name();
+  case ast::debugger_statement_tag::index(): return ast::debugger_statement_tag::name();
 
-  case ast::variable_declaration_tag::index():
-    return ast::variable_declaration_tag::name();
+  case ast::variable_declaration_tag::index(): return ast::variable_declaration_tag::name();
 
   case ast::program_tag::index(): return ast::program_tag::name();
   case ast::function_tag::index(): return ast::function_tag::name();
-  case ast::function_expression_tag::index():
-    return ast::function_expression_tag::name();
-  default: return "<unknown>";
+  case ast::async_function_tag::index(): return ast::async_function_tag::name();
+  case ast::function_expression_tag::index(): return ast::function_expression_tag::name();
+  case ast::async_function_expression_tag::index(): return ast::async_function_expression_tag::name();
   }
+  return "<unknown>";
 }
 
 template <typename Visitor> void accept(std::size_t type, Visitor visitor) {
   switch (type) {
-  case 1: visitor(ast::literal_tag{}); break;
+  case 1: visitor(ast::literal_tag()); break;
   case ast::program_tag::index(): break;
   }
 }
 
-struct Parser {
+struct CParser {
 
-  Lexer lexer;
-  std::vector<ast::Node> ast;
+  CLexer lexer;
+  std::vector<ast::CNode> ast;
 
-  std::function<void(const char *)> trace = [](auto) {};
-  std::function<void(const std::vector<ast::Node> &, std::size_t)> debug_ast =
-      [](auto, auto) {};
+  std::function<void(const char *)> trace = [](const char *) {};
+  std::function<void(const std::vector<ast::CNode> &, std::size_t)> debug_ast = [](const std::vector<ast::CNode> &, std::size_t) {};
 
-  Parser(Lexer lexer) : lexer(lexer) {}
+  CParser(CLexer lexer) : lexer(lexer) {}
   template <typename... Args>
-  Parser(Args &&... args)
+  CParser(Args &&... args)
       : lexer(std::forward<Args>(args)...) {
     lexer.set_trace_strategy([&](const char *what) { trace(what); });
   }
 
   [[noreturn]] bool error(const char *message) {
-    auto lines = std::count_if(lexer.buffer.begin(), lexer.cur,
-                               Lexer::is_line_terminator) +
+    std::size_t lines = std::count_if(lexer.buffer.begin(), lexer.cur,
+                               CLexer::is_line_terminator) +
                  1;
     throw std::runtime_error(std::string("Syntax error: ") + message + " at line " + std::to_string(lines));
   }
@@ -5436,10 +5464,10 @@ struct Parser {
   }
 
   template <typename T>
-  void insert(std::size_t offset, Lexer::Token token = {}) {
+  void insert(std::size_t offset, CLexer::CToken token = CLexer::CToken()) {
 
-    auto pos    = ast.begin() + offset;
-    auto node   = ast.emplace(pos, type<T>(), std::distance(pos, ast.end()) + 1);
+    std::vector<ast::CNode>::iterator pos    = ast.begin() + offset;
+    std::vector<ast::CNode>::iterator node   = ast.emplace(pos, type<T>(), std::distance(pos, ast.end()) + 1);
     node->token = token;
     //    auto parent  = node - 1;
     //    parent->size = node->size + 1;
@@ -5449,53 +5477,33 @@ struct Parser {
   template <typename T, typename InputIt>
   void insert(std::size_t offset, InputIt first, InputIt last) {
 
-    auto pos    = ast.begin() + offset;
-    auto node   = ast.emplace(pos, type<T>(), std::distance(pos, ast.end()) + 1);
-    node->token = Lexer::Token(TokenType::EMPTY, first, last);
+    std::vector<ast::CNode>::iterator pos    = ast.begin() + offset;
+    std::vector<ast::CNode>::iterator node   = ast.emplace(pos, type<T>(), std::distance(pos, ast.end()) + 1);
+    node->token = CLexer::CToken(CTokenType::EMPTY, first, last);
     //    auto parent  = node - 1;
     //    parent->size = node->size + 1;
     debug_ast(ast, offset);
   }
 
   void commit(std::size_t offset) {
-    auto node  = ast.begin() + offset;
+    std::vector<ast::CNode>::iterator node  = ast.begin() + offset;
     node->size = std::distance(node, ast.end());
     debug_ast(ast, offset);
   }
 
   bool parse() const noexcept { return false; }
-  template <typename Arg, typename... Args>
-  bool parse(Arg &&arg, Args &&... args) {
-    return lexer.match(std::forward<Arg>(arg)) ||
-           parse(std::forward<Args>(args)...);
+ 
+  bool parse(const char *token) {
+    return lexer.match(token);
   }
-
-  // bool parse_primary_expression() {
-  //   trace("parse_primary_expression");
-  //   if (lexer.parse("(")) {
-  //     parse_expression();
-  //     if (!lexer.parse(")")) return error("missing ) in parenthetical");
-  //     return true;
-  //   }
-  //   if (lexer.parse("this")) {
-  //     trace("parse_this");
-  //     // add<this_tag>(ast);
-  //     return true;
-  //   }
-  //   if (lexer.parse(TokenType::IDENTIFIER)) {
-  //     trace("prase_identifier");
-  //     // add<ast::identifier_tag>(ast);
-  //     return true;
-  //   }
-  //   if (lexer.parse(TokenGroup::LITERAL)) {
-  //     trace("parse_literal");
-  //     add<ast::literal_tag>();
-  //     return true;
-  //   }
-  //   trace("nope");
-  //
-  //   return parse_array_literal() || parse_object_literal();
-  // }
+ 
+  bool parse(const CTokenType &type) {
+    return lexer.match(type);
+  }
+ 
+  bool parse(const CTokenGroup &group) {
+    return lexer.match(group);
+  }
 
   bool parse_primary_expression() {
     trace("parse_primary_expression");
@@ -5517,13 +5525,13 @@ struct Parser {
 
   bool parse_literal() {
     trace("parse_literal");
-    if (!parse(TokenGroup::LITERAL)) return false;
+    if (!parse(CTokenGroup::LITERAL)) return false;
     add<ast::literal_tag>();
     return true;
   }
 
   bool parse_identifier() {
-    if (!parse(TokenType::IDENTIFIER)) return false;
+    if (!parse(CTokenType::IDENTIFIER)) return false;
     add<ast::identifier_tag>();
     return true;
   }
@@ -5607,17 +5615,16 @@ struct Parser {
   }
 
   bool parse_property_name() {
-    return parse(TokenType::IDENTIFIER, TokenType::STRING_LITERAL,
-                 TokenType::NUMERIC_LITERAL);
+    return parse(CTokenType::IDENTIFIER) || parse(CTokenType::STRING_LITERAL) || parse(CTokenType::NUMERIC_LITERAL);
   }
 
   bool parse_property_set_parameter_list() { return parse_identifier(); }
 
   bool parse_member_expression() {
     trace("parse_member_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (parse("new")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (parse_member_expression() && parse_arguments()) {
         insert<ast::new_expression_tag>(offset);
       } else {
@@ -5648,7 +5655,7 @@ struct Parser {
 
   bool parse_call_expression() {
     trace("parse_call_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_member_expression()) return false;
     if (!parse_arguments()) return error("<Arguments>");
 
@@ -5688,7 +5695,7 @@ struct Parser {
 
   bool parse_left_hand_side_expression() {
     trace("parse_left_hand_side_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_new_expression()) return false;
     while (true) {
       if (parse_arguments()) {
@@ -5711,9 +5718,9 @@ struct Parser {
 
   bool parse_postfix_expression() {
     trace("parse_postfix_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_left_hand_side_expression()) return false;
-    if (!parse(TokenType::LINE_TERMINATOR) && (parse("++") || parse("--"))) {
+    if (!parse(CTokenType::LINE_TERMINATOR) && (parse("++") || parse("--"))) {
       insert<ast::unary_expression_tag>(offset, lexer.token());
     }
     return true;
@@ -5721,10 +5728,10 @@ struct Parser {
 
   bool parse_unary_expression() {
     trace("parse_unary_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (parse_postfix_expression()) return true;
-    if (parse("delete", "void", "typeof", "++", "--", "+", "-", "~", "!")) {
-      auto token = lexer.token();
+    if (parse("delete") || parse("void") || parse("typeof") || parse("++") || parse("--") || parse("+") || parse("-") || parse("~") || parse("!")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_unary_expression()) return error("<ast::unaryExpression>");
       insert<ast::unary_expression_tag>(offset, token);
       return true;
@@ -5734,10 +5741,10 @@ struct Parser {
 
   bool parse_multiplicative_expression() {
     trace("parse_multiplicative_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_unary_expression()) return false;
-    while (parse("*", "/", "%")) {
-      auto token = lexer.token();
+    while (parse("*") || parse("/") || parse("%")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_unary_expression()) return error("<ast::unaryExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5746,10 +5753,10 @@ struct Parser {
 
   bool parse_additive_expression() {
     trace("parse_additive_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_multiplicative_expression()) return false;
-    while (parse("+", "-")) {
-      auto token = lexer.token();
+    while (parse("+") || parse("-")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_multiplicative_expression())
         return error("<MultiplicativeExpression>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5759,10 +5766,10 @@ struct Parser {
 
   bool parse_shift_expression() {
     trace("parse_shift_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_additive_expression()) return false;
-    while (parse("<<", ">>", ">>>")) {
-      auto token = lexer.token();
+    while (parse("<<") || parse(">>") || parse(">>>")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_additive_expression()) return error("<AdditiveExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5771,10 +5778,10 @@ struct Parser {
 
   bool parse_relational_expression() {
     trace("parse_relational_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_shift_expression()) return false;
-    while (parse("<", ">", "<=", ">=", "instanceof", "in")) {
-      auto token = lexer.token();
+    while (parse("<") || parse(">") || parse("<=") || parse(">=") || parse("instanceof") || parse("in")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_shift_expression()) return error("<ShiftExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5783,10 +5790,10 @@ struct Parser {
 
   bool parse_relational_expression_no_in() {
     trace("parse_relational_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_shift_expression()) return false;
-    while (parse("<", ">", "<=", ">=", "instanceof")) {
-      auto token = lexer.token();
+    while (parse("<") || parse(">") || parse("<=") || parse(">=") || parse("instanceof")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_shift_expression()) return error("<ShiftExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5795,10 +5802,10 @@ struct Parser {
 
   bool parse_equality_expression() {
     trace("parse_equality_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_relational_expression()) return false;
-    while (parse("==", "!=", "===", "!==")) {
-      auto token = lexer.token();
+    while (parse("==") || parse("!=") || parse("===") || parse("!==")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_relational_expression())
         return error("<RelationalExpression>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5808,10 +5815,10 @@ struct Parser {
 
   bool parse_equality_expression_no_in() {
     trace("parse_equality_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_relational_expression_no_in()) return false;
-    while (parse("==", "!=", "===", "!==")) {
-      auto token = lexer.token();
+    while (parse("==") || parse("!=") || parse("===") || parse("!==")) {
+      CLexer::CToken token = lexer.token();
       if (!parse_relational_expression_no_in())
         return error("<RelationalExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5821,10 +5828,10 @@ struct Parser {
 
   bool parse_bitwise_and_expression() {
     trace("parse_bitwise_and_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_equality_expression()) return false;
     while (parse("&")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_equality_expression()) return error("<EqualityExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5833,10 +5840,10 @@ struct Parser {
 
   bool parse_bitwise_and_expression_no_in() {
     trace("parse_bitwise_and_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_equality_expression_no_in()) return false;
     while (parse("&")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_equality_expression_no_in())
         return error("<EqualityExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5846,10 +5853,10 @@ struct Parser {
 
   bool parse_bitwise_xor_expression() {
     trace("parse_bitwise_xor_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_and_expression()) return false;
     while (parse("^")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_and_expression())
         return error("<BitwiseANDExpression>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5859,10 +5866,10 @@ struct Parser {
 
   bool parse_bitwise_xor_expression_no_in() {
     trace("parse_bitwise_xor_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_and_expression_no_in()) return false;
     while (parse("^")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_and_expression_no_in())
         return error("<BitwiseANDExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5872,10 +5879,10 @@ struct Parser {
 
   bool parse_bitwise_or_expression() {
     trace("parse_bitwise_or_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_xor_expression()) return false;
     while (parse("|")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_xor_expression())
         return error("<BitwiseXORExpression>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5885,10 +5892,10 @@ struct Parser {
 
   bool parse_bitwise_or_expression_no_in() {
     trace("parse_bitwise_or_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_xor_expression_no_in()) return false;
     while (parse("|")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_xor_expression_no_in())
         return error("<BitwiseXORExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5898,10 +5905,10 @@ struct Parser {
 
   bool parse_logical_and_expression() {
     trace("parse_logical_and_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_or_expression()) return false;
     while (parse("&&")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_or_expression()) return error("<BitwiseORExpression>");
       insert<ast::binary_expression_tag>(offset, token);
     }
@@ -5910,10 +5917,10 @@ struct Parser {
 
   bool parse_logical_and_expression_no_in() {
     trace("parse_logical_and_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_bitwise_or_expression_no_in()) return false;
     while (parse("&&")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_bitwise_or_expression_no_in())
         return error("<BitwiseORExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5923,10 +5930,10 @@ struct Parser {
 
   bool parse_logical_or_expression() {
     trace("parse_logical_or_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_logical_and_expression()) return false;
     while (parse("||")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_logical_and_expression())
         return error("<LogicalANDExpression>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5936,10 +5943,10 @@ struct Parser {
 
   bool parse_logical_or_expression_no_in() {
     trace("parse_logical_or_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_logical_and_expression_no_in()) return false;
     while (parse("||")) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_logical_and_expression_no_in())
         return error("<LogicalANDExpressionNoIn>");
       insert<ast::binary_expression_tag>(offset, token);
@@ -5948,7 +5955,7 @@ struct Parser {
   }
   bool parse_conditional_expression() {
     trace("parse_conditional_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_logical_or_expression()) return false;
     if (parse("?")) {
       if (!parse_assignment_expression())
@@ -5963,7 +5970,7 @@ struct Parser {
 
   bool parse_conditional_expression_no_in() {
     trace("parse_conditional_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_logical_or_expression_no_in()) return false;
     if (parse("?")) {
       if (!parse_assignment_expression())
@@ -5978,11 +5985,11 @@ struct Parser {
 
   bool parse_assignment_expression() {
     trace("parse_assignment_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_conditional_expression()) return false;
     // TODO check typeof lhs == LeftHandSideExpression
     if (parse("=") || parse_assignment_operator()) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_assignment_expression())
         return error("<AssignmentExpression>");
       insert<ast::assignment_expression_tag>(offset, token);
@@ -5992,11 +5999,11 @@ struct Parser {
 
   bool parse_assignment_expression_no_in() {
     trace("parse_assignment_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_conditional_expression_no_in()) return false;
     // TODO check typeof lhs == LeftHandSideExpression
     if (parse("=") || parse_assignment_operator()) {
-      auto token = lexer.token();
+      CLexer::CToken token = lexer.token();
       if (!parse_assignment_expression_no_in())
         return error("<AssignmentExpressionNoIn>");
       insert<ast::assignment_expression_tag>(offset, token);
@@ -6013,7 +6020,7 @@ struct Parser {
 
   bool parse_expression() {
     trace("parse_expression");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_assignment_expression()) return false;
     if (parse(",")) {
       insert<ast::sequence_expression_tag>(offset, lexer.token());
@@ -6021,7 +6028,7 @@ struct Parser {
         if (!parse_assignment_expression())
           return error("<AssignmentExpression>");
       } while (parse(","));
-      auto node  = ast.begin() + offset;
+      std::vector<ast::CNode>::iterator node  = ast.begin() + offset;
       node->size = std::distance(node, ast.end());
     }
     return true;
@@ -6029,7 +6036,7 @@ struct Parser {
 
   bool parse_expression_no_in() {
     trace("parse_expression_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_assignment_expression_no_in()) return false;
     if (parse(",")) {
       insert<ast::sequence_expression_tag>(offset, lexer.token());
@@ -6037,7 +6044,7 @@ struct Parser {
         if (!parse_assignment_expression_no_in())
           return error("<AssignmentExpressionNoIn>");
       } while (parse(","));
-      auto node  = ast.begin() + offset;
+      std::vector<ast::CNode>::iterator node  = ast.begin() + offset;
       node->size = std::distance(node, ast.end());
     }
     return true;
@@ -6075,8 +6082,8 @@ struct Parser {
 
   bool parse_variable_statement() {
     trace("parse_variable_statement");
-    if (!parse("var")) return false;
-    auto offset = ast.size();
+    if (!parse("var") || !parse("let") || !parse("const")) return false;
+    std::size_t offset = ast.size();
     add<ast::variable_statement_tag>();
     if (!parse_variable_declaration_list())
       return error("missing variable name");
@@ -6104,7 +6111,7 @@ struct Parser {
 
   bool parse_variable_declaration() {
     trace("parse_variable_declaration");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_identifier()) return false;
     parse_initialiser();
     insert<ast::variable_declaration_tag>(offset);
@@ -6113,7 +6120,7 @@ struct Parser {
 
   bool parse_variable_declaration_no_in() {
     trace("parse_variable_declaration_no_in");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse_identifier()) return false;
     parse_initialiser_no_in();
     insert<ast::variable_declaration_tag>(offset);
@@ -6136,7 +6143,7 @@ struct Parser {
 
   bool parse_empty_statement() {
     trace("parse_empty_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse(";")) return false;
     insert<ast::empty_statement_tag>(offset);
     return true;
@@ -6144,7 +6151,7 @@ struct Parser {
 
   bool parse_expression_statement() {
     trace("parse_expression_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (lexer.lookahead('{') || lexer.lookahead("function")) return false;
     if (!parse_expression()) return false;
     if (!parse(";")) return false;
@@ -6154,9 +6161,9 @@ struct Parser {
 
   bool parse_if_statement() {
     trace("parse_if_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("if")) return false;
-    auto token = lexer.token();
+    CLexer::CToken token = lexer.token();
     if (!parse("(")) return error("'('");
     if (!parse_expression()) return error("<expression>");
     if (!parse(")")) return error("')'");
@@ -6168,7 +6175,7 @@ struct Parser {
 
   bool parse_iteration_statement() {
     trace("parse_iteration_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (parse("do")) {
       if (!parse_statement()) return error("<Statement>");
       if (!parse("while")) return error("'while'");
@@ -6231,10 +6238,10 @@ struct Parser {
 
   bool parse_continue_statement() {
     trace("parse_continue_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("continue")) return false;
-    auto token = lexer.token();
-    if (!parse(TokenType::LINE_TERMINATOR)) parse_identifier();
+    CLexer::CToken token = lexer.token();
+    if (!parse(CTokenType::LINE_TERMINATOR)) parse_identifier();
     if (!parse(";")) return error(";");
     insert<ast::continue_statement_tag>(offset, token);
     return true;
@@ -6242,10 +6249,10 @@ struct Parser {
 
   bool parse_break_statement() {
     trace("parse_break_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("break")) return false;
-    auto token = lexer.token();
-    if (!parse(TokenType::LINE_TERMINATOR)) parse_identifier();
+    CLexer::CToken token = lexer.token();
+    if (!parse(CTokenType::LINE_TERMINATOR)) parse_identifier();
     if (!parse(";")) return error(";");
     insert<ast::break_statement_tag>(offset, token);
     return true;
@@ -6253,10 +6260,10 @@ struct Parser {
 
   bool parse_return_statement() {
     trace("parse_return_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("return")) return false;
-    auto token = lexer.token();
-    if (!parse(TokenType::LINE_TERMINATOR)) parse_expression();
+    CLexer::CToken token = lexer.token();
+    if (!parse(CTokenType::LINE_TERMINATOR)) parse_expression();
     if (!parse(";")) return error(";");
     insert<ast::return_statement_tag>(offset, token);
     return true;
@@ -6264,7 +6271,7 @@ struct Parser {
 
   bool parse_with_statement() {
     trace("parse_with_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("with")) return false;
     if (!parse("(")) return error("'('");
     if (!parse_expression()) return error("<Expression>");
@@ -6276,7 +6283,7 @@ struct Parser {
 
   bool parse_switch_statement() {
     trace("parse_switch_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("switch")) return false;
     if (!parse("(")) return error("'('");
     if (!parse_expression()) return error("<Expression>");
@@ -6322,8 +6329,8 @@ struct Parser {
 
   bool parse_labelled_statement() {
     trace("parse_labelled_statement");
-    auto offset = ast.size();
-    if (!parse(TokenType::IDENTIFIER)) return false;
+    std::size_t offset = ast.size();
+    if (!parse(CTokenType::IDENTIFIER)) return false;
     if (!parse(":")) return error("':'");
     if (!parse_statement()) return error("<Statement>");
     insert<ast::labelled_statement_tag>(offset);
@@ -6332,9 +6339,9 @@ struct Parser {
 
   bool parse_throw_statement() {
     trace("parse_throw_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("throw")) return false;
-    if (!parse(TokenType::LINE_TERMINATOR)) parse_expression();
+    if (!parse(CTokenType::LINE_TERMINATOR)) parse_expression();
     if (!parse(";")) return error("';'");
     insert<ast::throw_statement_tag>(offset);
     return true;
@@ -6342,7 +6349,7 @@ struct Parser {
 
   bool parse_try_statement() {
     trace("parse_try_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("try")) return false;
     if (!parse_block()) return error("<Block>");
     parse_catch();
@@ -6370,7 +6377,7 @@ struct Parser {
 
   bool parse_debugger_statement() {
     trace("parse_debugger_statement");
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     if (!parse("debugger")) return false;
     if (!parse(";")) return error("';'");
     insert<ast::debugger_statement_tag>(offset);
@@ -6380,8 +6387,9 @@ struct Parser {
   // A.5 Functions and Programs
 
   bool parse_function_declaration() {
+    bool async = parse("async");
     if (!parse("function")) return false;
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     parse_identifier();
     if (!parse("(")) return error("'('");
     parse_formal_parameter_list();
@@ -6389,12 +6397,16 @@ struct Parser {
     if (!parse("{")) return error("'{'");
     if (!parse_function_body()) return error("<FunctionBody>");
     if (!parse("}")) return error("'}'");
-    insert<ast::function_tag>(offset);
+    if (async)
+      insert<ast::async_function_tag>(offset);
+    else
+      insert<ast::function_tag>(offset);
     return true;
   }
 
   bool parse_function_expression() {
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
+    bool async = parse("async");
     if (!parse("function")) return false;
     parse_identifier();
     if (!parse("(")) return error("'('");
@@ -6403,7 +6415,10 @@ struct Parser {
     if (!parse("{")) return error("'{'");
     if (!parse_function_body()) return error("<FunctionBody>");
     if (!parse("}")) return error("'}'");
-    insert<ast::function_expression_tag>(offset);
+    if (async) 
+      insert<ast::async_function_expression_tag>(offset);
+    else
+      insert<ast::function_expression_tag>(offset);
     return true;
   }
 
@@ -6437,7 +6452,7 @@ struct Parser {
   // bool parse_expression_statement() {
   //   trace("parse_expression_statement");
   //   if (lexer.lookahead("{") || lexer.lookahead("function")) return false;
-  //   auto offset = ast.size();
+  //   std::size_t offset = ast.size();
   //   if (parse_expression()) {
   //     parse(";");
   //     insert<ast::expression_statement_tag>(offset);
@@ -6450,7 +6465,7 @@ struct Parser {
   // bool parse_function_declaration() { return false; }
 
   bool parse_program() {
-    auto offset = ast.size();
+    std::size_t offset = ast.size();
     add<ast::program_tag>();
     parse_source_elements();
     commit(offset);

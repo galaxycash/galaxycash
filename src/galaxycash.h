@@ -424,10 +424,9 @@ struct CGalaxyCashOpcode {
         OPCODE_NULL = 0,
         OPCODE_CONSENSUS,
         OPCODE_COINBASE,
-        OPCODE_BURN,
-        OPCODE_TOKEN,
+        OPCODE_LEASING,
         OPCODE_TRANSFER,
-        OPCODE_REWARD,
+        OPCODE_BURN,
         OPCODE_COUNT,
         OPCODE_LAST = (OPCODE_COUNT - 1)
     };
@@ -467,6 +466,7 @@ struct CGalaxyCashToken {
     CPubKey owner;
     bool minable;
     COutPoint proof;
+    std::vector<char> signature;
 
 
     ADD_SERIALIZE_METHODS;
@@ -481,12 +481,25 @@ struct CGalaxyCashToken {
         READWRITE(owner);
         READWRITE(minable);
         READWRITE(proof);
+        if (!(s.GetType() & SER_GETHASH)) READWRITE(signature);
     }
 
     CGalaxyCashToken() { SetNull(); }
     CGalaxyCashToken(const CGalaxyCashToken& token)
         : name(token.name), symbol(token.symbol), supply(token.supply),
-          owner(token.owner), minable(token.minable), proof(token.proof) {}
+          owner(token.owner), minable(token.minable), proof(token.proof), signature(token.signature) {}
+    CGalaxyCashToken(const std::shared_ptr<CGalaxyCashToken>& token)
+    {
+        if (token) {
+            name = token->name;
+            symbol = token->symbol;
+            supply = token->supply;
+            owner = token->owner;
+            minable = token->minable;
+            proof = token->proof;
+            signature = token->signature;
+        }
+    }
 
     CGalaxyCashToken& operator=(const CGalaxyCashToken& token)
     {
@@ -496,6 +509,7 @@ struct CGalaxyCashToken {
         owner = token.owner;
         minable = token.minable;
         proof = token.proof;
+        signature = token.signature;
         return *this;
     }
 
@@ -507,28 +521,29 @@ struct CGalaxyCashToken {
         owner = CPubKey();
         minable = false;
         proof.SetNull();
+        signature.clear();
     }
 
     bool IsNull() const
     {
-        return name.empty() || symbol.empty() || owner == CPubKey();
+        return name.empty() || symbol.empty() || owner == CPubKey() || signature.empty();
     }
 
     uint256 GetHash() { return SerializeHash(*this); }
 };
 
 typedef std::shared_ptr<CGalaxyCashToken> CGalaxyCashTokenRef;
+
 static inline CGalaxyCashTokenRef MakeGalaxyCashTokenRef() { return std::make_shared<CGalaxyCashToken>(); }
-template <typename GalaxyCashToken>
-static inline CGalaxyCashTokenRef MakeGalaxyCashTokenRef(GalaxyCashToken&& in)
+static inline CGalaxyCashTokenRef MakeGalaxyCashTokenRef(const CGalaxyCashToken& in)
 {
-    return std::make_shared<CGalaxyCashToken>(std::forward<GalaxyCashToken>(in));
+    return std::make_shared<CGalaxyCashToken>(in);
 }
 
 inline CGalaxyCashTokenRef OperandAsToken(const CGalaxyCashOperand& value)
 {
     CGalaxyCashTokenRef ret = MakeGalaxyCashTokenRef();
-    CDataStream s((const char*)*value.vch.begin(), (const char*)*value.vch.end(), SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream s(value.vch, SER_NETWORK, PROTOCOL_VERSION);
     s >> *ret;
     return ret;
 }
@@ -579,6 +594,33 @@ public:
         SetNull();
     }
 
+    CGalaxyCashTransaction(const CGalaxyCashTransaction& tx) : version(tx.version), token(tx.token), address(tx.address), pubKey(tx.pubKey)
+    {
+        if (!tx.script.empty()) {
+            std::copy(tx.script.begin(), tx.script.end(), script.begin());
+        }
+        if (!tx.signature.empty()) {
+            std::copy(tx.signature.begin(), tx.signature.end(), signature.begin());
+        }
+    }
+
+    CGalaxyCashTransaction(const std::shared_ptr<CGalaxyCashTransaction>& tx)
+    {
+        if (tx) {
+            version = tx->version;
+            token = tx->token;
+            address = tx->address;
+            pubKey = tx->pubKey;
+            if (!tx->script.empty()) {
+                std::copy(tx->script.begin(), tx->script.end(), script.begin());
+            }
+            if (!tx->signature.empty()) {
+                std::copy(tx->signature.begin(), tx->signature.end(), signature.begin());
+            }
+        } else {
+            SetNull();
+        }
+    }
 
     void SetNull()
     {
@@ -666,12 +708,12 @@ public:
     }
 };
 
-typedef std::shared_ptr<const CGalaxyCashTransaction> CGalaxyCashTransactionRef;
-static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef() { return std::make_shared<const CGalaxyCashTransaction>(); }
+typedef std::shared_ptr<CGalaxyCashTransaction> CGalaxyCashTransactionRef;
+static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef() { return std::make_shared<CGalaxyCashTransaction>(); }
 template <typename Tx>
-static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef(Tx&& txIn)
+static inline CGalaxyCashTransactionRef MakeGalaxyCashTransactionRef(Tx& in)
 {
-    return std::make_shared<const CGalaxyCashTransaction>(std::forward<Tx>(txIn));
+    return std::make_shared<CGalaxyCashTransaction>(in);
 }
 
 class CGalaxyCashConsensus
