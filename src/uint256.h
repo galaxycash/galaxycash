@@ -288,6 +288,48 @@ public:
         return sizeof(data);
     }
 
+    void SetUInt8(uint8_t value) {
+        data[0] = value;
+        for (size_t i = 1; i < WIDTH; i++)
+            data[i] = 0;        
+    }
+
+    uint8_t GetUInt8() const {
+        return data[0];
+    }
+
+    void SetUInt16(uint16_t value) {
+        data[0] = (uint8_t)(value);
+        data[1] = (uint8_t)(value >> 8);
+        for (size_t i = 2; i < WIDTH; i++)
+            data[i] = 0;
+    }
+
+    uint16_t GetUInt16() const {
+        return (((uint16_t)data[0]) | ((uint16_t)data[1]) << 8);
+    }
+
+    void SetUInt32(uint32_t value) {
+        pn[0] = value;
+        for (size_t i = 1; i < WIDTH32; i++)
+            pn[i] = 0;
+    }
+
+    uint32_t GetUInt32() const {
+        return pn[0];
+    }
+
+    void SetUInt64(uint64_t value) {
+        pn[0] = (uint32_t)(value);
+        pn[1] = (uint32_t)(value >> 32);
+        for (size_t i = 1; i < WIDTH32; i++)
+            pn[i] = 0;
+    }
+
+    uint64_t GetUInt64() const {
+        return (((uint64_t)pn[0]) | ((uint64_t)pn[1]) << 32);
+    }
+
     uint64_t GetUint64(int pos) const
     {
         const uint8_t* ptr = data + pos * 8;

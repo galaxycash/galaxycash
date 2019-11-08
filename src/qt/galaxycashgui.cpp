@@ -320,7 +320,7 @@ void BitcoinGUI::createActions()
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    mintingAction = new QAction(QIcon(":/icons/minting"), tr("&Minting"), this);
+    mintingAction = new QAction(QIcon(":/icons/minting"), tr("&Staking"), this);
     mintingAction->setStatusTip(tr("Show your minting capacity"));
     mintingAction->setToolTip(mintingAction->statusTip());
     mintingAction->setCheckable(true);
@@ -378,7 +378,7 @@ void BitcoinGUI::createActions()
     encryptWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Encrypt Wallet..."), this);
     encryptWalletAction->setStatusTip(tr("Encrypt the private keys that belong to your wallet"));
     encryptWalletAction->setCheckable(true);
-    decryptForMintingAction = new QAction(QIcon(":/icons/lock_open"), tr("&Decrypt Wallet for Minting Only"), this);
+    decryptForMintingAction = new QAction(QIcon(":/icons/lock_open"), tr("&Decrypt Wallet for Staking Only"), this);
     decryptForMintingAction->setStatusTip(tr("Decrypt wallet only for minting. Sending coins will still require the password."));
     decryptForMintingAction->setCheckable(true);
     backupWalletAction = new QAction(QIcon(":/icons/filesave"), tr("&Backup Wallet..."), this);

@@ -461,6 +461,34 @@ static bool ParsePrechecks(const std::string& str)
     return true;
 }
 
+bool ParseInt8(const std::string& str, int8_t *out)
+{
+    if (!ParsePrechecks(str))
+        return false;
+    char *endp = nullptr;
+    errno = 0; // strtol will not set errno if valid
+    long int n = strtol(str.c_str(), &endp, 10);
+    if(out) *out = (int8_t)n;
+
+    return endp && *endp == 0 && !errno &&
+        n >= std::numeric_limits<int8_t>::min() &&
+        n <= std::numeric_limits<int8_t>::max();
+}
+
+bool ParseInt16(const std::string& str, int16_t *out)
+{
+    if (!ParsePrechecks(str))
+        return false;
+    char *endp = nullptr;
+    errno = 0; // strtol will not set errno if valid
+    long int n = strtol(str.c_str(), &endp, 10);
+    if(out) *out = (int16_t)n;
+
+    return endp && *endp == 0 && !errno &&
+        n >= std::numeric_limits<int16_t>::min() &&
+        n <= std::numeric_limits<int16_t>::max();
+}
+
 bool ParseInt32(const std::string& str, int32_t *out)
 {
     if (!ParsePrechecks(str))
@@ -490,6 +518,34 @@ bool ParseInt64(const std::string& str, int64_t *out)
     return endp && *endp == 0 && !errno &&
         n >= std::numeric_limits<int64_t>::min() &&
         n <= std::numeric_limits<int64_t>::max();
+}
+
+bool ParseUInt8(const std::string& str, uint8_t *out)
+{
+    if (!ParsePrechecks(str))
+        return false;
+    if (str.size() >= 1 && str[0] == '-') // Reject negative values, unfortunately strtoul accepts these by default if they fit in the range
+        return false;
+    char *endp = nullptr;
+    errno = 0; // strtoul will not set errno if valid
+    unsigned long int n = strtoul(str.c_str(), &endp, 10);
+    if(out) *out = (uint8_t)n;
+    return endp && *endp == 0 && !errno &&
+        n <= std::numeric_limits<uint8_t>::max();
+}
+
+bool ParseUInt16(const std::string& str, uint16_t *out)
+{
+    if (!ParsePrechecks(str))
+        return false;
+    if (str.size() >= 1 && str[0] == '-') // Reject negative values, unfortunately strtoul accepts these by default if they fit in the range
+        return false;
+    char *endp = nullptr;
+    errno = 0; // strtoul will not set errno if valid
+    unsigned long int n = strtoul(str.c_str(), &endp, 10);
+    if(out) *out = (uint16_t)n;
+    return endp && *endp == 0 && !errno &&
+        n <= std::numeric_limits<uint16_t>::max();
 }
 
 bool ParseUInt32(const std::string& str, uint32_t *out)
@@ -525,6 +581,19 @@ bool ParseUInt64(const std::string& str, uint64_t *out)
         n <= std::numeric_limits<uint64_t>::max();
 }
 
+bool ParseFloat(const std::string& str, float *out)
+{
+    if (!ParsePrechecks(str))
+        return false;
+    if (str.size() >= 2 && str[0] == '0' && str[1] == 'x') // No hexadecimal floats allowed
+        return false;
+    std::istringstream text(str);
+    text.imbue(std::locale::classic());
+    float result;
+    text >> result;
+    if(out) *out = result;
+    return text.eof() && !text.fail();
+}
 
 bool ParseDouble(const std::string& str, double *out)
 {
@@ -583,12 +652,47 @@ std::string FormatParagraph(const std::string& in, size_t width, size_t indent)
 
 std::string i64tostr(int64_t n)
 {
-    return strprintf("%d", n);
+    return std::to_string(n);
+}
+
+std::string i32tostr(int32_t n)
+{
+    return std::to_string(n);
+}
+
+std::string i16tostr(int16_t n)
+{
+    return std::to_string(n);
+}
+
+std::string i8tostr(int8_t n)
+{
+    return std::to_string(n);
+}
+
+std::string ui64tostr(uint64_t n)
+{
+    return std::to_string(n);
+}
+
+std::string ui32tostr(uint32_t n)
+{
+    return std::to_string(n);
+}
+
+std::string ui16tostr(uint16_t n)
+{
+    return std::to_string(n);
+}
+
+std::string ui8tostr(uint8_t n)
+{
+    return std::to_string(n);
 }
 
 std::string itostr(int n)
 {
-    return strprintf("%d", n);
+    return std::to_string(n);
 }
 
 int64_t atoi64(const char* psz)
@@ -609,9 +713,89 @@ int64_t atoi64(const std::string& str)
 #endif
 }
 
+int32_t atoi32(const char* psz)
+{
+    return atoi(psz);
+}
+
+int32_t atoi32(const std::string& str)
+{
+    return atoi(str.c_str());
+}
+
+int16_t atoi16(const char* psz)
+{
+    return (int16_t) atoi(psz);
+}
+
+int16_t atoi16(const std::string& str)
+{
+    return (int16_t) atoi(str.c_str());
+}
+
+int8_t atoi8(const char* psz)
+{
+    return (int8_t) atoi(psz);
+}
+
+int8_t atoi8(const std::string& str)
+{
+    return (int8_t) atoi(str.c_str());
+}
+
 int atoi(const std::string& str)
 {
     return atoi(str.c_str());
+}
+
+uint64_t atou64(const char* psz)
+{
+    return strtoull(psz, nullptr, 10);
+}
+
+uint64_t atou64(const std::string& str)
+{
+    return strtoull(str.c_str(), nullptr, 10);
+}
+
+uint32_t atou32(const char* psz)
+{
+    return strtoul(psz, nullptr, 10);
+}
+
+uint32_t atou32(const std::string& str)
+{
+    return strtoul(str.c_str(), nullptr, 10);
+}
+
+uint16_t atou16(const char* psz)
+{
+    return (uint16_t) strtoul(psz, nullptr, 10);
+}
+
+uint16_t atou16(const std::string& str)
+{
+    return (uint16_t) strtoul(str.c_str(), nullptr, 10);
+}
+
+uint8_t atou8(const char* psz)
+{
+    return (uint8_t) strtoul(psz, nullptr, 10);
+}
+
+uint8_t atou8(const std::string& str)
+{
+    return (uint8_t) strtoul(str.c_str(), nullptr, 10);
+}
+
+unsigned int atou(const char* psz)
+{
+    return strtoul(psz, nullptr, 10);
+}
+
+unsigned int atou(const std::string& str)
+{
+    return strtoul(str.c_str(), nullptr, 10);
 }
 
 /** Upper bound for mantissa.

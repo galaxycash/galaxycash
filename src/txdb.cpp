@@ -13,6 +13,8 @@
 #include <ui_interface.h>
 #include <uint256.h>
 #include <util.h>
+#include <kernel.h>
+#include <validation.h>
 
 #include <stdint.h>
 
@@ -292,6 +294,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
 
     pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
 
+
     // Load mapBlockIndex
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
@@ -322,10 +325,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->prevoutStake = diskindex.prevoutStake;
                 pindexNew->nStakeTime = diskindex.nStakeTime;
                 pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
-
-                if (!(pindexNew->nFlags & CBlockIndex::BLOCK_SUBSIDY) && pindexNew->IsProofOfWork() && !CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams))
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
-
+                    
                 pcursor->Next();
             } else {
                 return error("%s: failed to read value", __func__);

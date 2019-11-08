@@ -185,17 +185,6 @@ void Shutdown()
     if (!lockShutdown)
         return;
 
-
-    if (fFeeEstimatesInitialized) {
-        boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-        CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
-        if (!est_fileout.IsNull())
-            mempool.WriteFeeEstimates(est_fileout);
-        else
-            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
-        fFeeEstimatesInitialized = false;
-    }
-
     /// Note: Shutdown() must be able to handle cases in which initialization failed part of the way,
     /// for example if the data directory was found to be locked.
     /// Be sure that anything that writes files or flushes caches only does this if the respective
@@ -203,9 +192,6 @@ void Shutdown()
     RenameThread("galaxycash-shutoff");
     mempool.AddTransactionsUpdated(1);
 
-    sporkManager.Dump();
-    DumpMasternodes();
-    DumpMasternodePayments();
 
     StopHTTPRPC();
     StopREST();
@@ -237,6 +223,20 @@ void Shutdown()
     // FlushStateToDisk generates a SetBestChain callback, which we should avoid missing
     if (pcoinsTip != nullptr) {
         FlushStateToDisk();
+    }
+
+    sporkManager.Dump();
+    DumpMasternodes();
+    DumpMasternodePayments();
+    
+    if (fFeeEstimatesInitialized) {
+        boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
+        CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
+        if (!est_fileout.IsNull())
+            mempool.WriteFeeEstimates(est_fileout);
+        else
+            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
+        fFeeEstimatesInitialized = false;
     }
 
     // After there are no more peers/RPC left to give us new data which may generate

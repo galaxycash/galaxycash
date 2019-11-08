@@ -56,26 +56,7 @@ CActiveMasternode activeMasternode;
 
 int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCount)
 {
-    int64_t ret = 0;
-
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight < 200)
-            return 0;
-    }
-
-    if (nHeight <= 43200) {
-        ret = blockValue / 5;
-    } else if (nHeight < 86400 && nHeight > 43200) {
-        ret = blockValue / (100 / 30);
-    } else if (nHeight < (Params().NetworkIDString() == CBaseChainParams::TESTNET ? 145000 : 151200) && nHeight >= 86400) {
-        ret = 50 * COIN;
-    } else if (nHeight <= Params().GetConsensus().LastPowBlock() && nHeight >= 151200) {
-        ret = blockValue / 2;
-    } else {
-        ret = 3 * COIN;
-    }
-
-    return ret;
+    return blockValue * 0.95;
 }
 
 static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256& hashBlock, bool fAllowSlow)
@@ -276,7 +257,7 @@ bool CMasternodeConfig::read(std::string& strErr)
         if (configFile != NULL) {
             std::string strHeader = "# Masternode config file\n"
                                     "# Format: alias IP:port masternodeprivkey collateral_output_txid collateral_output_index\n"
-                                    "# Example: mn1 127.0.0.2:51472 93HaYBVUCYjEMeeH1Y4sBGLALQZE1Yc1K64xiqgX37tGBDQL8Xg 2bcd3c84c84f87eaa86e4e56834c92927a07f9e18718810b92e0d0324456a67c 0"
+                                    "# Example: mn1 127.0.0.2:7604 93HaYBVUCYjEMeeH1Y4sBGLALQZE1Yc1K64xiqgX37tGBDQL8Xg 2bcd3c84c84f87eaa86e4e56834c92927a07f9e18718810b92e0d0324456a67c 0"
                                     "#\n";
             fwrite(strHeader.c_str(), std::strlen(strHeader.c_str()), 1, configFile);
             fclose(configFile);
@@ -318,17 +299,17 @@ bool CMasternodeConfig::read(std::string& strErr)
         }
 
         if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-            if (port != 51472) {
+            if (port != Params().GetDefaultPort()) {
                 strErr = _("Invalid port detected in masternode.conf") + "\n" +
                          strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                         _("(must be 51472 for mainnet)");
+                         _("(must be 7604 for mainnet)");
                 streamConfig.close();
                 return false;
             }
-        } else if (port == 51472) {
+        } else if (port == Params().GetDefaultPort()) {
             strErr = _("Invalid port detected in masternode.conf") + "\n" +
                      strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                     _("(51472 could be used only on mainnet)");
+                     _("(7604 could be used only on mainnet)");
             streamConfig.close();
             return false;
         }
@@ -873,8 +854,8 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
     }
 
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (addr.GetPort() != 51472) return false;
-    } else if (addr.GetPort() == 51472)
+        if (addr.GetPort() != Params().GetDefaultPort()) return false;
+    } else if (addr.GetPort() == Params().GetDefaultPort())
         return false;
 
     //search existing Masternode list, this is where we update existing Masternodes with new mnb broadcasts
@@ -1390,8 +1371,9 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
         }
 
         LogPrint(BCLog::MASTERNODE, "dseep - relaying from active mn, %s \n", vin.ToString().c_str());
-        g_connman->ForEachNode([=, this, &vchMasterNodeSignature, &masterNodeSignatureTime](CNode* pnode) {
-            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->nVersion).Make("dseep", vin, vchMasterNodeSignature, masterNodeSignatureTime, false));
+        CTxIn vin2 = this->vin;
+        g_connman->ForEachNode([=, &vin2, &vchMasterNodeSignature, &masterNodeSignatureTime](CNode* pnode) {
+            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->nVersion).Make("dseep", vin2, vchMasterNodeSignature, masterNodeSignatureTime, false));
         });
         /*
          * END OF "REMOVE"
@@ -2138,7 +2120,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
 
 int CMasternodePayments::GetMinMasternodePaymentsProto()
 {
-    return NEW_VERSION; // Allow only updated peers
+    return MIN_MASTERNODE_VERSION; // Allow only updated peers
 }
 
 void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -2167,7 +2149,7 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const s
         CMasternodePaymentWinner winner;
         vRecv >> winner;
 
-        if (pfrom->nVersion < NEW_VERSION) return;
+        if (pfrom->nVersion < MIN_MASTERNODE_VERSION) return;
 
         int nHeight;
         {
@@ -2447,13 +2429,13 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
         return false;
     }
 
-    if (pmn->protocolVersion < NEW_VERSION) {
-        strError = strprintf("Masternode protocol too old %d - req %d", pmn->protocolVersion, NEW_VERSION);
+    if (pmn->protocolVersion < MIN_MASTERNODE_VERSION) {
+        strError = strprintf("Masternode protocol too old %d - req %d", pmn->protocolVersion, MIN_MASTERNODE_VERSION);
         LogPrint(BCLog::MASTERNODE, "CMasternodePaymentWinner::IsValid - %s\n", strError);
         return false;
     }
 
-    int n = mnodeman.GetMasternodeRank(vinMasternode, nBlockHeight - 100, NEW_VERSION);
+    int n = mnodeman.GetMasternodeRank(vinMasternode, nBlockHeight - 100, MIN_MASTERNODE_VERSION);
 
     if (n > MNPAYMENTS_SIGNATURES_TOTAL) {
         //It's common to have masternodes mistakenly think they are in the top 10
@@ -2475,7 +2457,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     //reference node - hybrid mode
 
-    int n = mnodeman.GetMasternodeRank(activeMasternode.vin, nBlockHeight - 100, NEW_VERSION);
+    int n = mnodeman.GetMasternodeRank(activeMasternode.vin, nBlockHeight - 100, MIN_MASTERNODE_VERSION);
 
     if (n == -1) {
         LogPrint(BCLog::PAYMENTS, "CMasternodePayments::ProcessBlock - Unknown Masternode\n");
@@ -2669,7 +2651,7 @@ void CMasternodeMan::AskForMN(CNode* pnode, CTxIn& vin)
     // ask for the mnb info once from the node that sent mnp
 
     LogPrint(BCLog::MASTERNODE, "CMasternodeMan::AskForMN - Asking node for missing entry, vin: %s\n", vin.prevout.hash.ToString());
-    g_connman->PushMessage(pnode, CNetMsgMaker(pnode->nVersion).Make("dseg", vin));
+    g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("dseg", vin));
     int64_t askAgain = GetTime() + MASTERNODE_MIN_MNP_SECONDS;
     mWeAskedForMasternodeListEntry[vin.prevout] = askAgain;
 }
@@ -2794,7 +2776,7 @@ void CMasternodeMan::Clear()
 int CMasternodeMan::stable_size()
 {
     int nStable_size = 0;
-    int nMinProtocol = NEW_VERSION;
+    int nMinProtocol = MIN_MASTERNODE_VERSION;
     int64_t nMasternode_Min_Age = MN_WINNER_MINIMUM_AGE;
     int64_t nMasternode_Age = 0;
 
@@ -3152,13 +3134,13 @@ void CMasternodeMan::ProcessMasternodeConnections()
     //we don't care about this for regtest
     if (Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
 
-    g_connman->ForEachNode([=](CNode* pnode) {
+    /*g_connman->ForEachNode([=](CNode* pnode) {
         if (pnode->fMasternode) {
             LogPrint(BCLog::MASTERNODE, "Closing Masternode connection peer=%i \n", pnode->GetId());
             pnode->fMasternode = false;
             pnode->Release();
         }
-    });
+    })*/
 }
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -3363,8 +3345,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         }
 
         if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-            if (addr.GetPort() != 51472) return;
-        } else if (addr.GetPort() == 51472)
+            if (addr.GetPort() != Params().GetDefaultPort()) return;
+        } else if (addr.GetPort() == Params().GetDefaultPort())
             return;
 
         //search existing Masternode list, this is where we update existing Masternodes with new dsee broadcasts
@@ -3375,10 +3357,10 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             // mn.pubkey = pubkey, IsVinAssociatedWithPubkey is validated once below,
             //   after that they just need to match
             if (count == -1 && pmn->pubKeyCollateralAddress == pubkey && (GetAdjustedTime() - pmn->nLastDsee > MASTERNODE_MIN_MNB_SECONDS)) {
-                if (pmn->protocolVersion > GETHEADERS_VERSION && sigTime - pmn->lastPing.sigTime < MASTERNODE_MIN_MNB_SECONDS) return;
+                if (pmn->protocolVersion >= NEW_VERSION && sigTime - pmn->lastPing.sigTime < MASTERNODE_MIN_MNB_SECONDS) return;
                 if (pmn->nLastDsee < sigTime) { //take the newest entry
                     LogPrint(BCLog::MASTERNODE, "dsee - Got updated entry for %s\n", vin.prevout.hash.ToString());
-                    if (pmn->protocolVersion < GETHEADERS_VERSION) {
+                    if (pmn->protocolVersion <= OLD_VERSION) {
                         pmn->pubKeyMasternode = pubkey2;
                         pmn->sigTime = sigTime;
                         pmn->sig = vchSig;
@@ -3478,7 +3460,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             mn.lastPing = CMasternodePing(vin);
             mn.Check(true);
             // add v11 masternodes, v12 should be added by mnb only
-            if (protocolVersion < GETHEADERS_VERSION) {
+            if (protocolVersion <= OLD_VERSION) {
                 LogPrint(BCLog::MASTERNODE, "dsee - Accepted OLD Masternode entry %i %i\n", count, current);
                 Add(mn);
             }
@@ -3545,7 +3527,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
                 }
 
                 // fake ping for v11 masternodes, ignore for v12
-                if (pmn->protocolVersion < GETHEADERS_VERSION) pmn->lastPing = CMasternodePing(vin);
+                if (pmn->protocolVersion <= OLD_VERSION) pmn->lastPing = CMasternodePing(vin);
                 pmn->nLastDseep = sigTime;
                 pmn->Check();
                 if (pmn->IsEnabled()) {
@@ -3885,7 +3867,8 @@ void CMasternodeSync::Process()
                     if (pindexPrev == NULL) return;
 
                     int nMnCount = mnodeman.CountEnabled();
-                    g_connman->PushMessage(pnode, CNetMsgMaker(pnode->nVersion).Make("mnget", nMnCount)); //sync payees
+                    if (pnode->GetRecvVersion() <= OLD_VERSION) g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("dseg", CTxIn()));
+                    g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("mnget", nMnCount)); //sync payees
                     RequestedMasternodeAttempt++;
 
                     return;
@@ -3895,34 +3878,59 @@ void CMasternodeSync::Process()
     });
 }
 
+
+
 void ThreadMasternode()
 {
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("galaxycash-masternode");
 
     unsigned int c = 0;
-
+    static int RequestedMasterNodeList = 0;
     while (true) {
         MilliSleep(1000);
         //LogPrintf("ThreadCheckObfuScationPool::check timeout\n");
 
         // try to sync from all available nodes, one step at a time
-        masternodeSync.Process();
+        {
+            //TRY_LOCK(cs_main, lockMain);
+            //if (!lockMain) continue;
 
-        if (masternodeSync.IsBlockchainSynced()) {
-            c++;
+            masternodeSync.Process();
+            if(c % 5 == 0 && RequestedMasterNodeList < 36){
+                bool fIsInitialDownload = IsInitialBlockDownload();
+                if(!fIsInitialDownload) {
+                    g_connman->ForEachNode([=](CNode *pnode) {
+                        if (pnode->GetRecvVersion() <= OLD_VERSION) {
+                            //keep track of who we've asked for the list
+                            if(pnode->HasFulfilledRequest("mnsync-old")) return;
+                            pnode->FulfilledRequest("mnsync-old");
 
-            // check if we should activate or ping every few minutes,
-            // start right after sync is considered to be done
-            if (c % MASTERNODE_PING_SECONDS == 1) activeMasternode.ManageStatus();
+                            LogPrintf("Successfully synced, asking for Masternode list and payment list\n");
 
-            if (c % 60 == 0) {
-                mnodeman.CheckAndRemove();
-                mnodeman.ProcessMasternodeConnections();
-                masternodePayments.CleanPaymentList();
+                            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("dseg", CTxIn())); //request full mn list
+                            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("mnget")); //sync payees
+
+                            RequestedMasterNodeList++;
+                        }
+                    });
+                }
             }
+            if (masternodeSync.IsBlockchainSynced()) {
+                c++;
 
-            //if(c % MASTERNODES_DUMP_SECONDS == 0) DumpMasternodes();
+                // check if we should activate or ping every few minutes,
+                // start right after sync is considered to be done
+                if (c % MASTERNODE_PING_SECONDS == 1) activeMasternode.ManageStatus();
+
+                if (c % 60 == 0) {
+                    mnodeman.CheckAndRemove();
+                    mnodeman.ProcessMasternodeConnections();
+                    masternodePayments.CleanPaymentList();
+                }
+
+                //if(c % MASTERNODES_DUMP_SECONDS == 0) DumpMasternodes();
+            }
         }
     }
 }

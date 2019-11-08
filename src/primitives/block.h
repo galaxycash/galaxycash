@@ -67,7 +67,7 @@ public:
         READWRITE(nNonce);
 
         // galaxycash: do not serialize nFlags when computing hash
-        if (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH)
+        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH))
             READWRITE(nFlags);
     }
 
@@ -164,13 +164,14 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        if (!ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
+        if (!ser_action.ForRead() && IsProofOfWork() && (nFlags & (1 << 0))) nFlags &= ~(1 << 0);   // PoS flag
+        if (!ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 2))) nFlags |= (1 << 2); // Dev block flag
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
-        READWRITE(vchBlockSig);
-        if (!ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
-        if (!ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 2))) nFlags |= (1 << 2); // Dev block flag
-        if (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH) READWRITE(nFlags);
+        READWRITE(vchBlockSig);  
         if (ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
+        if (ser_action.ForRead() && IsProofOfWork() && (nFlags & (1 << 0))) nFlags &= ~(1 << 0);   // PoS flag
         if (ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 2))) nFlags |= (1 << 2); // Dev block flag
     }
 

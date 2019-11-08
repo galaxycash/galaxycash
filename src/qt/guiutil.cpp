@@ -170,7 +170,7 @@ void setupAmountWidget(QLineEdit* widget, QWidget* parent)
 bool parseBitcoinURI(const QUrl& uri, SendCoinsRecipient* out)
 {
     // return if URI is not valid or is no galaxycash: URI
-    if (!uri.isValid() || (uri.scheme() != QString("galaxycash") && uri.scheme() != QString("ppcoin")))
+    if (!uri.isValid() || (uri.scheme() != QString("galaxycash") && uri.scheme() != QString("bitcoin")))
         return false;
 
     SendCoinsRecipient rv;

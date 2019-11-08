@@ -136,7 +136,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100001");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256();
+        consensus.defaultAssumeValid = uint256("0x7590d46bb45d01f3e02f079a516acf5c8b8234aa522098eb7bcb9a924b598611");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -197,7 +197,7 @@ public:
             1571724176, // * UNIX timestamp of last known number of transactions
             841189,     // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
-            0.01486123566088108};
+            0.01486123738803377};
     }
 };
 

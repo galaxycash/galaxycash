@@ -17,6 +17,7 @@ static const int DATABASE_VERSION = 90909;
 static const int PROTOCOL_VERSION = 94444;
 static const int NEW_VERSION = 94444; // galaxycash: used to communicate with clients knows about galaxycash new protocol
 static const int OLD_VERSION = 90920; // galaxycash: used to communicate with clients that don't know how to send PoS information in headers
+static const int MIN_MASTERNODE_VERSION = 90920; // galaxycash: minimal masternode protocol version
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = OLD_VERSION;
@@ -67,6 +68,6 @@ static const int CANONICAL_BLOCK_SIG_VERSION = 90920;
 static const int CANONICAL_BLOCK_SIG_LOW_S_VERSION = 90920;
 
 //! masternodes older than this proto version use old strMessage format for mnannounce
-static const int MIN_PEER_MNANNOUNCE = 90000;
+static const int MIN_PEER_MNANNOUNCE = 94444;
 
 #endif // BITCOIN_VERSION_H

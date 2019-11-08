@@ -29,8 +29,8 @@ const char* GETSPORKS = "getsporks";
 const char* GETSPORK = "getspork";
 const char* SPORK = "spork";
 const char* SPORKS = "sporks";
-const char* MASTERNODE_WINNER = "mn-winner";
-const char* MASTERNODE_SCANNING_ERROR = "mn-scan-error";
+const char* MASTERNODE_WINNER = "mnw";
+const char* MASTERNODE_SCANNING_ERROR = "mnse";
 const char* BUDGET_VOTE = "mn-budget-vote";
 const char* BUDGET_PROPOSAL = "mn-budget-proposal";
 const char* BUDGET_FINALIZED = "mn-budget-finalized";
@@ -236,28 +236,3 @@ const std::vector<std::string>& getAllNetMessageTypes()
 
 const unsigned int POW_HEADER_COOLING = 70;
 
-uint16_t ser_read_old_obj16(uint16_t x)
-{
-    return le16toh(x);
-}
-uint32_t ser_read_old_obj32(uint32_t x)
-{
-    return le32toh(x);
-}
-uint64_t ser_read_old_obj64(uint64_t x)
-{
-    return le64toh(x);
-}
-
-uint16_t ser_write_old_obj16(uint16_t x)
-{
-    return htole16(x);
-}
-uint32_t ser_write_old_obj32(uint32_t x)
-{
-    return htole32(x);
-}
-uint64_t ser_write_old_obj64(uint64_t x)
-{
-    return htole64(x);
-}

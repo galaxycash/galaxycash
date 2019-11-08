@@ -234,13 +234,8 @@ static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 1024 * 1024 * 1024;
  * @param[out]  fNewBlock A boolean which is set to indicate if the block was first received via this call
  * @return True if state.IsValid()
  */
-bool ProcessBlock(CNode* pfrom, const CBlock& block, bool fOldClient = false, bool fForceProcessing = true, bool* fNewBlock = nullptr, CBlockIndex** ppindex = nullptr, bool* fPoSDuplicate = nullptr);
+bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, const bool fOldClient, bool fForceProcessing, bool* fNewBlock, CBlockIndex** ppindex = nullptr, bool* fPoSDuplicate = nullptr);
 
-bool BlockProofOfStakeCheck(CBlockIndex* pindex, const CBlock& block);
-
-uint256 static GetOrphanRoot(const uint256& hash);
-uint256 WantedByOrphan(const COrphanBlock* pblockOrphan);
-void static PruneOrphanBlocks();
 
 /**
  * Process incoming block headers.
@@ -480,6 +475,7 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore);
 bool CheckBlockSignature(const CBlock& block);
 bool IsDeveloperBlock(const CBlock& block);
 bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint256& hash);
-
+void MarkDirtyBlockIndex(CBlockIndex *pindex);
+bool GalaxyCashContextualBlockChecks(const CBlock& block, CValidationState& state, CBlockIndex* pindex, bool fJustCheck);
 
 #endif // BITCOIN_VALIDATION_H

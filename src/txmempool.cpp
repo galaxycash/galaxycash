@@ -181,7 +181,7 @@ public:
         history.resize(nEntries);
     }
 
-    void seenBlock(const std::vector<CTxMemPoolEntry>& entries, int nBlockHeight, const CFeeRate minRelayFee)
+    void seenBlock(std::vector<const CTxMemPoolEntry*>& entries, int nBlockHeight, const CFeeRate minRelayFee)
     {
         if (nBlockHeight <= nBestSeenHeight) {
             // Ignore side chains and re-orgs; assuming they are random
@@ -197,9 +197,9 @@ public:
         // to confirm.
         std::vector<std::vector<const CTxMemPoolEntry*>> entriesByConfirmations;
         entriesByConfirmations.resize(history.size());
-        BOOST_FOREACH (const CTxMemPoolEntry& entry, entries) {
+        BOOST_FOREACH (const CTxMemPoolEntry* entry, entries) {
             // How many blocks did it take for miners to include this transaction?
-            int delta = nBlockHeight - entry.GetHeight();
+            int delta = nBlockHeight - entry->GetHeight();
             if (delta <= 0) {
                 // Re-org made us lose height, this should only happen if we happen
                 // to re-org on a difficulty transition point: very rare!
@@ -207,7 +207,7 @@ public:
             }
             if ((delta - 1) >= (int)history.size())
                 delta = history.size(); // Last bucket is catch-all
-            entriesByConfirmations.at(delta - 1).push_back(&entry);
+            entriesByConfirmations.at(delta - 1).push_back(entry);
         }
         for (size_t i = 0; i < entriesByConfirmations.size(); i++) {
             std::vector<const CTxMemPoolEntry*>& e = entriesByConfirmations.at(i);
@@ -933,7 +933,7 @@ void CTxMemPool::removeConflicts(const CTransaction& tx)
 /**
  * Called when a block is connected. Removes from mempool and updates the miner fee estimator.
  */
-void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx)
+void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx,  unsigned int nBlockHeight)
 {
     LOCK(cs);
     std::vector<const CTxMemPoolEntry*> entries;
@@ -944,6 +944,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx)
         if (i != mapTx.end())
             entries.push_back(&*i);
     }
+    minerPolicyEstimator->seenBlock(entries, nBlockHeight, minRelayFee);
     for (const auto& tx : vtx) {
         txiter it = mapTx.find(tx->GetHash());
         if (it != mapTx.end()) {

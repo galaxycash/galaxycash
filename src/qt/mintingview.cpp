@@ -179,7 +179,7 @@ void MintingView::exportClicked()
     // CSV is currently the only supported format
     QString filename = GUIUtil::getSaveFileName(
             this,
-            tr("Export Minting Data"), QString(),
+            tr("Export Staking Data"), QString(),
             tr("Comma separated file (*.csv)"), nullptr);
 
     if (filename.isNull()) return;

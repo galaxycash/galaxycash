@@ -57,10 +57,47 @@ std::string EncodeBase32(const std::string& str);
 
 void SplitHostPort(std::string in, int& portOut, std::string& hostOut);
 std::string i64tostr(int64_t n);
+std::string i32tostr(int32_t n);
+std::string i16tostr(int16_t n);
+std::string i8tostr(int8_t n);
+std::string ui64tostr(uint64_t n);
+std::string ui32tostr(uint32_t n);
+std::string ui16tostr(uint16_t n);
+std::string ui8tostr(uint8_t n);
 std::string itostr(int n);
 int64_t atoi64(const char* psz);
 int64_t atoi64(const std::string& str);
+int32_t atoi32(const char* psz);
+int32_t atoi32(const std::string& str);
+int16_t atoi16(const char* psz);
+int16_t atoi16(const std::string& str);
+int8_t atoi8(const char* psz);
+int8_t atoi8(const std::string& str);
 int atoi(const std::string& str);
+uint64_t atou64(const char* psz);
+uint64_t atou64(const std::string& str);
+uint32_t atou32(const char* psz);
+uint32_t atou32(const std::string& str);
+uint16_t atou16(const char* psz);
+uint16_t atou16(const std::string& str);
+uint8_t atou8(const char* psz);
+uint8_t atou8(const std::string& str);
+unsigned int atou(const char* psz);
+unsigned int atou(const std::string& str);
+
+/**
+ * Convert string to signed 8-bit integer with strict parse error feedback.
+ * @returns true if the entire string could be parsed as valid integer,
+ *   false if not the entire string could be parsed or when overflow or underflow occurred.
+ */
+bool ParseInt8(const std::string& str, int8_t* out);
+
+/**
+ * Convert string to signed 16-bit integer with strict parse error feedback.
+ * @returns true if the entire string could be parsed as valid integer,
+ *   false if not the entire string could be parsed or when overflow or underflow occurred.
+ */
+bool ParseInt16(const std::string& str, int16_t* out);
 
 /**
  * Convert string to signed 32-bit integer with strict parse error feedback.
@@ -77,6 +114,20 @@ bool ParseInt32(const std::string& str, int32_t* out);
 bool ParseInt64(const std::string& str, int64_t* out);
 
 /**
+ * Convert decimal string to unsigned 8-bit integer with strict parse error feedback.
+ * @returns true if the entire string could be parsed as valid integer,
+ *   false if not the entire string could be parsed or when overflow or underflow occurred.
+ */
+bool ParseUInt8(const std::string& str, uint8_t* out);
+
+/**
+ * Convert decimal string to unsigned 16-bit integer with strict parse error feedback.
+ * @returns true if the entire string could be parsed as valid integer,
+ *   false if not the entire string could be parsed or when overflow or underflow occurred.
+ */
+bool ParseUInt16(const std::string& str, uint16_t* out);
+
+/**
  * Convert decimal string to unsigned 32-bit integer with strict parse error feedback.
  * @returns true if the entire string could be parsed as valid integer,
  *   false if not the entire string could be parsed or when overflow or underflow occurred.
@@ -89,6 +140,13 @@ bool ParseUInt32(const std::string& str, uint32_t* out);
  *   false if not the entire string could be parsed or when overflow or underflow occurred.
  */
 bool ParseUInt64(const std::string& str, uint64_t* out);
+
+/**
+ * Convert string to float with strict parse error feedback.
+ * @returns true if the entire string could be parsed as valid double,
+ *   false if not the entire string could be parsed or when overflow or underflow occurred.
+ */
+bool ParseFloat(const std::string& str, float* out);
 
 /**
  * Convert string to double with strict parse error feedback.

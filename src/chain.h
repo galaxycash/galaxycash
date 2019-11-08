@@ -167,7 +167,6 @@ enum BlockStatus : uint32_t {
 
     BLOCK_HAVE_DATA = 8,  //!< full block available in blk*.dat
     BLOCK_HAVE_UNDO = 16, //!< undo data available in rev*.dat
-    BLOCK_HAVE_STAKE_MODIFIER = 24,
     BLOCK_HAVE_MASK = BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO,
 
     BLOCK_FAILED_VALID = 32, //!< stage after last reached validness failed

@@ -185,7 +185,7 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& stake, cons
 void OverviewPage::updateLockStatus(const int status)
 {
     if (status == WalletModel::Locked)
-        updateAlerts("Info: Minting suspended due to locked wallet.");
+        updateAlerts("Info: Staking suspended due to locked wallet.");
     else
         updateAlerts("");
 }

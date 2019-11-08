@@ -76,13 +76,31 @@ inline T* NCONST_PTR(const T* val)
 }
 
 
-extern uint16_t ser_read_old_obj16(uint16_t);
-extern uint32_t ser_read_old_obj32(uint32_t);
-extern uint64_t ser_read_old_obj64(uint64_t);
+inline uint16_t ser_read_old_obj16(uint16_t x)
+{
+    return le16toh(x);
+}
+inline uint32_t ser_read_old_obj32(uint32_t x)
+{
+    return le32toh(x);
+}
+inline uint64_t ser_read_old_obj64(uint64_t x)
+{
+    return le64toh(x);
+}
 
-extern uint16_t ser_write_old_obj16(uint16_t);
-extern uint32_t ser_write_old_obj32(uint32_t);
-extern uint64_t ser_write_old_obj64(uint64_t);
+inline uint16_t ser_write_old_obj16(uint16_t x)
+{
+    return htole16(x);
+}
+inline uint32_t ser_write_old_obj32(uint32_t x)
+{
+    return htole32(x);
+}
+inline uint64_t ser_write_old_obj64(uint64_t x)
+{
+    return htole64(x);
+}
 
 
 /*
@@ -97,19 +115,19 @@ inline void ser_writedata8(Stream& s, uint8_t obj)
 template <typename Stream>
 inline void ser_writedata16(Stream& s, uint16_t obj)
 {
-    obj = (!(s.GetType() > SER_NETWORK_OLD)) ? htole16(obj) : ser_write_old_obj16(obj);
+    obj = htole16(obj);
     s.write((char*)&obj, 2);
 }
 template <typename Stream>
 inline void ser_writedata32(Stream& s, uint32_t obj)
 {
-    obj = (!(s.GetType() > SER_NETWORK_OLD)) ? htole32(obj) : ser_write_old_obj32(obj);
+    obj = htole32(obj);
     s.write((char*)&obj, 4);
 }
 template <typename Stream>
 inline void ser_writedata64(Stream& s, uint64_t obj)
 {
-    obj = (!(s.GetType() > SER_NETWORK_OLD)) ? htole64(obj) : ser_write_old_obj64(obj);
+    obj = htole64(obj);
     s.write((char*)&obj, 8);
 }
 template <typename Stream>
@@ -124,21 +142,21 @@ inline uint16_t ser_readdata16(Stream& s)
 {
     uint16_t obj;
     s.read((char*)&obj, 2);
-    return (!(s.GetType() > SER_NETWORK_OLD)) ? le16toh(obj) : ser_read_old_obj16(obj);
+    return le16toh(obj);
 }
 template <typename Stream>
 inline uint32_t ser_readdata32(Stream& s)
 {
     uint32_t obj;
     s.read((char*)&obj, 4);
-    return (!(s.GetType() > SER_NETWORK_OLD)) ? le32toh(obj) : ser_read_old_obj32(obj);
+    return le32toh(obj);
 }
 template <typename Stream>
 inline uint64_t ser_readdata64(Stream& s)
 {
     uint64_t obj;
     s.read((char*)&obj, 8);
-    return (!(s.GetType() > SER_NETWORK_OLD)) ? le64toh(obj) : ser_read_old_obj64(obj);
+    return le64toh(obj);
 }
 inline uint64_t ser_double_to_uint64(double x)
 {

@@ -137,6 +137,9 @@ bool GetLogCategory(uint32_t* f, const std::string* str);
 /** Send a string to the log output */
 int LogPrintStr(const std::string& str);
 
+/** Send a string to the error log output */
+int LogErrorStr(const std::string& str);
+
 /** Get format string from VA_ARGS for error reporting */
 template <typename... Args>
 std::string FormatStringFromLogArgs(const char* fmt, const Args&... args)
@@ -168,14 +171,16 @@ static inline void MarkUsed(const T& t, const Args&... args)
 #else
 #define LogPrintf(...)                                                                                                                        \
     do {                                                                                                                                      \
-        std::string _log_msg_; /* Unlikely name to avoid shadowing variables */                                                               \
+        bool err = false; std::string _log_msg_; /* Unlikely name to avoid shadowing variables */                                             \
         try {                                                                                                                                 \
             _log_msg_ = tfm::format(__VA_ARGS__);                                                                                             \
         } catch (tinyformat::format_error & fmterr) {                                                                                         \
             /* Original format string will have newline so don't add one here */                                                              \
             _log_msg_ = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + FormatStringFromLogArgs(__VA_ARGS__); \
+            err = true;                                                                                                                       \
         }                                                                                                                                     \
-        LogPrintStr(_log_msg_);                                                                                                               \
+        if (!err) LogPrintStr(_log_msg_);                                                                                                     \
+        else LogErrorStr(_log_msg_);                                                                                                          \
     } while (0)
 
 #define LogPrint(category, ...)              \
@@ -189,7 +194,7 @@ static inline void MarkUsed(const T& t, const Args&... args)
 template <typename... Args>
 bool error(const char* fmt, const Args&... args)
 {
-    LogPrintStr("ERROR: " + tfm::format(fmt, args...) + "\n");
+    LogErrorStr("ERROR: " + tfm::format(fmt, args...) + "\n");
     return false;
 }
 
@@ -220,8 +225,11 @@ void CreatePidFile(const fs::path& path, pid_t pid);
 fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
 fs::path GetDebugLogPath();
+fs::path GetErrorLogPath();
 bool OpenDebugLog();
+bool OpenErrorLog();
 void ShrinkDebugFile();
+void ShrinkErrorFile();
 void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)

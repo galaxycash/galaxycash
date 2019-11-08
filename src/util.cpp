@@ -85,6 +85,7 @@ const int64_t nStartupTime = GetTime();
 const char* const BITCOIN_CONF_FILENAME = "galaxycash.conf";
 const char* const BITCOIN_PID_FILENAME = "galaxycashd.pid";
 const char* const DEFAULT_DEBUGLOGFILE = "debug.log";
+const char* const DEFAULT_ERRORLOGFILE = "error.log";
 
 ArgsManager gArgs;
 bool fPrintToConsole = false;
@@ -158,6 +159,7 @@ public:
  */
 
 static boost::once_flag debugPrintInitFlag = BOOST_ONCE_INIT;
+static boost::once_flag errorPrintInitFlag = BOOST_ONCE_INIT;
 
 /**
  * We use boost::call_once() to make sure mutexDebugLog and
@@ -170,11 +172,21 @@ static boost::once_flag debugPrintInitFlag = BOOST_ONCE_INIT;
  */
 static FILE* fileout = nullptr;
 static boost::mutex* mutexDebugLog = nullptr;
+static FILE* errout = nullptr;
+static boost::mutex* mutexErrorLog = nullptr;
 static std::list<std::string>* vMsgsBeforeOpenLog;
+static std::list<std::string>* vErrMsgsBeforeOpenLog;
 
 static int FileWriteStr(const std::string& str, FILE* fp)
 {
     return fwrite(str.data(), 1, str.size(), fp);
+}
+
+static void ErrorPrintInit()
+{
+    assert(mutexErrorLog == nullptr);
+    mutexErrorLog = new boost::mutex();
+    vErrMsgsBeforeOpenLog = new std::list<std::string>;
 }
 
 static void DebugPrintInit()
@@ -182,11 +194,22 @@ static void DebugPrintInit()
     assert(mutexDebugLog == nullptr);
     mutexDebugLog = new boost::mutex();
     vMsgsBeforeOpenLog = new std::list<std::string>;
+    ErrorPrintInit();
 }
 
 fs::path GetDebugLogPath()
 {
     fs::path logfile(gArgs.GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE));
+    if (logfile.is_absolute()) {
+        return logfile;
+    } else {
+        return GetDataDir() / logfile;
+    }
+}
+
+fs::path GetErrorLogPath()
+{
+    fs::path logfile(gArgs.GetArg("-errorlogfile", DEFAULT_ERRORLOGFILE));
     if (logfile.is_absolute()) {
         return logfile;
     } else {
@@ -217,6 +240,32 @@ bool OpenDebugLog()
 
     delete vMsgsBeforeOpenLog;
     vMsgsBeforeOpenLog = nullptr;
+    return true;
+}
+
+bool OpenErrorLog()
+{
+    boost::call_once(&ErrorPrintInit, errorPrintInitFlag);
+    boost::mutex::scoped_lock scoped_lock(*mutexErrorLog);
+
+    assert(errout == nullptr);
+    assert(vErrMsgsBeforeOpenLog);
+    fs::path pathError = GetErrorLogPath();
+
+    errout = fsbridge::fopen(pathError, "a");
+    if (!errout) {
+        return false;
+    }
+
+    setbuf(errout, nullptr); // unbuffered
+    // dump buffered messages from before we opened the log
+    while (!vErrMsgsBeforeOpenLog->empty()) {
+        FileWriteStr(vErrMsgsBeforeOpenLog->front(), errout);
+        vErrMsgsBeforeOpenLog->pop_front();
+    }
+
+    delete vErrMsgsBeforeOpenLog;
+    vErrMsgsBeforeOpenLog = nullptr;
     return true;
 }
 
@@ -350,7 +399,9 @@ int LogPrintStr(const std::string& str)
         // print to console
         ret = fwrite(strTimestamped.data(), 1, strTimestamped.size(), stdout);
         fflush(stdout);
-    } else if (fPrintToDebugLog) {
+    }
+    
+    if (fPrintToDebugLog) {
         boost::call_once(&DebugPrintInit, debugPrintInitFlag);
         boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
 
@@ -374,6 +425,40 @@ int LogPrintStr(const std::string& str)
     return ret;
 }
 
+int LogErrorStr(const std::string& str)
+{
+    int ret = 0; // Returns total number of characters written
+    static std::atomic_bool fStartedNewLine(true);
+
+    std::string strTimestamped = LogTimestampStr(str, &fStartedNewLine);
+
+    if (fPrintToConsole) {
+        // print to console
+        fwrite(strTimestamped.data(), 1, strTimestamped.size(), stdout);
+        fflush(stdout);
+
+        boost::call_once(&ErrorPrintInit, errorPrintInitFlag);
+        boost::mutex::scoped_lock scoped_lock(*mutexErrorLog);
+
+        // buffer if we haven't opened the log yet
+        if (errout == nullptr) {
+            assert(vErrMsgsBeforeOpenLog);
+            ret = strTimestamped.length();
+            vErrMsgsBeforeOpenLog->push_back(strTimestamped);
+        } else {
+            // reopen the log file, if requested
+            if (fReopenDebugLog) {
+                fReopenDebugLog = false;
+                fs::path pathDebug = GetErrorLogPath();
+                if (fsbridge::freopen(pathDebug, "a", errout) != nullptr)
+                    setbuf(errout, nullptr); // unbuffered
+            }
+
+            ret = FileWriteStr(strTimestamped, errout);
+        }
+    }
+    return ret;
+}
 /** A map that contains all the currently held directory locks. After
  * successful locking, these will be held here until the global destructor
  * cleans them up and thus automatically unlocks them, or ReleaseDirectoryLocks
@@ -831,9 +916,34 @@ void AllocateFileRange(FILE* file, unsigned int offset, unsigned int length)
 void ShrinkDebugFile()
 {
     // Amount of debug.log to save at end when shrinking (must fit in memory)
-    constexpr size_t RECENT_DEBUG_HISTORY_SIZE = 10 * 1000000;
+    constexpr size_t RECENT_DEBUG_HISTORY_SIZE = 10 * 100000;
     // Scroll debug.log if it's getting too big
     fs::path pathLog = GetDebugLogPath();
+    FILE* file = fsbridge::fopen(pathLog, "r");
+    // If debug.log file is more than 10% bigger the RECENT_DEBUG_HISTORY_SIZE
+    // trim it down by saving only the last RECENT_DEBUG_HISTORY_SIZE bytes
+    if (file && fs::file_size(pathLog) > 11 * (RECENT_DEBUG_HISTORY_SIZE / 10)) {
+        // Restart the file with some of the end
+        std::vector<char> vch(RECENT_DEBUG_HISTORY_SIZE, 0);
+        fseek(file, -((long)vch.size()), SEEK_END);
+        int nBytes = fread(vch.data(), 1, vch.size(), file);
+        fclose(file);
+
+        file = fsbridge::fopen(pathLog, "w");
+        if (file) {
+            fwrite(vch.data(), 1, nBytes, file);
+            fclose(file);
+        }
+    } else if (file != nullptr)
+        fclose(file);
+}
+
+void ShrinkErrorFile()
+{
+    // Amount of debug.log to save at end when shrinking (must fit in memory)
+    constexpr size_t RECENT_DEBUG_HISTORY_SIZE = 10 * 10000;
+    // Scroll debug.log if it's getting too big
+    fs::path pathLog = GetErrorLogPath();
     FILE* file = fsbridge::fopen(pathLog, "r");
     // If debug.log file is more than 10% bigger the RECENT_DEBUG_HISTORY_SIZE
     // trim it down by saving only the last RECENT_DEBUG_HISTORY_SIZE bytes

@@ -171,7 +171,8 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
         if (!SignBlock(*pblock, *pwallet))
             throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
 
-        if (!ProcessBlock(nullptr, *pblock))
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(Params(), shared_pblock, false, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         ++nHeight;
         blockHashes.push_back(pblock->GetHash().GetHex());
@@ -670,7 +671,7 @@ UniValue submitblock(const JSONRPCRequest& request)
 
     submitblock_StateCatcher sc(block.GetHash());
     RegisterValidationInterface(&sc);
-    bool fAccepted = ProcessBlock(nullptr, block);
+    bool fAccepted = ProcessNewBlock(Params(), blockptr, false, true, nullptr);
     UnregisterValidationInterface(&sc);
     if (fBlockPresent) {
         if (fAccepted && !sc.found) {

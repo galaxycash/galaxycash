@@ -72,7 +72,7 @@ double KernelRecord::getProbToMintStake(double difficulty, int timeOffset) const
     double maxTarget = pow(static_cast<double>(2), 224);
     double target = maxTarget / difficulty;
     int dayWeight = (min((GetAdjustedTime() - nTime) + timeOffset, params.nStakeMaxAge) - params.nStakeMinAge) / 86400;
-    uint64_t coinAge = max(nValue * (chainActive.Tip() ? chainActive.Tip()->nHeight - nHeight : 1) / COIN, (int64_t)0);
+    uint64_t coinAge = max(nValue * dayWeight / COIN, (int64_t)0);
     return target * coinAge / pow(static_cast<double>(2), 256);
 }
 

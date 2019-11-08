@@ -12,320 +12,249 @@
 #include <uint256.h>
 #include <util.h>
 
-CScriptValue* CScriptValue::Global()
-{
-    static CScriptModule module;
-    return &module;
-}
+#define BIT(x) (1 << x)
 
-CScriptValue* CScriptValue::Undefined()
-{
-    static CScriptValue undefinedTy(Global(), nullptr, FLAG_INVALID | FLAG_CONSTANT);
-    return &undefinedTy;
-}
+void CVMValue::Init(CVMValue *initializer) {
+    space = value->space;
+    name = value->name;
+    kind = value->kind;
+    number = value->number;
+    pointer = value->pointer;
+    data.clear();
+    if (value->data.size()) data.insert(data.end(), value->data.begin(), value->data.end());
 
-CScriptValue* CScriptValue::Null()
-{
-    static CScriptValue nullTy(Global(), nullptr, FLAG_NULL | FLAG_CONSTANT);
-    return &nullTy;
-}
-
-CScriptValue* CScriptValue::Void()
-{
-    static CScriptValue voidTy(Global(), nullptr, FLAG_VOID | FLAG_CONSTANT);
-    return &voidTy;
-}
-
-CScriptValue::CScriptValue() : refCount(1)
-{
-}
-
-CScriptValue::CScriptValue(CScriptValue* root, CScriptValue* prototype, const uint32_t flags) : root(root ? const_cast<CScriptValue*>(root) : nullptr), flags(flags)
-{
-    if (prototype && prototype != Null()) {
-        for (std::map<std::string, CScriptValue*>::iterator it = prototype->keys.begin(); it != prototype->keys.end(); it++) {
-            SetKeyValue((*it).first, (*it).second, 0);
-        }
-        for (std::vector<CScriptValue*>::iterator it = prototype->values.begin(); it != prototype->values.end(); it++) {
-            Push((*it));
-        }
+        
+    for (std::vector <CVMValue*>::iterator it = value->values.begin(); it != value->values.end(); it++) {
+        this->values.push_back((*it)->IsCopable() ? new CVMValue((*it)) : (*it)->Grab());
+    }
+    for (std::unordered_map <std::string, CVMValue*>::iterator it = value->variables.begin(); it != value->variables.end(); it++) {
+        this->variables.insert(std::make_pair((*it).first, (*it).second->IsCopable() ? new CVMValue((*it).second) : (*it).second->Grab()));
     }
 }
 
-CScriptValue::~CScriptValue()
-{
-    for (std::map<std::string, CScriptValue*>::iterator it = keys.begin(); it != keys.end(); it++) {
-        if ((*it).second) (*it).second->Unref();
+void CVMValue::Assign(CVMValue *value) {
+}
+
+int8_t VMDecode8(CVMState *state, CVMBytecode::const_iterator &code) {
+    int8_t value = *(code + state->frame.top().pc); state->frame.top().pc++;
+    return value;
+}
+
+uint8_t VMDecodeU8(CVMState *state, CVMBytecode::const_iterator &code) {
+    int8_t value = (int8_t) *(code + state->frame.top().pc); state->frame.top().pc++;
+    return *((uint8_t *) &value);
+}
+
+int16_t VMDecode16(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le16toh(((int16_t) VMDecode8(state, code)) | (((int16_t) VMDecode8(state, code)) << 8));
+}
+
+uint16_t VMDecodeU16(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le16toh(((uint16_t) VMDecodeU8(state, code)) | (((uint16_t) VMDecodeU8(state, code)) << 8));
+}
+
+int32_t VMDecode32(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le32toh(((int32_t) VMDecode16(state, code)) | (((int32_t) VMDecode16(state, code)) << 16));
+}
+
+uint32_t VMDecodeU32(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le32toh(((uint32_t) VMDecodeU16(state, code)) | (((uint32_t) VMDecodeU16(state, code)) << 16));
+}
+
+size_t VMDecodeAddr(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le32toh(((size_t) VMDecodeU16(state, code)) | (((size_t) VMDecodeU16(state, code)) << 16));
+}
+
+int64_t VMDecode64(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le64toh(((int64_t) VMDecode32(state, code)) | (((int64_t) VMDecode32(state, code)) << 32));
+}
+
+uint64_t VMDecodeU64(CVMState *state, CVMBytecode::const_iterator &code) {
+    return le32toh(((uint64_t) VMDecodeU32(state, code)) | (((uint64_t) VMDecodeU32(state, code)) << 32));
+}
+
+uint16_t VMDecodeInstr(CVMState *state, CVMBytecode::const_iterator &code) {
+    uint16_t instr = le16toh(((uint16_t) VMDecodeU8(state, code)) | (((uint16_t) VMDecodeU8(state, code)) << 8));
+    return instr;
+}
+
+std::string VMDecodeString(CVMState *state, CVMBytecode::const_iterator &code) {
+    size_t len = VMDecodeAddr(state, code);
+    std::string str = std::string(code + state->frame.top().pc, code + state->frame.top().pc + len);
+    state->frame.top().pc += len;
+    return str;
+}
+
+CVMValue *VMLoad(CVMState *state, CVMBytecode::const_iterator &code) {
+    uint32_t size = VMDecodeU32(state, code);
+    std::vector<char> data(code + state->frame.top().pc, code + state->frame.top().pc + size);
+
+    CVMValue *value = new CVMValue();
+    if (value->Encode(data)) {
+        state->frame.top().pc += size;
+        return value;
     }
-    for (std::vector<CScriptValue*>::iterator it = values.begin(); it != values.end(); it++) {
-        if ((*it)) (*it)->Unref();
+
+    error("%s : VMValue Encode FAILED pc: %d, sp %i, dp %i", __func__, state->frame.top().pc, state->stack.size(), state->dp, state->bp);
+    delete value;
+    return &CVMValue::null;
+}
+
+CVMValue *VMValue(CVMState *state, const std::string &name, const bool g = false) {
+    CVMState::Frame &frame = state->frame.top();
+    CVMValue *space = frame.callable; if (g && space->space) space = space->space;
+    return space->variables.count(name) ? space->variables[name] : &CVMValue::null;
+}
+
+CVMValue *VMValueUnref(CVMState *state, const std::string &name, const bool g = false) {
+    CVMValue *value = VMValue(state, name, g);
+    return (value ? value->Unref() : &CVMValue::null);
+}
+
+CVMValue *VMValueKey(CVMState *state, const size_t addr, const std::string &name, const bool g = false) {
+    CVMState::Frame &frame = state->frame.top();
+    CVMValue *space = frame.callable; if (g && space->space) space = space->space;
+    assert(space->values.size() > addr);
+    return space->values[addr]->GetKeyValue(name);
+}
+
+CVMValue *VMValueKeyUnref(CVMState *state, const size_t addr, const std::string &name, const bool g = false) {
+    CVMValue *key = VMValueKey(state, addr, name, g);
+    return (key ? key->Unref() : &CVMValue::null);
+}
+
+CVMValue *VMValueIndex(CVMState *state, const size_t addr, const size_t index, const bool g = false) {
+    CVMState::Frame &frame = state->frame.top();
+    CVMValue *space = frame.callable; if (g && space->space) space = space->space;
+    assert(space->values.size() > addr);
+    CVMValue *value = *(std::begin(space->values) + addr);
+    assert(value->values.size() > index);
+    return *(std::begin(value->values) + index);
+}
+
+CVMValue *VMValueIndexUnref(CVMState *state, const size_t addr, const size_t index, const bool g = false) {
+    CVMValue *key = VMValueIndex(state, addr, index, g);
+    return (key ? key->Unref() : &CVMValue::null);
+}
+
+CVMValue *VMValueByAddr(CVMState *state, const size_t addr, const bool g = false) {
+    CVMState::Frame &frame = state->frame.top();
+    CVMValue *space = frame.callable; if (g && space->space) space = space->space;
+    return *(std::begin(space->values) + addr);
+}
+
+CVMValue *VMValueByAddrUnref(CVMState *state, const size_t addr, const bool g = false) {
+    CVMValue *value = VMValueByAddr(state, addr, g);
+    return (value ? value->Unref() : &CVMValue::null);
+}
+
+void VMPush(CVMState *state, CVMValue *value) {
+    assert(state->stack.size() < CVMState::MAX_STACK);
+    state->stack.push(value);
+}
+void VMPushUnref(CVMState *state, CVMValue *value) {
+    assert(state->stack.size() < CVMState::MAX_STACK);
+    state->stack.push(value->Unref());
+}
+CVMValue *VMPop(CVMState *state) {
+    assert(state->stack.size() > 0);
+    CVMValue *value = state->stack.top(); state->stack.pop();
+    return value;
+}
+CVMValue *VMPopUnref(CVMState *state) {
+    CVMValue *value = VMPop(state);
+    if (value->IsReference()) value = value->Unref();
+}
+CVMValue *VMTop(CVMState *state) {
+    assert(state->stack.size() >= 1);
+    return state->stack.top();
+}
+
+
+CVMState::CVMState() { 
+    Flush();
+}
+
+CVMState::~CVMState() {
+}
+
+bool VMStep(CVMState *state, CVMValue *callable, CVMState::Frame &frame, CVMBytecode::const_iterator &code) {
+    uint16_t instr = VMDecodeInstr(state, code);
+    uint8_t op = (uint8_t) (instr); // opcode
+    uint8_t md = (uint8_t) (instr >> 8); // modifier (FP DP и прочее колдунство)
+    switch (op)
+    {
+        case CVMOp_Asm: 
+        {   
+            return error("asm instruction impl");
+        } break;
+        case CVMOp_Push: 
+        {   
+            assert(state->stack.size() < CVMState::MAX_STACK);
+            size_t addr = VMDecodeAddr(state, code);
+            if (md & BIT(2)) {
+                std::string key = VMDecodeString(state, code);
+                state->stack.push(VMValueKey(state, addr, key, (md & BIT(0))));
+            } else if (md & BIT(1)) {
+                size_t index = VMDecodeAddr(state, code);
+                state->stack.push(VMValueIndex(state, addr, index, (md & BIT(0))));
+            } else {
+                state->stack.push(VMValueByAddr(state, addr, (md & BIT(0))));
+            }
+        } break;
+        case CVMOp_Pop: 
+        {   
+            assert(state->stack.size() > 0);              
+            state->stack.pop();
+        } break;
+        case CVMOp_Load: 
+        {
+            assert(state->stack.size() < CVMState::MAX_STACK);
+            CVMValue *value = VMLoad(state, code);
+            state->stack.push(value);
+        } break;
+        case CVMOp_Copy:
+        {
+            size_t addr = VMDecodeAddr(state, code);
+            CVMValue *lvalue = VMValueByAddrUnref(state, addr, (md & BIT(0))); assert(lvalue != nullptr);
+            CVMValue *rvalue = VMPop(state);
+            lvalue->Init(rvalue);
+        } break;
+        case CVMOp_Move:
+        {
+            size_t addr = VMDecodeAddr(state, code);
+            CVMValue *lvalue = VMValueByAddr(state, addr, (md & BIT(0))); assert(lvalue != nullptr);
+            CVMValue *rvalue = VMPop(state);
+            lvalue->Assign(rvalue);
+        } break;
+        default:
+        case CVMOp_Nop: return true;
     }
+
+    return true;
 }
 
-void CScriptValue::SetNull()
-{
-    if (!IsNull()) flags |= FLAG_NULL;
-    for (std::map<std::string, CScriptValue*>::iterator it = keys.begin(); it != keys.end(); it++) {
-        (*it).second->Unref();
+bool VMCall(CVMState *state, CVMValue *callable) {
+    assert(state != nullptr);
+
+    CVMState::Frame newFrame;
+    newFrame.ths = callable;
+    newFrame.caller = state->frame.size() ? state->frame.top().callable : nullptr;
+    newFrame.callable = callable;
+    state->frame.push(newFrame);
+
+    state->Flush();
+    CVMState::Frame &frame = state->frame.top();
+    CVMBytecode::const_iterator code = callable->data.begin();
+    while ((code + frame.pc) < callable->data.end()) {
+        if (!VMStep(state, callable, frame, code))
+            return false;
     }
-    keys.clear();
 
-    for (std::vector<CScriptValue*>::iterator it = values.begin(); it != values.end(); it++) {
-        (*it)->Unref();
-    }
-    values.clear();
+    return true;
 }
 
-void CScriptValue::SetUndefined()
-{
-    if (!IsNull()) flags |= FLAG_INVALID;
-    for (std::map<std::string, CScriptValue*>::iterator it = keys.begin(); it != keys.end(); it++) {
-        if ((*it).second) (*it).second->Unref();
-    }
-    keys.clear();
-
-    for (std::vector<CScriptValue*>::iterator it = values.begin(); it != values.end(); it++) {
-        if ((*it)) (*it)->Unref();
-    }
-    values.clear();
+bool VMCall(CVMValue *callable) {
+    CVMState state;
+    return VMCall(&state, callable);
 }
-
-CScriptValue* CScriptValue::Assign(CScriptValue* invalue)
-{
-    if (invalue) {
-        if (invalue->IsNull()) {
-            SetNull();
-            return const_cast<CScriptValue*>(invalue);
-        }
-        if (invalue->IsUndefined()) {
-            SetUndefined();
-            return const_cast<CScriptValue*>(invalue);
-        }
-        for (std::map<std::string, CScriptValue*>::iterator it = invalue->keys.begin(); it != invalue->keys.end(); it++) {
-            SetKeyValue((*it).first, (*it).second, 0);
-        }
-        for (std::vector<CScriptValue*>::iterator it = invalue->values.begin(); it != invalue->values.end(); it++) {
-            Push((*it));
-        }
-
-        name = invalue->name;
-        value = invalue->value;
-        flags = invalue->flags;
-    } else {
-        SetNull();
-    }
-    return const_cast<CScriptValue*>(invalue);
-}
-
-
-CScriptValue* CScriptValue::SetKeyValue(const std::string& key, CScriptValue* value, const uint32_t flags)
-{
-    if (!keys.count(key)) {
-        keys[key] = new CScriptVariable(this, value, flags);
-        keys[key]->SetName(key);
-    } else
-        keys[key]->Assign(value);
-
-    return const_cast<CScriptValue*>(value);
-}
-
-CScriptValue* CScriptValue::CreateTyped(const uint8_t type, CScriptValue* prototype, CScriptValue* root)
-{
-    uint32_t flags = 0;
-    if (type == TYPE_UNDEFINED)
-        flags |= FLAG_INVALID;
-    else if (type == TYPE_NULL)
-        flags |= FLAG_NULL;
-    else if (type == TYPE_VOID)
-        flags |= FLAG_VOID;
-    else if (type == TYPE_SYMBOL)
-        flags |= FLAG_SYMBOL | FLAG_STRING;
-    else if (type == TYPE_STRING)
-        flags |= FLAG_STRING;
-
-
-    switch (type) {
-    case TYPE_POINTER:
-        return (CScriptValue*)(new CScriptPointer(root, prototype, flags));
-    case TYPE_VARIABLE:
-    case TYPE_PROPERTY:
-        return (CScriptValue*)(new CScriptVariable(root, prototype, flags));
-    case TYPE_OBJECT:
-        return (CScriptValue*)(new CScriptObject(root, prototype, flags));
-    case TYPE_ARRAY:
-        return (CScriptValue*)(new CScriptArray(root, prototype, flags));
-    case TYPE_FUNCTION:
-        return (CScriptValue*)(new CScriptFunction(root, prototype, flags));
-    case TYPE_ASYNC_FUNCTION:
-        return (CScriptValue*)(new CScriptAsyncFunction(root, prototype, flags));
-    case TYPE_MODULE:
-        return (CScriptValue*)(new CScriptModule(root, prototype, flags));
-    case TYPE_NUMBER:
-        return (CScriptValue*)(new CScriptNumber(root, prototype, flags));
-    case TYPE_STRING:
-        return (CScriptValue*)(new CScriptString(root, prototype, flags));
-    case TYPE_SYMBOL:
-        return (CScriptValue*)(new CScriptSymbol(root, prototype, flags));
-    case TYPE_UNDEFINED:
-    case TYPE_NULL:
-    case TYPE_VOID:
-    default:
-        return new CScriptValue(root, prototype, flags);
-    }
-}
-
-CScriptObject::CScriptObject() : CScriptValue()
-{
-    this->prototype = SetOwnPropertyT<CScriptObject>("prototype", nullptr);
-}
-
-CScriptObject::CScriptObject(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptValue(root, inprototype && inprototype->IsObject() ? inprototype->AsObject() : Null(), flags), objectType(inprototype && inprototype->IsObject() ? inprototype->AsObject()->objectType : "Object")
-{
-    CScriptValue* pprototype = inprototype ? inprototype->Copy(this) : nullptr;
-    this->prototype = SetOwnPropertyT<CScriptObject>("prototype", pprototype);
-}
-
-
-std::string CScriptObject::ToString() const
-{
-    std::string ret = "{";
-    for (std::map<std::string, CScriptValue*>::iterator it = keys.begin(); it != keys.end(); it++) {
-        ret += (*it).first + ": " + ((*it).second ? (*it).second->ToString() : "undefined");
-    }
-    ret += "}";
-    return ret;
-}
-
-
-CScriptArray::CScriptArray(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptObject(root, inprototype, flags)
-{
-    this->objectType = "Array";
-}
-
-std::string CScriptArray::ToString() const
-{
-    std::string ret = "[";
-    for (std::vector<CScriptValue*>::iterator it = values.begin(); it != values.end(); it++) {
-        if (it != values.begin()) ret += ", ";
-        ret += (*it)->ToString();
-    }
-    ret += "]";
-    return ret;
-}
-
-bool CScriptArray::Includes(CScriptValue* value, size_t from) const
-{
-    if (from >= this->values.size()) return false;
-    for (size_t i = from; i < this->values.size(); i++) {
-        if (this->values[i] == value) return true;
-    }
-    return false;
-}
-
-
-CScriptFunction::CScriptFunction(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptObject(root, inprototype, flags)
-{
-    this->objectType = "Function";
-    if (HasOwnProperty("this"))
-        this->thisArg = GetOwnPropertyT<CScriptVariable>("thisArg");
-    else
-        this->thisArg = SetOwnPropertyT<CScriptVariable>("thisArg", new CScriptVariable(this, nullptr, 0));
-
-    if (HasOwnProperty("name"))
-        this->functionName = GetOwnPropertyT<CScriptSymbol>("name");
-    else
-        this->functionName = SetOwnPropertyT<CScriptSymbol>("name", new CScriptSymbol(this, nullptr, 0));
-
-    if (HasOwnProperty("displayName"))
-        this->displayName = GetOwnPropertyT<CScriptSymbol>("displayName");
-    else
-        this->displayName = SetOwnPropertyT<CScriptSymbol>("displayName", new CScriptSymbol(this, nullptr, 0));
-
-    if (HasOwnProperty("arguments"))
-        this->arguments = GetOwnPropertyT<CScriptArray>("arguments");
-    else
-        this->arguments = SetOwnPropertyT<CScriptArray>("arguments", new CScriptArray(this, nullptr, 0));
-}
-
-std::string CScriptFunction::ToString() const
-{
-    std::string ret = "function(";
-
-    ret += ") {";
-    if (native) {
-        ret += "[native code]";
-    }
-    ret += "}";
-    return ret;
-}
-
-CScriptAsyncFunction::CScriptAsyncFunction(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptFunction(root, inprototype, flags)
-{
-    this->objectType = "AsyncFunction";
-}
-
-std::string CScriptAsyncFunction::ToString() const
-{
-    return std::string("async ") + CScriptFunction::ToString();
-}
-
-CScriptNumber::CScriptNumber() : CScriptObject()
-{
-}
-
-CScriptNumber::CScriptNumber(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptObject(root, inprototype, flags)
-{
-    this->objectType = "Number";
-    if (this->prototype && this->prototype->IsNumber())
-        this->Assign(inprototype);
-}
-
-CScriptValue* CScriptNumber::Assign(CScriptValue* other)
-{
-    if (other == nullptr || other == Null() || other == Undefined() || other == Void() || !other->IsNumber()) {
-        if (IsFloat())
-            AssignFloat(0.0);
-        else if (IsBignum())
-            AssignBignum(uint256(0));
-        else if (IsBoolean())
-            AssignBoolean(false);
-        else
-            AssignInteger(0);
-    } else {
-        CScriptNumber* number = other->AsValue()->AsNumber();
-        if (number->IsFloat())
-            SetFloat(number->AsFloat());
-        else if (number->IsBoolean())
-            SetBoolean(number->AsBoolean());
-        else if (number->IsBignum())
-            SetBignum(number->AsBignum());
-        else
-            SetInteger(number->AsInteger());
-    }
-    return dynamic_cast<CScriptValue*>(const_cast<CScriptNumber*>(this));
-}
-
-CScriptModule::CScriptModule() : CScriptObject()
-{
-    this->objectType = "Module";
-}
-
-CScriptModule::CScriptModule(CScriptValue* root, CScriptValue* inprototype, const uint32_t flags) : CScriptObject(root, inprototype, flags)
-{
-    this->objectType = "Module";
-}
-
-/*CScriptFloat::CScriptFloat(const CScriptValueRef& root, const double value, const uint32_t flags) : CScriptValue(root, value, flags), float_value(value)
-{
-    std::ostringstream s(this->value);
-    std::set_precission(10);
-    s.imbue(std::locale::classic());
-    s << value;
-}
-
-CScriptInteger::CScriptInteger(const CScriptValueRef& root, const int64_t value, const uint32_t flags) : CScriptValue(root, "", flags), int_value(value)
-{
-    std::ostringstream s(this->value);
-    s.imbue(std::locale::classic());
-    s << value;
-}*/

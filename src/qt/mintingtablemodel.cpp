@@ -337,6 +337,10 @@ QVariant MintingTableModel::data(const QModelIndex &index, int role) const
 
     switch(role)
     {
+      case Qt::ForegroundRole:
+      {
+        return QVariant( QColor( Qt::black ) );
+      }
       case Qt::DisplayRole:
         switch(index.column())
         {

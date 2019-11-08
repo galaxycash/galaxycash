@@ -164,7 +164,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
-        pblock->nVersion = gArgs.GetArg("-blockversion", pblock->nVersion);
+        pblock->nVersion = gArgs.GetArg("-blockversion", CBlock::CURRENT_VERSION);
 
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
@@ -475,8 +475,8 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     }
 
     // Process this block the same as if we had received it from another node
-    //std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
-    if (!ProcessBlock(nullptr, *pblock))
+    std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+    if (!ProcessNewBlock(Params(), shared_pblock, false, true, NULL))
         return error("ProcessBlock, block not accepted");
 
     return true;
@@ -501,12 +501,12 @@ void PoSMiner(CWallet* pwallet)
         LogPrintf("Set proof-of-stake timeout: %ums for %u UTXOs\n", pos_timio, vCoins.size());
     }
 
-    std::string strMintMessage = _("Info: Minting suspended due to locked wallet.");
-    std::string strMintSyncMessage = _("Info: Minting suspended while synchronizing wallet.");
-    std::string strMintDisabledMessage = _("Info: Minting disabled by 'nominting' option.");
-    std::string strMintBlockMessage = _("Info: Minting suspended due to block creation failure.");
+    std::string strMintMessage = _("Info: Staking suspended due to locked wallet.");
+    std::string strMintSyncMessage = _("Info: Staking suspended while synchronizing wallet.");
+    std::string strMintDisabledMessage = _("Info: Staking disabled by 'nominting' option.");
+    std::string strMintBlockMessage = _("Info: Staking suspended due to block creation failure.");
     std::string strMintEmpty = _("");
-    if (!gArgs.GetBoolArg("-minting", true)) {
+    if (!gArgs.GetBoolArg("-staking", true)) {
         strMintWarning = strMintDisabledMessage;
         LogPrintf("proof-of-stake minter disabled\n");
         return;
