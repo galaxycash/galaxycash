@@ -11,5 +11,5 @@ cd ..
 
 echo "Configuring GalaxyCash for Debian"
 $PWD/autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure CXXFLAGS="--param ggc-min-expand=1 --param ggc-min-heapsize=32768 -O2" --enable-shared=no --enable-static=yes --enable-glibc-back-compat=yes --with-gui=qt5 -prefix=`pwd`/depends/x86_64-pc-linux-gnu
+CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure CXXFLAGS="-std=c++17 --param ggc-min-expand=1 --param ggc-min-heapsize=32768 -O2" --enable-shared=no --enable-static=yes --enable-glibc-back-compat=yes --with-gui=qt5 -prefix=`pwd`/depends/x86_64-pc-linux-gnu
 
