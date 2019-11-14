@@ -175,7 +175,7 @@ void CSporkManager::Init()
     filein.fclose();
 }
 
-void CSporkManager::Dump()
+void DumpSporks()
 {
     fs::path path(GetDataDir() / "sporks.dat");
     FILE* file = fopen(path.string().c_str(), "wb");

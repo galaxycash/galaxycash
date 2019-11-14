@@ -685,6 +685,132 @@ UniValue submitblock(const JSONRPCRequest& request)
     return BIP22ValidationResult(sc.state);
 }
 
+#include <miner.h>
+#include <amount.h>
+#include <masternode.h>
+
+UniValue submitdevblock(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    // We allow 2 arguments for compliance with BIP22. Argument 2 is ignored.
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
+        throw std::runtime_error(
+            "submitdevblock amount ( \"address\" )\n"
+            "\nAttempts to submit new developer block to network.\n"
+
+            "\nArguments\n"
+            "1. \"amount\"        (numeric, required) the coin amount of subsidy\n"
+            "2. \"address\"       (optional) target address.\n"
+            "\nResult:\n"
+            "\nExamples:\n" +
+            HelpExampleCli("submitdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\"") + HelpExampleRpc("submitdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\""));
+    }
+
+    int64_t nAmount = AmountFromValue(request.params[0]);
+    CBitcoinAddress addr;
+    if (request.params.size() > 1) 
+        addr.SetString(request.params[1].get_str());
+
+    CBitcoinSecret secret;
+    if (!secret.SetString(gArgs.GetArg("-devkey", "")))
+        return error("Bad secret!\n");
+
+    CKey key = secret.GetKey();
+    CPubKey pubKey = key.GetPubKey();
+
+    std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
+    CBlock& block = *blockptr;
+    block.nVersion = CBlockHeader::X12_VERSION;
+
+
+    CBlockIndex* pindexPrev = pindexBestHeader;
+    if (!pindexPrev)
+        return error("Bad chain!");
+
+    int nHeight = pindexPrev->nHeight + 1;
+
+    // Create coinbase tx
+    CMutableTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vin[0].prevout.SetNull();
+
+    txNew.vout.resize(1);
+    if (!addr.IsValid())
+        txNew.vout[0].scriptPubKey = GetScriptForDestination(pubKey.GetID());
+    else
+        txNew.vout[0].scriptPubKey = GetScriptForDestination(addr.Get());
+    txNew.vout[0].nValue = nAmount;
+
+
+
+
+    bool hasPayment = true;
+    CScript payee;
+    CTxIn vin;
+
+
+    if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee))
+    {
+        //no masternode detected
+        CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1, pindexPrev->nHeight, MIN_MASTERNODE_VERSION);
+        if(winningNode){
+            payee = GetScriptForDestination(winningNode->pubKeyMasternode.GetID());
+        } else {
+            std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
+            CBitcoinAddress gdevAddr;
+            gdevAddr.SetString(devAddr);
+            payee = GetScriptForDestination(gdevAddr.Get());
+        }
+    }
+
+    if(hasPayment)
+    {
+        txNew.vout.resize(2);
+        txNew.vout[1].scriptPubKey = payee;
+        txNew.vout[1].nValue = 1 * COIN;
+
+        CTxDestination address1;
+        ExtractDestination(payee, address1);
+        CBitcoinAddress address2(address1);
+
+        LogPrintf("PoW Masternode payment to %s\n", address2.ToString().c_str());
+    }
+
+    // Add our coinbase tx as first transaction
+    block.vtx.push_back(MakeTransactionRef(std::move(txNew)));
+    block.nBits = GetNextTargetRequired(pindexPrev, block.GetAlgorithm(), false, Params().GetConsensus());
+    block.hashPrevBlock  = pindexPrev->GetBlockHash();
+    block.nTime          = std::max((int64_t)(pindexPrev->nTime+1), block.GetMaxTransactionTime());
+    block.nNonce         = 0;
+    UpdateTime(&block);
+    unsigned int nExtraNonce = 0;
+    IncrementExtraNonce(blockptr.get(), pindexPrev, nExtraNonce);
+
+
+    LogPrintf("Sign block\n");
+
+    block.vchBlockSig.clear();
+    if (!key.SignCompact(block.GetHash(), block.vchBlockSig))
+        return error("Failed to sign developer block!\n");
+
+
+    LogPrintf("Processing block\n");
+
+
+    submitblock_StateCatcher sc(block.GetHash());
+    RegisterValidationInterface(&sc);
+    bool fAccepted = ProcessNewBlock(Params(), blockptr, false, true, nullptr);
+    UnregisterValidationInterface(&sc);
+    if (!sc.found) {
+        return "inconclusive";
+    }
+    return BIP22ValidationResult(sc.state);
+}
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -785,7 +911,7 @@ static const CRPCCommand commands[] =
         {"mining", "getmininginfo", &getmininginfo, {}},
         {"mining", "getblocktemplate", &getblocktemplate, {"template_request"}},
         {"mining", "submitblock", &submitblock, {"hexdata", "dummy"}},
-
+        {"mining", "submitdevblock", &submitdevblock, {"amount", "address"}},
 
         {"generating", "generatetoaddress", &generatetoaddress, {"nblocks", "address", "maxtries"}},
 

@@ -34,7 +34,7 @@ extern bool fMasterNode;
 extern int64_t enforceMasternodePaymentsTime;
 extern std::string strMasterNodeAddr;
 extern std::string strMasterNodePrivKey;
-extern std::string strBudgetMode;
+extern std::string strVoteMode;
 
 class CMasternodeConfig;
 extern CMasternodeConfig masternodeConfig;

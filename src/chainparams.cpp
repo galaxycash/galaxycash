@@ -63,19 +63,7 @@ static CBlock CreateGenesisBlock(uint32_t nTimeTx, uint32_t nTimeBlock, uint32_t
 CChainParams::CChainParams()
 {
     pubKey = CPubKey(ParseHex("021ca96799378ec19b13f281cc8c2663714153aa58b70e4ce89460741c3b00b645"));
-
-
-    if (gArgs.IsArgSet("-devkey")) {
-        CBitcoinSecret secret;
-        secret.SetString(gArgs.GetArg("-devkey", ""));
-        if (secret.IsValid() && pubKey != secret.GetKey().GetPubKey()) {
-            error("Bad dev key!\n");
-            key = CKey();
-            return;
-        }
-        key = secret.IsValid() ? secret.GetKey() : CKey();
-    } else
-        key = CKey();
+    key = CKey();
 }
 
 /**
@@ -182,6 +170,7 @@ public:
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
+
 
         checkpointData = {
             {{0, uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468")},

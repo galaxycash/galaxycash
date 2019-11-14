@@ -184,14 +184,14 @@ static int FileWriteStr(const std::string& str, FILE* fp)
 
 static void ErrorPrintInit()
 {
-    assert(mutexErrorLog == nullptr);
+    if (mutexErrorLog != nullptr) return;
     mutexErrorLog = new boost::mutex();
     vErrMsgsBeforeOpenLog = new std::list<std::string>;
 }
 
 static void DebugPrintInit()
 {
-    assert(mutexDebugLog == nullptr);
+    if (mutexErrorLog != nullptr) return;
     mutexDebugLog = new boost::mutex();
     vMsgsBeforeOpenLog = new std::list<std::string>;
     ErrorPrintInit();

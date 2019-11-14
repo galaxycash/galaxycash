@@ -33,6 +33,7 @@ class CSporkManager;
 extern std::map<uint256, CSporkMessage> mapSporks;
 extern std::map<int, CSporkMessage> mapSporksActive;
 extern CSporkManager sporkManager;
+void DumpSporks();
 
 void ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 int64_t GetSporkValue(int nSporkID);
@@ -76,13 +77,11 @@ class CSporkManager
 {
 private:
     std::vector<unsigned char> vchSig;
-
 public:
     CSporkManager()
     {
     }
 
-    void Dump();
     void Init();
 
     std::string GetSporkNameByID(int id);

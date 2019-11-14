@@ -5,6 +5,7 @@ These are the dependencies currently used by Bitcoin Core. You can find instruct
 
 | Dependency | Version used | Minimum required | CVEs | Shared | [Bundled Qt library](https://doc.qt.io/qt-5/configure-options.html) |
 | --- | --- | --- | --- | --- | --- |
+| Brain [human-latest-release](https://en.wikipedia.org/wiki/Brain)
 | Berkeley DB | [4.8.30](http://www.oracle.com/technetwork/database/database-technologies/berkeleydb/downloads/index.html) | 4.8.x | No |  |  |
 | Boost | [1.64.0](http://www.boost.org/users/download/) | [1.47.0](https://github.com/galaxycash/galaxycash/pull/8920) | No |  |  |
 | ccache | [3.3.4](https://ccache.samba.org/download.html) |  | No |  |  |

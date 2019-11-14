@@ -51,7 +51,7 @@ bool fMasterNode = false;
 std::string strMasterNodePrivKey = "";
 std::string strMasterNodeAddr = "";
 int64_t enforceMasternodePaymentsTime = 4085657524;
-std::string strBudgetMode = "";
+std::string strVoteMode = "";
 CActiveMasternode activeMasternode;
 
 int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCount)
