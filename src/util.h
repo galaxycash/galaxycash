@@ -179,8 +179,8 @@ static inline void MarkUsed(const T& t, const Args&... args)
             _log_msg_ = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + FormatStringFromLogArgs(__VA_ARGS__); \
             err = true;                                                                                                                       \
         }                                                                                                                                     \
-        if (!err) LogPrintStr(_log_msg_);                                                                                                     \
-        else LogErrorStr(_log_msg_);                                                                                                          \
+        if (err) LogErrorStr(_log_msg_);                                                                                                     \
+        else LogPrintStr(_log_msg_);                                                                                                          \
     } while (0)
 
 #define LogPrint(category, ...)              \

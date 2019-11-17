@@ -3,7 +3,7 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 16)
 define(_CLIENT_VERSION_REVISION, 3)
-define(_CLIENT_VERSION_BUILD, 0)
+define(_CLIENT_VERSION_BUILD, 5)
 define(_GALAXYCASH_VERSION_MAJOR, 4)
 define(_GALAXYCASH_VERSION_MINOR, 0)
 define(_GALAXYCASH_VERSION_REVISION, 0)
@@ -16,6 +16,8 @@ AC_INIT([GalaxyCash],[_GALAXYCASH_VERSION_MAJOR._GALAXYCASH_VERSION_MINOR._GALAX
 AC_CONFIG_SRCDIR([src/validation.cpp])
 AC_CONFIG_HEADERS([src/config/galaxycash-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([build-aux/m4])
+
 BITCOIN_DAEMON_NAME=galaxycashd
 BITCOIN_GUI_NAME=galaxycash-qt
 BITCOIN_CLI_NAME=galaxycash-cli
@@ -85,7 +87,7 @@ AC_PATH_TOOL(RANLIB, ranlib)
 AC_PATH_TOOL(STRIP, strip)
 AC_PATH_TOOL(GCOV, gcov)
 AC_PATH_PROG(LCOV, lcov)
-dnl Python 3.x is supported from 3.4 on (see https://github.com/galaxycash/galaxycash/issues/7893)
+dnl Python 3.x is supported from 3.4 on
 AC_PATH_PROGS([PYTHON], [python3.6 python3.5 python3.4 python3 python2.7 python2 python])
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
@@ -124,6 +126,10 @@ AC_ARG_ENABLE([upnp-default],
   [use_upnp_default=$enableval],
   [use_upnp_default=no])
 
+AC_ARG_ENABLE([extended-functional-tests],
+    AS_HELP_STRING([--enable-extended-functional-tests],[enable expensive functional tests when using lcov (default no)]),
+    [use_extended_functional_tests=$enableval],
+    [use_extended_functional_tests=no])
 
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
@@ -459,10 +465,6 @@ if test x$use_pkgconfig = xyes; then
   ])
 fi
 
-if test x$use_extended_functional_tests != xno; then
-  AC_SUBST(EXTENDED_FUNCTIONAL_TESTS, --extended)
-fi
-
 if test x$use_lcov = xyes; then
   if test x$LCOV = x; then
     AC_MSG_ERROR("lcov testing requested but lcov not found")
@@ -741,7 +743,7 @@ BITCOIN_QT_INIT
 dnl sets $galaxycash_enable_qt, $galaxycash_enable_qt_test, $galaxycash_enable_qt_dbus
 BITCOIN_QT_CONFIGURE([$use_pkgconfig], [qt5])
 
-if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt = xnonononono; then
     use_boost=no
 else
     use_boost=yes
@@ -793,7 +795,6 @@ if test x$use_reduce_exports = xyes; then
     CXXFLAGS="$CXXFLAGS $RE_CXXFLAGS"
     AX_CHECK_LINK_FLAG([[-Wl,--exclude-libs,ALL]], [RELDFLAGS="-Wl,--exclude-libs,ALL"])
 fi
-
 
 if test x$use_boost = xyes; then
 
@@ -899,7 +900,7 @@ if test x$use_pkgconfig = xyes; then
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
-      if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests != xnononono; then
+      if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt != xnononono; then
         PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
@@ -924,7 +925,7 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
-  if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests != xnononono; then
+  if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     if test x$TARGET_OS != xwindows; then
@@ -973,7 +974,7 @@ dnl univalue check
 
 need_bundled_univalue=yes
 
-if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt = xnonononono; then
   need_bundled_univalue=no
 else
 
@@ -1144,15 +1145,6 @@ fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
 
-AC_MSG_CHECKING([whether to build test_galaxycash])
-if test x$use_tests = xyes; then
-  AC_MSG_RESULT([yes])
-  BUILD_TEST="yes"
-else
-  AC_MSG_RESULT([no])
-  BUILD_TEST=""
-fi
-
 AC_MSG_CHECKING([whether to reduce exports])
 if test x$use_reduce_exports = xyes; then
   AC_MSG_RESULT([yes])
@@ -1161,7 +1153,7 @@ else
 fi
 
 if test x$build_galaxycash_utils$build_galaxycash_libs$build_galaxycashd$galaxycash_enable_qt = xnononononono; then
-  AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui])
+  AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon or --with-gui])
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
@@ -1263,10 +1255,8 @@ if test x$need_bundled_univalue = xyes; then
   AC_CONFIG_SUBDIRS([src/univalue])
 fi
 
-
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --with-bignum=no --enable-module-recovery --disable-jni"
 AC_CONFIG_SUBDIRS([src/secp256k1])
-
 
 AC_OUTPUT
 

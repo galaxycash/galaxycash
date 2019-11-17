@@ -26,10 +26,13 @@
 
 // GalaxyCash Scripting engine
 
+/*
+
 typedef std::vector<char> CVMBytecode;
 
 typedef std::vector<char> CScriptData;
 typedef std::vector<CScriptData> CScriptDataArray;
+typedef std::vector<std::string> CStringVector;
 
 
 
@@ -42,11 +45,152 @@ class CVMState;
 typedef void (*CVMFunctionPrototype)(CVMState*);
 
 enum {
-    AddressSpace_Global = 0,
+    AddressSpace_Root = 0,
     AddressSpace_This,
-    AddressSpace_Super,
-    AddressSpace_Frame,
-    AddressSpace_Block
+    AddressSpace_Scope
+};
+
+
+struct CVMTypeinfo {
+    uint32_t version;
+    std::string     name;
+    CVMTypeinfo *super;
+    CVMValue::Kind  kind;
+    uint8_t         bits; // For numbers
+    uint64_t        flags;
+    size_t          ctor;
+    size_t          dtor;
+
+
+
+    CVMTypeinfo() : super(nullptr) { SetNull(); }
+    CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags) {}
+
+    inline void SetNull() {
+        version = 1;
+        name.clear();
+        kind = CVMValue::Kind_Null;
+        flags = 0;
+        bits = 0;
+        if (super) delete super;
+        super = nullptr;
+    }
+
+    inline bool IsNull() {
+        return name.empty() && (kind == CVMValue::Kind_Null);
+    }
+    
+    ADD_SERIALIZE_METHODS;
+    
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(this->version);
+        READWRITE(super);
+        READWRITE(name);
+        READWRITE(*(int8_t*)&kind);
+        READWRITE(flags);
+        READWRITE(bits);
+        READWRITE(ctor);
+        READWIRTE(dtor);
+    }
+
+    static CVMTypeinfo &UndefinedType();
+    static CVMTypeinfo &NullType();
+    static CVMTypeinfo &VoidType();
+    static CVMTypeinfo &StringType();
+    static CVMTypeinfo &SymbolType();
+    static CVMTypeinfo &BooleanType();
+    static CVMTypeinfo &IntegerType();
+    static CVMTypeinfo &Int8Type();
+    static CVMTypeinfo &Int16Type();
+    static CVMTypeinfo &Int32Type();
+    static CVMTypeinfo &Int64Type();
+    static CVMTypeinfo &UInt8Type();
+    static CVMTypeinfo &UInt16Type();
+    static CVMTypeinfo &UInt32Type();
+    static CVMTypeinfo &UInt64Type();
+    static CVMTypeinfo &FloatType();
+    static CVMTypeinfo &DoubleType();
+    static CVMTypeinfo &BignumType();
+    static CVMTypeinfo &ObjectType();
+    static CVMTypeinfo &ArrayType();
+    static CVMTypeinfo &FunctionType();
+    static CVMTypeinfo &ModuleType();
+};
+
+struct CVMVariable {
+    uint32_t version;
+    CVMTypeinfo type;
+    std::string name, fullname;
+    size_t addr;
+    uint64_t flags;
+
+    ADD_SERIALIZE_METHODS;
+    
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(this->version);
+        READWRITE(name);
+        READWRITE(fullname);
+        READWRITE(addr);
+        READWRITE(flags);
+    }
+};
+
+struct CVMFunction : public CVMVariable {
+    std::vector<std::string> arguments;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(*((CVMVariable*)this));
+        READWRITE(arguments);
+    }
+};
+
+struct CVMModuleHeader {
+    uint32_t    version;
+    uint32_t    time;
+    std::string name;
+    uint64_t    flags;
+
+    std::vector<CVMTypeinfo> types;
+    std::vector<CVMVariable> variables;
+    std::vector<CVMFunction> functions;
+    
+    CModuleHeader() { SetNull(); }
+
+    inline void SetNull() {
+        version = 1;
+        time = 0;
+        name.clear();
+        flags = 0;
+        types.clear();
+        variables.clear();
+        functions.clear();
+    }
+
+    inline bool IsNull() const {
+        return (time == 0) && name.empty();
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(this->version);
+        READWRITE(time);
+        READWRITE(name);
+        READWRITE(flags);
+        READWRITE(types);
+        READWRITE(variables);
+        READWRITE(functions);
+    }
 };
 
 typedef enum CVMOp {
@@ -78,15 +222,43 @@ typedef enum CVMOp {
     CVMOp_JumpGreaterOrEqual
 } CVMOpcode;
 
+typedef enum CVMUnaryOp {
+    CVMUnaryOp_Not, // !v
+    CVMUnaryOp_Inv, // -v
+    CVMUnaryOp_Increment, // v++
+    CVMUnaryOp_Decrement, // v--
+    CVMUnaryOp_PreIncrement, // ++v
+    CVMUnaryOp_PreDecrement, // --v
+    CVMUnaryOp_Assign, // =
+    CVMUnaryOp_AssignAdd, // +=
+    CVMUnaryOp_AssignSub, // -=
+    CVMUnaryOp_AssignMul, // *=
+    CVMUnaryOp_AssignDiv, // /=
+    CVMUnaryOp_AssignMod, // %=
+    CVMUnaryOp_AssignBitwiseAnd, // &=
+    CVMUnaryOp_AssignBitwiseOr, // |=
+    CVMUnaryOp_AssignXor, // ^=
+} CVMUnary;
+
 typedef enum CVMBinaryOp {
-    CVMBinaryOp_Add,
-    CVMBinaryOp_Sub,
-    CVMBinaryOp_Mul,
-    CVMBinaryOp_Div,
-    CVMBinaryOp_Mod,
-    CVMBinaryOp_And,
-    CVMBinaryOp_Or,
-    CVMBinaryOp_Xor
+    CVMBinaryOp_Add, /// +
+    CVMBinaryOp_Sub, // -
+    CVMBinaryOp_Mul, // *
+    CVMBinaryOp_Div, // /
+    CVMBinaryOp_Mod, // %
+    CVMBinaryOp_And, // &&
+    CVMBinaryOp_Or, // ||
+    CVMBinaryOp_Xor, // ^
+    CVMBinaryOp_BitwiseAnd, // &
+    CVMBinaryOp_BitwiseOr, // |
+    CVMBinaryOp_BitwiseLShift, // <<
+    CVMBinaryOp_BitwiseRShift, // >>
+    CVMBinaryOp_LogicalEqual, // ==
+    CVMBinaryOp_LogicalNotEqual, // !=
+    CVMBinaryOp_LogicalLess, // <
+    CVMBInaryOp_LogicalLessOrEqual, // <=
+    CVMBinaryOp_LogicalGreater, // >
+    CVMBInaryOp_LogicalGreaterOrEqual // >=
 } CVMBinary;
 
 
@@ -123,79 +295,39 @@ public:
         Flag_Async = BIT(12),
         Flag_Void = BIT(13),
         Flag_Symbol = BIT(14),
-        Flag_Callable = BIT(15)
+        Flag_Callable = BIT(15),
+        Flag_Block = BIT(16)
     };
     
+    CVMValue *module;
+    CVMValue *root;
+    CVMValue *value;
+
     Kind kind;
     std::string name;
     std::vector<char> data;
     std::vector<CVMValue*> values;
     std::unordered_map<std::string, CVMValue*> variables;
-    CVMValue *module;
-    CVMValue *ns;
-    CVMValue *value;
-    CVMValue *prototype, *arguments, *constants;
+    CVMTypeinfo type;
     size_t refCounter;
-    uint8_t bits;
+    uint8_t bits, addr;
     uint64_t flags;
 
-    CVMValue() : refCounter(1) {
-        SetNull();
-    }
-    CVMValue(CVMValue *ns, const std::string &name, const Kind kind, const uint8_t bits = 64, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>()) : refCounter(1) {
-        SetNull();
+    CVMValue();
+    CVMValue(CVMValue *root, const CVMTypeinfo &type, const std::string &name, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>());
+    CVMValue(CVMValue *value);
+    virtual ~CVMValue();
 
-        this->ns = ns;
-        this->name = name;
-        this->kind = kind;
-        this->bits = bits;
-        this->flags = flags;
-        this->data = data;
-
-        /*if (!IsReference() && !IsNumber() && !IsString() && !IsSymbol() && !IsPointer() && !IsVariable()) {
-            if (IsObject()) {
-                constants = AddArray("__gs_constants__");
-                AddVariable("__gs_this__",  this);
-                AddReference("this",  "__gs_this__");
-                AddVariable("__gs_super__",  this);
-                AddReference("super",  "__gs_super__");
-
-                prototype = AddVariable("__gs_prototype__", nullptr);
-                AddReference("prototype",  "__gs_prototype__");
-            }
-            if (IsFunction()) {
-                AddVariable("__gs_this__",  ns);
-
-                arguments = AddArray("__gs_arguments__");
-                AddReference("arguments", "__gs_arguments__");
-
-                AddVariable("__gs_return__");
-            }
-        }*/
-    }
-    CVMValue(CVMValue *value) : refCounter(1)
-    {
-        Init(value);
-    }
-    virtual ~CVMValue() {
-        for (std::vector <CVMValue*>::iterator it = values.begin(); it != values.end(); it++) {
-            (*it)->Drop();
-        }
-        for (std::unordered_map <std::string, CVMValue*>::iterator it = variables.begin(); it != variables.end(); it++) {
-            (*it).second->Drop();
-        }
-        if (prototype) prototype->Drop();
-        if (arguments) arguments->Drop();
-        if (constants) constants->Drop();
-        if (value) value->Drop();
-        if (ns) ns->Drop();
-        if (module) module->Drop();
-    }
+    static CVMValue *MakeBlock(CVMValue *root);
+    static CVMValue *MakeVariable(CVMValue *root, const std::string &name, CVMValue *value);
+    static CVMValue *MakeReference(CVMValue *root, const std::string &name, CVMValue *value);
 
     virtual bool Encode(std::vector<char> &data);
     virtual bool Decode(const std::vector<char> &data);
 
     virtual void SetNull();
+
+    virtual uint64_t Flags() const { return flags; }
 
     inline bool IsNull() const {
         if (kind == Kind_Null) return true;
@@ -204,10 +336,25 @@ public:
         else if (kind == Kind_Pointer) return data.empty();
         return false;
     }
+    inline bool IsBlock() const { return (flags & Flag_Block)}
     inline bool IsPointer() const { return (kind == Kind_String); }
     inline bool IsString() const { return (kind == Kind_String); }
-    inline bool IsSymbol() const { return (kind == Kind_String) && (flags & Flag_Symbol); }
+    inline bool IsSymbol() const { return (kind == Kind_String) && (Flags() & Flag_Symbol); }
     inline bool IsNumber() const { return (kind == Kind_Number); }
+    inline bool IsBoolean() const { return (kind == Kind_Number) && (Flags() & Flag_Boolean); }
+    inline bool IsBignum() const { return (kind == Kind_Number) && (Flags() & Flag_Bignum); }
+    inline bool IsFloat() const { return (kind == Kind_Number) && (Flags() & Flag_Float); }
+    inline bool IsDouble() const { return (kind == Kind_Number) && (Flags() & Flag_Double); }
+    inline bool IsInteger() const { return (kind == Kind_Number) && (!(Flags() & Flag_Boolean) && !(Flags() & Flag_Float) && !(Flags() & Flag_Double) && !(Flags() & Flag_Bignum))); }
+    inline bool IsUnsigned() const { return (kind == Kind_Number) && (Flags() & Flag_Unsigned); }
+    inline bool IsInt8() const { return IsInteger() && (Bits() == 8); }
+    inline bool IsInt16() const { return IsInteger() && (Bits() == 16); }
+    inline bool IsInt32() const { return IsInteger() && (Bits() == 32); }
+    inline bool IsInt64() const { return IsInteger() && (Bits() == 64); }
+    inline bool IsUInt8() const { return IsInteger() && (Bits() == 8); }
+    inline bool IsUInt16() const { return IsInteger() && IsUnsigned() && (Bits() == 16); }
+    inline bool IsUInt32() const { return IsInteger() && IsUnsigned() && (Bits() == 32); }
+    inline bool IsUInt64() const { return IsInteger() && IsUnsigned() && (Bits() == 64); }
     inline bool IsReference() const { return (kind == Kind_Reference); }
     inline bool IsVariable() const { return (kind == Kind_Variable); }
     inline bool IsPrimitive() const { return IsString() || IsNumber() || IsPointer() || IsReference() || IsVariable(); }
@@ -218,9 +365,10 @@ public:
     
 
     inline std::string GetName() const { return name; }
-    inline std::string GetFullname() const { return (ns) ? (ns->GetFullname().empty() ? GetName() : ns->GetFullname() + (!GetName().empty() ? "." + GetName() : GetName())) : GetName(); }
+    inline std::string GetFullname() const { return (root) ? (root->GetFullname().empty() ? GetName() : root->GetFullname() + (!GetName().empty() ? "." + GetName() : GetName())) : GetName(); }
 
     inline bool IsCopable() const { return kind != Kind_Module; }
+
     inline CVMValue *Grab() { refCounter++; return this;}
     inline CVMValue *Drop() { refCounter--; if (refCounter == 0) { delete this; return nullptr; } return this; }
 
@@ -231,6 +379,13 @@ public:
         if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
         variables[name] = new CVMValue(this, name, Kind_Variable, 0, Flag_Property);
         if (value) variables[name]->Assign(value);
+        return variables[name];
+    }
+
+    inline CVMValue *SetKeyValue2(const std::string &name, CVMValue *value) {
+        if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
+        variables[name] = new CVMValue(this, name, Kind_Variable, 0, Flag_Property);
+        if (value) variables[name]->value = value->Grab();
         return variables[name];
     }
 
@@ -912,12 +1067,18 @@ public:
         else  return Bytes();
     }             
 };
+typedef std::vector<CVMValue*> CValueVector;
+
 
 class CVMModule : public CVMValue {
 public:
     static std::unordered_map<std::string, CVMModule*> modules;
 
+    CVMModuleHeader header;
+
     CVMModule();
+    CVMModule(CVMValue *ns, const std::string &name, const Kind kind, const uint8_t bits = 64, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>());
+    CVMModule(CVMModule *module);
     ~CVMModule();
 
     static CVMModule *CompileModuleFromSource(const std::string &name, const std::string &source);
@@ -925,8 +1086,7 @@ public:
     static CVMModule *LoadModule(const std::string &name);
     static bool       SaveModule(const std::string &name, CVMModule *module);
 };
-
-CVMValue *VMMakeFrameNamespace(CVMValue *callable);
+typedef std::vector<CVMModule*> CModuleVector;
 
 class CVMState {
 public:
@@ -943,7 +1103,7 @@ public:
         CVMValue *module;
         CVMValue *ns, *rtn, *ths, *arguments;
         CVMValue *callable;
-        std::stack<CVMValue> scope;
+        std::stack<CVMValue*> scope;
 
         Frame() : refCount(1) {
             MakeFrame(nullptr, 0, nullptr, nullptr, nullptr);
@@ -962,6 +1122,9 @@ public:
             if (ths) ths->Drop();
             if (arguments) arguments->Drop();
             if (callable) callable->Drop();
+            while (scope.size()) {
+                scope.top()->Drop(); scope.pop();
+            }
         }
 
         Frame *Grab() {
@@ -978,14 +1141,14 @@ public:
         void MakeFrame(Frame *caller, const size_t pc, CVMValue *ths, CVMValue *callable, CVMValue *args) {
             assert(callable != nullptr);
             this->module = callable->module->Grab();
-            this->ns = VMMakeFrameNamespace(callable);
+            this->ns = CVMValue::MakeBlock(callable);
+            this->scope.push(this->ns->Grab());
             this->caller = caller ? caller->Grab() : nullptr;
             this->callable = callable->Grab();
             this->pc = pc;
-            this->ths = this->ns->GetKeyValue("__gs_this__")->Grab();
-            if (ths) this->ths->Assign(ths);
-            this->rtn = this->ns->GetKeyValue("__gs_return__")->Grab();
-            this->arguments = this->ns->GetKeyValue("__gs_arguments__")->Grab();
+            this->ths = this->ns->SetKeyValue("__gs_this__", ths)->Grab();
+            this->rtn = this->ns->SetKeyValue("__gs_return__", CVMValue())->Grab();
+            this->arguments = this->ns->SetKeyValue("__gs_arguments__", args ? args : new CVMValue(this->ns, CVMTypeinfo::ArrayType(), "__gs_arguments__", CVMValue::Flag_Buildin))->Grab();
             if (args) this->arguments->Assign(args);
         }
     };
@@ -1023,5 +1186,5 @@ bool VMCall(CVMState *state, CVMValue *callable);
 bool VMCall(CVMValue *callable);
 bool VMRunSource(const std::string &source);
 bool VMRunFile(const std::string &file);
-
+*/
 #endif

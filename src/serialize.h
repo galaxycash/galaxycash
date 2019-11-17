@@ -34,9 +34,7 @@ enum {
     SER_DISK = (1 << 1),
     SER_GETHASH = (1 << 2),
 
-    SER_POSMARKER = (1 << 18), // galaxycash: for sending block headers with PoS marker, to allow headers-first syncronization
-    SER_NETWORK_OLD = (1 << 19),
-    SER_GALAXYCASH = (1 << 20)
+    SER_GALAXYCASH = (1 << 18)
 };
 
 

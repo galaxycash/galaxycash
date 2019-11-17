@@ -34,4 +34,12 @@ namespace Checkpoints {
         return (checkpoints.rbegin()->second);
     }
 
+    bool HasCheckpoint(const uint256 &hash) {
+        const MapCheckpoints& checkpoints = Params().Checkpoints().mapCheckpoints;
+        for (MapCheckpoints::const_iterator it = checkpoints.begin(); it != checkpoints.end(); it++) {
+            if ((*it).second == hash) return true;
+        }
+        return false;
+    }
+
 } // namespace Checkpoints

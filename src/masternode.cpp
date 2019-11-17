@@ -3890,7 +3890,8 @@ void ThreadMasternode()
     while (true) {
         MilliSleep(1000);
         //LogPrintf("ThreadCheckObfuScationPool::check timeout\n");
-
+        if (ShutdownRequested()) return;
+        
         // try to sync from all available nodes, one step at a time
         {
             //TRY_LOCK(cs_main, lockMain);

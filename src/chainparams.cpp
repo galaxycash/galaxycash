@@ -66,6 +66,19 @@ CChainParams::CChainParams()
     key = CKey();
 }
 
+const CKey &CChainParams::DevKey() const {
+    std::string devkey = gArgs.GetArg("-devkey", "");
+
+    CBitcoinSecret secret;
+    if (!secret.SetString(devkey))
+        return key;
+
+    key = secret.GetKey();
+    assert(pubKey == key.GetPubKey());
+
+    return key; 
+}
+
 /**
  * Main network
  */

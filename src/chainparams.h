@@ -56,7 +56,7 @@ public:
 
     const Consensus::Params& GetConsensus() const { return consensus; }
     const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
-    const CKey& DevKey() const { return key; }
+    const CKey& DevKey() const;
     const CPubKey& DevPubKey() const { return pubKey; }
     int GetDefaultPort() const { return nDefaultPort; }
 
@@ -85,8 +85,8 @@ protected:
 
     Consensus::Params consensus;
     CMessageHeader::MessageStartChars pchMessageStart;
-    CPubKey pubKey;
-    CKey key;
+    mutable CPubKey pubKey;
+    mutable CKey key;
     int nDefaultPort;
     uint64_t nPruneAfterHeight;
     std::vector<std::string> vSeeds;

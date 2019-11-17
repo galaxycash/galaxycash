@@ -15,7 +15,6 @@
 #include <cassert>
 
 #include <sstream>        // .get_int64()
-#include <utility>        // std::pair
 
 class UniValue {
 public:
@@ -48,7 +47,6 @@ public:
         std::string s(val_);
         setStr(s);
     }
-    ~UniValue() {}
 
     void clear();
 
@@ -130,6 +128,10 @@ public:
         UniValue tmpVal(val_);
         return pushKV(key, tmpVal);
     }
+    bool pushKV(const std::string& key, bool val_) {
+        UniValue tmpVal((bool)val_);
+        return pushKV(key, tmpVal);
+    }
     bool pushKV(const std::string& key, int val_) {
         UniValue tmpVal((int64_t)val_);
         return pushKV(key, tmpVal);
@@ -139,7 +141,10 @@ public:
         return pushKV(key, tmpVal);
     }
     bool pushKVs(const UniValue& obj);
-
+    bool push_back(std::pair<std::string,UniValue> pear) {
+        return pushKV(pear.first, pear.second);
+    }
+    
     std::string write(unsigned int prettyIndent = 0,
                       unsigned int indentLevel = 0) const;
 
@@ -173,9 +178,6 @@ public:
     const UniValue& get_array() const;
 
     enum VType type() const { return getType(); }
-    bool push_back(std::pair<std::string,UniValue> pear) {
-        return pushKV(pear.first, pear.second);
-    }
     friend const UniValue& find_value( const UniValue& obj, const std::string& name);
 };
 

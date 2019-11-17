@@ -156,7 +156,7 @@ size_t CCoinsViewDB::EstimateSize() const
     return db.EstimateSize(DB_COIN, (char)(DB_COIN + 1));
 }
 
-CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "blocks" / "index", nCacheSize, fMemory, fWipe)
+CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "blocks" / "index", nCacheSize, fMemory, fWipe, false)
 {
 }
 
@@ -249,16 +249,6 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
     }
     return WriteBatch(batch, true);
-}
-
-bool CBlockTreeDB::ReadBlockIndex(const uint256& hash, CDiskBlockIndex* pindex)
-{
-    return Read(std::make_pair(DB_BLOCK_INDEX, hash), *pindex);
-}
-
-bool CBlockTreeDB::WriteBlockIndex(const CDiskBlockIndex* pindex)
-{
-    return Write(std::make_pair(DB_BLOCK_INDEX, pindex->GetBlockHash()), *pindex);
 }
 
 bool CBlockTreeDB::ReadTxIndex(const uint256& txid, CDiskTxPos& pos)

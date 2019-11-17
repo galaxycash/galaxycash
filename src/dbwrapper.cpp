@@ -124,8 +124,13 @@ CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, bool fMemory, bo
     obfuscate_key = std::vector<unsigned char>(OBFUSCATE_KEY_NUM_BYTES, '\000');
 
     bool key_exists = Read(OBFUSCATE_KEY_KEY, obfuscate_key);
+    size_t zeroes = 0;
+    for (std::vector<unsigned char>::iterator it = obfuscate_key.begin(); it != obfuscate_key.end(); it++)
+        if ((*it) == 0 || (*it) == '0' || (*it) == '\0') zeroes++;
+
 
     if (!key_exists && obfuscate && IsEmpty()) {
+
         // Initialize non-degenerate obfuscation if it won't upset
         // existing, non-obfuscated data.
         std::vector<unsigned char> new_key = CreateObfuscateKey();
@@ -137,7 +142,7 @@ CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, bool fMemory, bo
         LogPrintf("Wrote new obfuscate key for %s: %s\n", path.string(), HexStr(obfuscate_key));
     }
 
-    LogPrintf("Using obfuscation key for %s: %s\n", path.string(), HexStr(obfuscate_key));
+    if (obfuscate) LogPrintf("Using obfuscation key for %s: %s\n", path.string(), HexStr(obfuscate_key));
 }
 
 CDBWrapper::~CDBWrapper()

@@ -473,8 +473,7 @@ public:
     //! Efficiently find an ancestor of this block.
     CBlockIndex* GetAncestor(int height);
     const CBlockIndex* GetAncestor(int height) const;
-
-    bool BuildStakeModifier(const CBlock& block, const bool fRebuild = false);
+    
     bool CheckProofOfStake(const CBlock& block);
     bool CheckProofOfWork(const CBlock& block);
 };

@@ -434,9 +434,11 @@ int LogErrorStr(const std::string& str)
 
     if (fPrintToConsole) {
         // print to console
-        fwrite(strTimestamped.data(), 1, strTimestamped.size(), stdout);
+        ret = fwrite(strTimestamped.data(), 1, strTimestamped.size(), stdout);
         fflush(stdout);
-
+    }
+    
+    {
         boost::call_once(&ErrorPrintInit, errorPrintInitFlag);
         boost::mutex::scoped_lock scoped_lock(*mutexErrorLog);
 

@@ -13,6 +13,41 @@
 #include <util.h>
 
 #define BIT(x) (1 << x)
+/*
+CVMValue::CVMValue() : refCounter(1) {
+    SetNull();
+}
+
+CVMValue::CVMValue(CVMValue *root, const CModuleTypeinfo &type, const std::string &name, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>()) : refCounter(1) {
+    SetNull();
+
+    this->root = root;
+    this->name = name;
+    this->kind = kind;
+    this->bits = bits;
+    this->flags = flags;
+    this->data = data;
+}
+
+CVMValue::CVMValue(CVMValue *value) : refCounter(1)
+{
+    Init(value);
+}
+
+CVMValue::~CVMValue() {
+    for (std::vector <CVMValue*>::iterator it = values.begin(); it != values.end(); it++) {
+        (*it)->Drop();
+    }
+    for (std::unordered_map <std::string, CVMValue*>::iterator it = variables.begin(); it != variables.end(); it++) {
+        (*it).second->Drop();
+    }
+    if (prototype) prototype->Drop();
+    if (arguments) arguments->Drop();
+    if (constants) constants->Drop();
+    if (value) value->Drop();
+    if (root) root->Drop();
+    if (module) module->Drop();
+}
 
 void CVMValue::Init(CVMValue *initializer) {
     if (initializer) {      
@@ -97,8 +132,9 @@ std::string VMDecodeString(CVMState *state, CVMBytecode::const_iterator &code) {
 }
 
 CVMValue *VMDecodeValue(CVMState *state, CVMBytecode::const_iterator &code) {
-    uint32_t size = VMDecodeU32(state, code);
-    std::vector<char> data(code + state->frame.top().pc, code + state->frame.top().pc + size); state->frame.top().pc += size;
+    size_t addr = VMDecodeAddr(state, code)
+    size_t size = VMDecodeAddr(state, code);
+    std::vector<char> data(code + addr, code + addr + size); state->frame.top().pc += 8;
 
     CVMValue *value = new CVMValue();
     if (value->Decode(data)) {
@@ -188,3 +224,4 @@ bool VMCall(CVMValue *callable) {
     CVMState state;
     return VMCall(&state, callable);
 }
+*/

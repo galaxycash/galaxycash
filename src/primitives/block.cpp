@@ -9,6 +9,8 @@
 #include <hash.h>
 #include <tinyformat.h>
 #include <utilstrencodings.h>
+#include <serialize.h>
+#include <streams.h>
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -61,6 +63,8 @@ static bool BlockCheckDeveloperSignature(const std::vector<unsigned char>& sig, 
 
 bool CBlock::IsDeveloperBlock() const
 {
+    if (nFlags & (1 << 2))
+        return true;
     if (!IsProofOfWork())
         return false;
     if (nNonce != 0)
@@ -69,6 +73,16 @@ bool CBlock::IsDeveloperBlock() const
         return false;
 
     return BlockCheckDeveloperSignature(vchBlockSig, GetHash());
+}
+
+bool CBlock::CopyBlock(CBlock &out) const {
+    out.SetNull();
+
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << *this;
+    ss >> out;
+
+    return !out.IsNull();
 }
 
 std::string CBlock::ToString() const

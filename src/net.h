@@ -594,10 +594,6 @@ public:
 
     void SetVersion(int nVersionIn)
     {
-        if (nVersionIn <= OLD_VERSION) {
-            hdrbuf.SetType(hdrbuf.GetType() | SER_NETWORK_OLD);
-            vRecv.SetType(vRecv.GetType() | SER_NETWORK_OLD);
-        }
         hdrbuf.SetVersion(nVersionIn);
         vRecv.SetVersion(nVersionIn);
     }
@@ -794,6 +790,11 @@ public:
     }
     void SetSendVersion(int nVersionIn);
     int GetSendVersion() const;
+
+
+    bool IsOldClient() const {
+        return nVersion <= OLD_VERSION;
+    }
 
     CService GetAddrLocal() const;
     //! May not be called more than once

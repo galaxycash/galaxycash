@@ -330,7 +330,9 @@ public:
 
     void SetType(int n) { nType = n; }
     int GetType() const { return nType; }
-    void SetVersion(int n) { nVersion = n; }
+    void SetVersion(int n) { 
+        nVersion = n;
+    }
     int GetVersion() const { return nVersion; }
 
     void read(char* pch, size_t nSize)

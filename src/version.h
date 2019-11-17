@@ -14,19 +14,19 @@ static const int DATABASE_VERSION = 90909;
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 94444;
-static const int NEW_VERSION = 94444; // galaxycash: used to communicate with clients knows about galaxycash new protocol
+static const int PROTOCOL_VERSION = 94440;
+static const int NEW_VERSION = 94440; // galaxycash: used to communicate with clients knows about galaxycash new protocol
 static const int OLD_VERSION = 90920; // galaxycash: used to communicate with clients that don't know how to send PoS information in headers
 static const int MIN_MASTERNODE_VERSION = 90920; // galaxycash: minimal masternode protocol version
 
 //! initial proto version, to be increased after version/verack negotiation
-static const int INIT_PROTO_VERSION = OLD_VERSION;
+static const int INIT_PROTO_VERSION = 90918;
 
 //! In this version, 'getheaders' was introduced.
-static const int GETHEADERS_VERSION = 94444;
+static const int GETHEADERS_VERSION = 90920;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 90920;
+static const int MIN_PEER_PROTO_VERSION = 90918;
 
 //! nTime field added to CAddress, starting with this version;
 //! if possible, avoid requesting addresses nodes older than this
@@ -39,13 +39,13 @@ static const int BIP0031_VERSION = 60000;
 static const int NO_BLOOM_VERSION = 90918;
 
 //! "sendheaders" command and announcing blocks with headers starts with this version
-static const int SENDHEADERS_VERSION = 94444;
+static const int SENDHEADERS_VERSION = 94440;
 
 //! "feefilter" tells peers to filter invs to you by fee starts with this version
-static const int FEEFILTER_VERSION = 94444;
+static const int FEEFILTER_VERSION = 94440;
 
 //! short-id-based block download starts with this version
-static const int SHORT_IDS_BLOCKS_VERSION = 94444;
+static const int SHORT_IDS_BLOCKS_VERSION = 94440;
 
 //! not banning for invalid compact blocks starts with this version
 static const int INVALID_CB_NO_BAN_VERSION = 90000;
@@ -68,6 +68,6 @@ static const int CANONICAL_BLOCK_SIG_VERSION = 90920;
 static const int CANONICAL_BLOCK_SIG_LOW_S_VERSION = 90920;
 
 //! masternodes older than this proto version use old strMessage format for mnannounce
-static const int MIN_PEER_MNANNOUNCE = 94444;
+static const int MIN_PEER_MNANNOUNCE = 94440;
 
 #endif // BITCOIN_VERSION_H

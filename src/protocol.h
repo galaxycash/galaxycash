@@ -411,7 +411,9 @@ public:
         READWRITE(hash);
     }
 
-    friend bool operator<(const CInv& a, const CInv& b);
+    inline bool operator<(const CInv &inv) const { return hash.Compare(inv.hash) < 0; }
+    inline bool operator!=(const CInv &inv) const { return hash.Compare(inv.hash) != 0; }
+    inline bool operator==(const CInv &inv) const { return hash.Compare(inv.hash) == 0; }
 
     std::string GetCommand() const;
     std::string ToString() const;

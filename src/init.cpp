@@ -1065,7 +1065,14 @@ bool AppInitMain()
         // and because this needs to happen before any other debug.log printing
         ShrinkDebugFile();
     }
-
+    if (gArgs.GetBoolArg("-shrinkerrorfile", false)) {
+        // Do this first since it both loads a bunch of debug.log into memory,
+        // and because this needs to happen before any other debug.log printing
+        ShrinkErrorFile();
+    }
+    if (!OpenErrorLog()) {
+        return InitError(strprintf("Could not open error log file %s", GetErrorLogPath().string()));
+    }
     if (fPrintToDebugLog) {
         if (!OpenDebugLog()) {
             return InitError(strprintf("Could not open debug log file %s", GetDebugLogPath().string()));
@@ -1657,5 +1664,7 @@ bool AppInitMain()
     sporkManager.Init();
     threadGroup.create_thread(boost::bind(&ThreadSporks));
 
+
+    threadGroup.create_thread(boost::bind(&ThreadBlockQueue));
     return true;
 }

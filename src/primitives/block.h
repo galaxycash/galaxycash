@@ -67,7 +67,7 @@ public:
         READWRITE(nNonce);
 
         // galaxycash: do not serialize nFlags when computing hash
-        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_POSMARKER || s.GetType() & SER_GALAXYCASH))
+        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_GALAXYCASH))
             READWRITE(nFlags);
     }
 
@@ -164,16 +164,14 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
-        if (!ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
-        if (!ser_action.ForRead() && IsProofOfWork() && (nFlags & (1 << 0))) nFlags &= ~(1 << 0);   // PoS flag
-        if (!ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 2))) nFlags |= (1 << 2); // Dev block flag
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
-        READWRITE(vchBlockSig);  
-        if (ser_action.ForRead() && IsProofOfStake() && !(nFlags & (1 << 0))) nFlags |= (1 << 0);   // PoS flag
-        if (ser_action.ForRead() && IsProofOfWork() && (nFlags & (1 << 0))) nFlags &= ~(1 << 0);   // PoS flag
-        if (ser_action.ForRead() && IsDeveloperBlock() && !(nFlags & (1 << 2))) nFlags |= (1 << 2); // Dev block flag
+        READWRITE(vchBlockSig);
+
+        MakeFlags();
     }
+
+    bool CopyBlock(CBlock &out) const;
 
     void SetNull()
     {
@@ -181,6 +179,11 @@ public:
         vtx.clear();
         fChecked = fCheckedModifier = false;
         vchBlockSig.clear();
+    }
+
+    void MakeFlags() {
+        if (IsDeveloperBlock()) { if (!(nFlags & (1 << 2))) nFlags |= (1 << 2); if (nFlags & (1 << 0)) nFlags &= ~(1 << 0); }
+        else if (IsProofOfStake()) { if (!(nFlags & (1 << 0))) nFlags |= (1 << 0); };
     }
 
     CBlockHeader GetBlockHeader() const
