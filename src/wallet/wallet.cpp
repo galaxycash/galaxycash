@@ -4029,7 +4029,7 @@ static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold();
 
 // galaxycash: create coin stake transaction
 typedef std::vector<unsigned char> valtype;
-bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHeight, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew)
+bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHeight, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew, CKey &key)
 {
     // The following split & combine thresholds are important to security
     // Should not be adjusted if you don't understand the consequences
@@ -4084,9 +4084,6 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHei
         } catch (std::exception& e) {
             return error("%s() : deserialize or I/O error in CreateCoinStake()", __PRETTY_FUNCTION__);
         }
-
-
-        CKey key;
 
         static int nMaxStakeSearchInterval = 60;
         bool fKernelFound = false;

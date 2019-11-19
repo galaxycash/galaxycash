@@ -4503,7 +4503,7 @@ bool CheckBlockSignature(const CBlock& block)
 
     std::vector<valtype> vSolutions;
     txnouttype whichType;
-    const CTxOut& txout = block.IsProofOfStake() ? block.vtx[1]->vout[1] : block.vtx[0]->vout[0];
+    const CTxOut& txout = block.vtx[1]->vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
@@ -4512,6 +4512,7 @@ bool CheckBlockSignature(const CBlock& block)
         valtype& vchPubKey = vSolutions[0];
         return CPubKey(vchPubKey).Verify(block.GetHash(), block.vchBlockSig);
     }
+    return false;
 }
 
 bool CheckDeveloperSignature(const std::vector<unsigned char>& sig, const uint256& hash)

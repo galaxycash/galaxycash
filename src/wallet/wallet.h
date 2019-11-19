@@ -988,7 +988,7 @@ public:
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign = true);
-    bool CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHeight, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew);
+    bool CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHeight, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew, CKey &key);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
 
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& entries);

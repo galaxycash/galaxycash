@@ -136,7 +136,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // galaxycash: if coinstake available add coinstake tx
     static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // only initialized at startup
-
+    CKey keyCoinStake;
     if (pwallet) // attemp to find a coinstake
     {
         *pfPoSCancel = true;
@@ -146,7 +146,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         int64_t nSearchTime = txCoinStake.nTime; // search to current time
         if (nSearchTime > nLastCoinStakeSearchTime) {
             int64_t nSearchInterval = 1;
-            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchInterval, txCoinStake)) {
+            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchInterval, txCoinStake, keyCoinStake)) {
                 coinbaseTx.vout[0].SetEmpty();
                 coinbaseTx.nTime = txCoinStake.nTime;
                 pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
@@ -188,6 +188,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     pblock->nNonce = 0;
+
+    if (pblock->IsProofOfStake() && !(*pfPoSCancel) && !keyCoinStake.Sign(pblock->GetHash(), pblock->vchBlockSig))
+        throw std::runtime_error(strprintf("%s: block sign failed", __func__));
+
     pblocktemplate->vTxSigOpsCost[0] = 4 * GetLegacySigOpCount(*pblock->vtx[0]);
 
     CValidationState state;
@@ -554,10 +558,6 @@ void PoSMiner(CWallet* pwallet)
             // galaxycash: if proof-of-stake block found then process block
             if (pblock->IsProofOfStake()) {
                 pblock->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
-                if (!SignBlock(*pblock, *pwallet)) {
-                    LogPrintf("PoSMiner(): failed to sign PoS block");
-                    continue;
-                }
                 LogPrintf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString());
                 ProcessBlockFound(pblock, Params());
                 // Rest for ~3 minutes after successful block to preserve close quick
