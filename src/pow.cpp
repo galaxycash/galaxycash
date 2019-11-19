@@ -50,7 +50,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo,
     arith_uint256 PastDifficultyAverage;
     arith_uint256 PastDifficultyAveragePrev;
 
-    if (!pindexLast || params.IsMergeBlock(pindexLast->nHeight + 1))
+    if (params.IsMergeBlock(BlockLastSolved->nHeight + 1))
         return PowLimit.GetCompact();
 
     if (BlockLastSolved == NULL ||
@@ -116,9 +116,15 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo,
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int algo, bool fProofOfStake, const Consensus::Params& params)
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int nAlgo, bool fProofOfStake, const Consensus::Params& params)
 {
-    return DarkGravityWave(pindexLast, algo, fProofOfStake, params);
+    if (params.fPowNoRetargeting) {
+        if (fProofOfStake)
+            return UintToArith256(params.ProofOfStakeLimit()).GetCompact();
+        else
+            return UintToArith256(params.ProofOfWorkLimit()).GetCompact();
+    }
+    return DarkGravityWave(pindexLast, nAlgo, fProofOfStake, params);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)

@@ -1555,12 +1555,51 @@ UniValue savemempool(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
+UniValue createbootstrap(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0) {
+        throw std::runtime_error(
+            "createbootstrap\n"
+            "\nDumps blockchain to bootstrap file.\n"
+            "\nExamples:\n" +
+            HelpExampleCli("createbootstrap", "") + HelpExampleRpc("createbootstrap", ""));
+    }
+
+    FILE *file = fsbridge::fopen(GetDataDir() / "bootstrap.dat", "wb");
+
+        // Open history file to append
+    CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
+    if (fileout.IsNull())
+        return error("WriteBlockToDisk: OpenBlockFile failed");
+
+    for (CBlockIndex *pindex = chainActive.Genesis(); ;) {
+        if (pindex == chainActive.Genesis()) {
+            pindex = chainActive.Next(pindex); continue;
+        }
+        
+        CBlock block;
+        if (!ReadBlockFromDisk(block, CDiskBlockPos(pindex->nFile, pindex->nDataPos), Params().GetConsensus()))
+            break;
+
+        unsigned int nSize = GetSerializeSize(fileout, block);
+        fileout << FLATDATA(Params().MessageStart()) << nSize << block;
+
+        if (pindex == chainActive.Tip())
+            break;
+    }
+
+
+    fclose(file);
+
+    return (GetDataDir() / "bootstrap.dat").string();
+}
 static const CRPCCommand commands[] =
     {
         //  category              name                      actor (function)         argNames
         //  --------------------- ------------------------  -----------------------  ----------
         {"blockchain", "getinfo", &getinfo, {}},
         {"blockchain", "getblockchaininfo", &getblockchaininfo, {}},
+        {"blockchain", "createbootstrap", &createbootstrap, {}},
         {"blockchain", "getchaintxstats", &getchaintxstats, {"nblocks", "blockhash"}},
         {"blockchain", "getbestblockhash", &getbestblockhash, {}},
         {"blockchain", "getblockcount", &getblockcount, {}},

@@ -9,6 +9,8 @@
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <uint256.h>
+#include <tinyformat.h>
+#include <utilstrencodings.h>
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -131,6 +133,21 @@ public:
     {
         return (int64_t)nTime;
     }
+
+
+
+    std::string ToString() const
+    {
+        std::stringstream s;
+        s << strprintf("CBlockHeader(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, nFlags=%08x)\n",
+            GetHash().GetHex(),
+            nVersion,
+            hashPrevBlock.ToString(),
+            hashMerkleRoot.ToString(),
+            nTime, nBits, nNonce,
+            nFlags);
+        return s.str();
+    }    
 };
 
 
@@ -201,10 +218,6 @@ public:
 
     void SetAlgorithm(const int32_t algo)
     {
-        if (IsProofOfStake()) {
-            nVersion = CBlockHeader::X12_VERSION;
-            return;
-        }
         switch (algo) {
         case CBlockHeader::ALGO_X11:
             nVersion = CBlockHeader::X11_VERSION;
@@ -230,12 +243,13 @@ public:
         case CBlockHeader::X13_VERSION:
             return CBlockHeader::ALGO_X13;
         case CBlockHeader::SHA256D_VERSION:
-            return ALGO_SHA256D;
+            return CBlockHeader::ALGO_SHA256D;
         case CBlockHeader::BLAKE2S_VERSION:
             return CBlockHeader::ALGO_BLAKE2S;
         default:
             return CBlockHeader::ALGO_X12;
         }
+        return CBlockHeader::ALGO_X12;
     }
 
     // galaxycash: two types of block: proof-of-work or proof-of-stake
