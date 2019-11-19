@@ -4085,18 +4085,19 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHei
             return error("%s() : deserialize or I/O error in CreateCoinStake()", __PRETTY_FUNCTION__);
         }
 
-        static int nMaxStakeSearchInterval = 60;
-        if (header.GetBlockTime() + params.nStakeMinAge > txNew.nTime - nMaxStakeSearchInterval)
-            continue; // only count coins meeting min age requirement
 
+        CKey key;
+
+        static int nMaxStakeSearchInterval = 60;
         bool fKernelFound = false;
+        unsigned int nTxTime = txNew.nTime;
         for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) && !fKernelFound; n++) {
             // Search backward in time from the given txNew timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256 hashProofOfStake = uint256();
             COutPoint prevoutStake = pcoin.outpoint;
-            unsigned int nSavedTxTime = txNew.nTime;
-            txNew.nTime = txNew.nTime - n;
+            
+            txNew.nTime = nTxTime - n;
             if (CheckStakeKernelHash(chainActive.Tip(), nBits, header, txNew, *tx, prevoutStake, hashProofOfStake, gArgs.GetBoolArg("-debug", false))) {
                 // Found a kernel
                 if (gArgs.GetBoolArg("-debug", false) && gArgs.GetBoolArg("-printcoinstake", false))
@@ -4117,18 +4118,35 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHei
                         LogPrintf("CreateCoinStake : no support for kernel type=%d\n", whichType);
                     break;
                 }
-                if (whichType == TX_PUBKEYHASH) {
+
+                if (whichType == TX_PUBKEYHASH) // pay to address type
+                {
                     // convert to pay to public key type
-                    CKey key;
-                    if (!keystore.GetKey(CKeyID(uint160(vSolutions[0])), key)) {
-                        if (gArgs.GetBoolArg("-debug", false) && gArgs.GetBoolArg("-printcoinstake", false))
-                            LogPrintf("CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
-                        break; // unable to find corresponding public key
+                    if (!keystore.GetKey(CKeyID(uint160(vSolutions[0])), key))
+                    {
+                        LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                        break;  // unable to find corresponding public key
                     }
                     scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
-                } else
-                    scriptPubKeyOut = scriptPubKeyKernel;
+                }
+                if (whichType == TX_PUBKEY)
+                {
+                    valtype& vchPubKey = vSolutions[0];
 
+                    if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
+                    {
+                        LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                        break;  // unable to find corresponding public key
+                    }
+
+                    if (key.GetPubKey() != CPubKey(vchPubKey))
+                    {
+                        LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
+                        break; // keys mismatch
+                    }
+
+                    scriptPubKeyOut = scriptPubKeyKernel;
+                }
 
                 txNew.vin.push_back(CTxIn(pcoin.outpoint.hash, pcoin.outpoint.n));
                 nCredit += pcoin.txout.nValue;
@@ -4138,8 +4156,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, int64_t nFees, int nHei
                     LogPrintf("CreateCoinStake : added kernel type=%d\n", whichType);
                 fKernelFound = true;
                 break;
-            } else
-                txNew.nTime = nSavedTxTime;
+            }
         }
         if (fKernelFound)
             break; // if kernel is found stop searching

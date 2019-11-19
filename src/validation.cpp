@@ -4446,6 +4446,7 @@ bool GetCoinAge(const CTransaction& tx, const CCoinsViewCache& view, uint64_t& n
 typedef std::vector<unsigned char> valtype;
 bool SignBlock(CBlock& block, const CKeyStore& keystore)
 {
+    CKey key;
     std::vector<valtype> vSolutions;
     txnouttype whichType;
     const CTxOut& txout = block.IsProofOfStake() ? block.vtx[1]->vout[1] : block.vtx[0]->vout[0];
@@ -4454,15 +4455,38 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
         return false;
 
     if (whichType == TX_PUBKEY) {
-        valtype& vchPubKey = vSolutions[0];
-        CKey key;
-        if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
+        LogPrint(BCLog::STAKE, "SignBlock : parsed kernel type=%d\n", whichType);
+        if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH)
+        {
+            LogPrint(BCLog::STAKE, "CreateCoinStake : no support for kernel type=%d\n", whichType);
             return false;
-        if (key.GetPubKey() != CPubKey(vchPubKey))
-            return false;
-        return key.Sign(block.GetHash(), block.vchBlockSig);
+        }
+        if (whichType == TX_PUBKEYHASH) // pay to address type
+        {
+                    // convert to pay to public key type
+            if (!keystore.GetKey(CKeyID(uint160(vSolutions[0])), key))
+            {
+                LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                return false;
+            }
+        }
+        if (whichType == TX_PUBKEY)
+        {
+            valtype& vchPubKey = vSolutions[0];
+            if (!keystore.GetKey(CKeyID(Hash160(vchPubKey)), key))
+            {
+                LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                return false;
+            }
+
+            if (key.GetPubKey() != CPubKey(vchPubKey))
+            {
+                LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
+                return false;
+            }
+        }
     }
-    return false;
+    return key.Sign(block.GetHash(), block.vchBlockSig);
 }
 
 // galaxycash: check block signature

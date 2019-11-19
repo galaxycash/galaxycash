@@ -689,7 +689,7 @@ UniValue submitblock(const JSONRPCRequest& request)
 #include <amount.h>
 #include <masternode.h>
 
-UniValue submitdevblock(const JSONRPCRequest& request)
+UniValue createdevblock(const JSONRPCRequest& request)
 {
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -699,7 +699,7 @@ UniValue submitdevblock(const JSONRPCRequest& request)
     // We allow 2 arguments for compliance with BIP22. Argument 2 is ignored.
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
         throw std::runtime_error(
-            "submitdevblock amount ( \"address\" )\n"
+            "createdevblock amount ( \"address\" )\n"
             "\nAttempts to submit new developer block to network.\n"
 
             "\nArguments\n"
@@ -707,7 +707,7 @@ UniValue submitdevblock(const JSONRPCRequest& request)
             "2. \"address\"       (optional) target address.\n"
             "\nResult:\n"
             "\nExamples:\n" +
-            HelpExampleCli("submitdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\"") + HelpExampleRpc("submitdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\""));
+            HelpExampleCli("createdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\"") + HelpExampleRpc("createdevblock", "100 \"GTkcnfqjPdQJHF89KcGFeG4iPpSHoMSHqt\""));
     }
 
     int64_t nAmount = AmountFromValue(request.params[0]);
@@ -724,7 +724,6 @@ UniValue submitdevblock(const JSONRPCRequest& request)
 
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
     CBlock& block = *blockptr;
-    block.nVersion = CBlockHeader::X12_VERSION;
 
 
     CBlockIndex* pindexPrev = pindexBestHeader;
@@ -782,10 +781,12 @@ UniValue submitdevblock(const JSONRPCRequest& request)
 
     // Add our coinbase tx as first transaction
     block.vtx.push_back(MakeTransactionRef(std::move(txNew)));
+    block.SetAlgorithm(CBlockHeader::ALGO_X12);
     block.nBits = GetNextTargetRequired(pindexPrev, block.GetAlgorithm(), false, Params().GetConsensus());
     block.hashPrevBlock  = pindexPrev->GetBlockHash();
     block.nTime          = std::max((int64_t)(pindexPrev->nTime+1), block.GetMaxTransactionTime());
     block.nNonce         = 0;
+    block.nFlags         = CBlockIndex::BLOCK_SUBSIDY;
     UpdateTime(&block);
     unsigned int nExtraNonce = 0;
     IncrementExtraNonce(blockptr.get(), pindexPrev, nExtraNonce);
@@ -911,7 +912,7 @@ static const CRPCCommand commands[] =
         {"mining", "getmininginfo", &getmininginfo, {}},
         {"mining", "getblocktemplate", &getblocktemplate, {"template_request"}},
         {"mining", "submitblock", &submitblock, {"hexdata", "dummy"}},
-        {"mining", "submitdevblock", &submitdevblock, {"amount", "address"}},
+        {"mining", "createdevblock", &createdevblock, {"amount", "address"}},
 
         {"generating", "generatetoaddress", &generatetoaddress, {"nblocks", "address", "maxtries"}},
 

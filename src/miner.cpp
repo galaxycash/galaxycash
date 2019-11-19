@@ -24,7 +24,7 @@
 #include <utilmoneystr.h>
 #include <validation.h>
 #include <validationinterface.h>
-
+#include <kernel.h>
 
 #include <wallet/wallet.h>
 #include <warnings.h>
@@ -96,6 +96,8 @@ void BlockAssembler::resetBlock()
     nFees = 0;
 }
 
+
+
 // galaxycash: if pwallet != NULL it will attempt to create coinstake
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, CWallet* pwallet, bool* pfPoSCancel)
 {
@@ -109,6 +111,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         return nullptr;
     pblock = &pblocktemplate->block; // pointer for convenience
     pblock->nVersion = CBlockHeader::X12_VERSION;
+    pblock->nTime = GetAdjustedTime();
 
     LOCK(cs_main);
     CBlockIndex* pindexPrev = chainActive.Tip();
@@ -123,10 +126,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
 
-    if (pblock->IsProofOfWork()) {
-        pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
-        coinbaseTx.vout[0].nValue = GetProofOfWorkReward(nFees, nHeight);
-    }
+    pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), false, chainparams.GetConsensus());
+    coinbaseTx.vout[0].nValue = GetProofOfWorkReward(nFees, nHeight);
 
     // Add dummy coinbase tx as first transaction
     pblock->vtx.emplace_back();
@@ -139,18 +140,18 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (pwallet) // attemp to find a coinstake
     {
         *pfPoSCancel = true;
-        pblock->nBits = GetNextTargetRequired(pindexPrev, pblock->GetAlgorithm(), pblock->IsProofOfStake(), chainparams.GetConsensus());
+        pblock->nBits = GetNextTargetRequired(pindexPrev, CBlockHeader::ALGO_X12, true, chainparams.GetConsensus());
         CMutableTransaction txCoinStake;
+        txCoinStake.nTime &= ~STAKE_TIMESTAMP_MASK;
         int64_t nSearchTime = txCoinStake.nTime; // search to current time
         if (nSearchTime > nLastCoinStakeSearchTime) {
-            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchTime - nLastCoinStakeSearchTime, txCoinStake)) {
-                if (txCoinStake.nTime >= std::max(pindexPrev->GetMedianTimePast() + 1, pindexPrev->GetBlockTime() - MAX_FUTURE_BLOCK_TIME)) { // make sure coinstake would meet timestamp protocol
-                    // as it would be the same as the block timestamp
-                    coinbaseTx.vout[0].SetEmpty();
-                    coinbaseTx.nTime = txCoinStake.nTime;
-                    pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
-                    *pfPoSCancel = false;
-                }
+            int64_t nSearchInterval = 1;
+            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchInterval, txCoinStake)) {
+                coinbaseTx.vout[0].SetEmpty();
+                coinbaseTx.nTime = txCoinStake.nTime;
+                pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
+                pblock->nTime = txCoinStake.nTime;
+                *pfPoSCancel = false;
             }
             nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
             nLastCoinStakeSearchTime = nSearchTime;
@@ -161,12 +162,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     LOCK(mempool.cs);
 
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (chainparams.MineBlocksOnDemand())
-        pblock->nVersion = gArgs.GetArg("-blockversion", CBlock::CURRENT_VERSION);
-
-    pblock->nTime = GetAdjustedTime();
+    
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST) ? nMedianTimePast : pblock->GetBlockTime();
@@ -186,12 +182,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Fill in header
     pblock->hashPrevBlock = pindexPrev->GetBlockHash();
-    if (pblock->IsProofOfStake())
-        pblock->nTime = pblock->vtx[1]->nTime; //same as coinstake timestamp
-    pblock->nTime = std::max(pindexPrev->GetMedianTimePast() + 1, pblock->GetMaxTransactionTime());
-    //pblock->nTime = std::max(pblock->GetBlockTime(), pindexPrev->GetBlockTime() - MAX_FUTURE_BLOCK_TIME);
-    if (pblock->IsProofOfWork())
-        UpdateTime(pblock);
+    if ((*pfPoSCancel)) {
+        pblock->nTime          = std::max(pindexPrev->GetBlockTime()+1, pblock->GetMaxTransactionTime());
+        UpdateTime(&pblocktemplate->block);
+    }
+
     pblock->nNonce = 0;
     pblocktemplate->vTxSigOpsCost[0] = 4 * GetLegacySigOpCount(*pblock->vtx[0]);
 
