@@ -1,7 +1,7 @@
 #!/bin/bash -ev
 
 #debuild and associated tools
-sudo apt-get install -qqy devscripts debhelper
+sudo apt-get install -qqy devscripts debhelper scratch
 
 #not sure why these are only needed when packaging and not for the compile
 sudo apt-get install -qqy bash-completion libevent-dev qttools5-dev libqrencode-dev
