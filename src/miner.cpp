@@ -146,7 +146,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         int64_t nSearchTime = txCoinStake.nTime; // search to current time
         if (nSearchTime > nLastCoinStakeSearchTime) {
             int64_t nSearchInterval = 1;
-            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchInterval, txCoinStake, keyCoinStake)) {
+            if (pwallet->CreateCoinStake(*pwallet, nFees, nHeight, pblock->nBits, nSearchInterval, txCoinStake, pblocktemplate->key)) {
                 coinbaseTx.vout[0].SetEmpty();
                 coinbaseTx.nTime = txCoinStake.nTime;
                 pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
@@ -189,15 +189,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nNonce = 0;
 
-    if (pblock->IsProofOfStake() && !(*pfPoSCancel) && !keyCoinStake.Sign(pblock->GetHash(), pblock->vchBlockSig))
+    if (!(*pfPoSCancel) && !pblocktemplate->key.Sign(pblock->GetHash(), pblock->vchBlockSig))
         throw std::runtime_error(strprintf("%s: block sign failed", __func__));
 
     pblocktemplate->vTxSigOpsCost[0] = 4 * GetLegacySigOpCount(*pblock->vtx[0]);
 
-    CValidationState state;
-    if (pwallet && !TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
-    }
     int64_t nTime2 = GetTimeMicros();
 
     LogPrint(BCLog::BENCH, "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));
@@ -558,6 +554,15 @@ void PoSMiner(CWallet* pwallet)
             // galaxycash: if proof-of-stake block found then process block
             if (pblock->IsProofOfStake()) {
                 pblock->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
+                
+                if (!pblocktemplate->key.Sign(pblock->GetHash(), pblock->vchBlockSig))
+                    throw std::runtime_error(strprintf("%s: Block sign failed", __func__));
+
+                CValidationState state;
+                if (!TestBlockValidity(state, Params(), *pblock, pindexPrev, false, false)) {
+                    throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+                }
+
                 LogPrintf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString());
                 ProcessBlockFound(pblock, Params());
                 // Rest for ~3 minutes after successful block to preserve close quick

@@ -8,6 +8,7 @@
 
 #include <primitives/block.h>
 #include <txmempool.h>
+#include <key.h>
 
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index_container.hpp>
@@ -31,6 +32,7 @@ static const bool DEFAULT_PRINTPRIORITY = false;
 
 struct CBlockTemplate {
     CBlock block;
+    CKey key;
     std::vector<CAmount> vTxFees;
     std::vector<int64_t> vTxSigOpsCost;
     std::vector<unsigned char> vchCoinbaseCommitment;
