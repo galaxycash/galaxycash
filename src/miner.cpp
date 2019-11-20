@@ -188,10 +188,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     pblock->nNonce = 0;
-
-    if (!(*pfPoSCancel) && !pblocktemplate->key.Sign(pblock->GetHash(), pblock->vchBlockSig))
-        throw std::runtime_error(strprintf("%s: block sign failed", __func__));
-
     pblocktemplate->vTxSigOpsCost[0] = 4 * GetLegacySigOpCount(*pblock->vtx[0]);
 
     int64_t nTime2 = GetTimeMicros();

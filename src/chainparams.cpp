@@ -103,8 +103,7 @@ public:
         consensus.BIP16Height = 0;
         consensus.BIP34Height = 339994;
         consensus.BIP34Hash = uint256S("000000000000000237f50af4cfe8924e8693abc5bd8ae5abb95bc6d230f5953f");
-        consensus.powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
-        ;                                                                                                             // ~arith_uint256(0) >> 32;
+        consensus.powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
         consensus.bnInitialHashTarget = uint256S("0000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 40;
 
         // POS
@@ -223,14 +222,26 @@ public:
         consensus.powLimit = uint256S("0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff");            // ~arith_uint256(0) >> 28;
         consensus.bnInitialHashTarget = uint256S("00000007ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 29;
 
-        consensus.nTargetTimespan = 7 * 24 * 60 * 60;                         // one week
-        consensus.nStakeTargetSpacing = 10 * 60;                              // 10-minute block spacing
-        consensus.nTargetSpacingWorkMax = 12 * consensus.nStakeTargetSpacing; // 2-hour
-        consensus.nTargetSpacing = consensus.nStakeTargetSpacing;
-        consensus.nStakeMinAge = 60 * 60 * 24; // test net min age is 1 day
-        consensus.nStakeMaxAge = 60 * 60 * 24 * 90;
-        consensus.nModifierInterval = 60 * 20; // Modifier interval: time to elapse before new modifier is computed
-        consensus.nCoinbaseMaturity = 60;
+        consensus.nLastPoW = 130000;
+        consensus.nSubsidyHalvingInterval = 210000;
+        consensus.nMergeFirstBlock = consensus.nMergeLastBlock = 0;
+
+        // POS
+        consensus.stakeLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
+        consensus.nPOSFirstBlock = 25;
+        consensus.nStakeMinConfirmations = 10;
+
+        consensus.nTargetSpacing = 60;         // 3 minutes
+        consensus.nTargetSpacing2 = 30;       // 10 minutes
+        consensus.nTargetTimespan = 6 * 60 * 60;   // 6 hours
+        consensus.nTargetTimespan2 = 24 * 60 * 60; // 24 hours
+        consensus.nStakeTargetSpacing = 2 * 60;
+        consensus.nStakeTargetTimespan = 6 * 60 * 60;                      // 6 hours
+        consensus.nTargetSpacingWorkMax = std::numeric_limits<int>::max(); // 2-hour
+        consensus.nStakeMinAge = 6 * 60 * 60;                              // minimum age for coin age
+        consensus.nStakeMaxAge = std::numeric_limits<int>::max();
+        consensus.nModifierInterval = 5 * 60; // Modifier interval: time to elapse before new modifier is computed
+        consensus.nCoinbaseMaturity = 2;
 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;

@@ -189,6 +189,8 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
 
         UniValue out(UniValue::VOBJ);
 
+        out.pushKV("masternodePayment", COutPoint(tx.GetHash(), i).IsMasternodeReward(&tx));
+
         out.pushKV("value", ValueFromAmount(txout.nValue));
         out.pushKV("n", (int64_t)i);
 

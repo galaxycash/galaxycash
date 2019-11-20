@@ -166,11 +166,6 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
             continue;
         }
 
-        // galaxycash: sign block
-        // rfc6: we sign proof of work blocks only before 0.8 fork
-        if (!SignBlock(*pblock, *pwallet))
-            throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
-
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
         if (!ProcessNewBlock(Params(), shared_pblock, false, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
@@ -582,7 +577,13 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     result.push_back(Pair("curtime", pblock->GetBlockTime()));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight + 1)));
+    UniValue aVotes(UniValue::VARR);
+    result.push_back(Pair("votes", aVotes));
+    result.push_back(Pair("payee", ""));
+    result.push_back(Pair("payee_amount", ""));
 
+    result.push_back(Pair("masternode_payments", true));
+    result.push_back(Pair("enforce_masternode_payments", true));
 
     return result;
 }
