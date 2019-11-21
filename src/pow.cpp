@@ -13,30 +13,52 @@
 #include <bignum.h>
 #include <chainparams.h>
 
+
+static int BlockType(const CBlockIndex *pindex) {
+    if (pindex->nFlags & CBlockIndex::BLOCK_SUBSIDY) return 0;
+    else if (pindex->nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) return 1;
+    return 2 + pindex->GetBlockAlgorithm();
+}
+
 // galaxycash: find last block index up to pindex
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int algo, bool fProofOfStake)
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake, int nAlgorithm)
 {
-    while (pindex && pindex->pprev && (pindex->GetBlockAlgorithm() != algo) && pindex->IsProofOfStake() != fProofOfStake)
+    while (pindex && pindex->pprev && (pindex->GetBlockAlgorithm() != nAlgorithm || pindex->IsProofOfStake() != fProofOfStake))
         pindex = pindex->pprev;
     return pindex;
 }
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int nAlgorithm)
 {
-    while (pindex && pindex->pprev && pindex->IsProofOfStake() != fProofOfStake)
+    while (pindex && pindex->pprev && (pindex->GetBlockAlgorithm() != nAlgorithm))
         pindex = pindex->pprev;
     return pindex;
 }
+
 
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
 {
-    while (pindex && pindex->pprev)
+    while (pindex && pindex->pprev && !pindex->IsProofOfStake())
+        pindex = pindex->pprev;
+    return pindex;
+}
+
+const CBlockIndex* SearchBlockIndex(const CBlockIndex* pindex, int nAlgorithm)
+{
+    while (pindex && (pindex->GetBlockAlgorithm() != nAlgorithm))
         pindex = pindex->pprev;
     return pindex;
 }
 
 
-unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo, const bool fProofOfStake, const Consensus::Params& params)
+const CBlockIndex* SearchBlockIndex(const CBlockIndex* pindex)
+{
+    while (pindex && !pindex->IsProofOfStake())
+        pindex = pindex->pprev;
+    return pindex;
+}
+
+unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgorithm, const bool fProofOfStake, const Consensus::Params& params)
 {
     /* current difficulty formula, dash - AnonGravity v3, written by Evan Duffield - evan@dash.org */
     const CBlockIndex* BlockLastSolved = pindexLast;
@@ -50,7 +72,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo,
     arith_uint256 PastDifficultyAverage;
     arith_uint256 PastDifficultyAveragePrev;
 
-    if (params.IsMergeBlock(BlockLastSolved->nHeight + 1))
+    if (params.IsMergeBlock(pindexLast->nHeight + 1))
         return PowLimit.GetCompact();
 
     if (BlockLastSolved == NULL ||
@@ -63,10 +85,12 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo,
             break;
 
         // we only consider proof-of-work blocks for the configured mining algo here
-        if (BlockReading->GetBlockAlgorithm() != nAlgo || BlockReading->IsProofOfStake() != fProofOfStake) {
-            BlockReading = BlockReading->pprev;
-            continue;
+        if (fProofOfStake) {
+            BlockReading = SearchBlockIndex(BlockReading);
+        } else {
+            BlockReading = SearchBlockIndex(BlockReading, nAlgorithm);
         }
+        if (!BlockReading) break;
 
         CountBlocks++;
 
@@ -116,7 +140,7 @@ unsigned int DarkGravityWave(const CBlockIndex* pindexLast, const int32_t nAlgo,
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int nAlgo, bool fProofOfStake, const Consensus::Params& params)
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int nAlgorithm, bool fProofOfStake, const Consensus::Params& params)
 {
     if (params.fPowNoRetargeting) {
         if (fProofOfStake)
@@ -124,7 +148,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int nAlgo, boo
         else
             return UintToArith256(params.ProofOfWorkLimit()).GetCompact();
     }
-    return DarkGravityWave(pindexLast, nAlgo, fProofOfStake, params);
+    return DarkGravityWave(pindexLast, nAlgorithm, fProofOfStake, params);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)

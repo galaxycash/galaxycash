@@ -1572,20 +1572,17 @@ UniValue createbootstrap(const JSONRPCRequest& request)
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
-    for (CBlockIndex *pindex = chainActive.Genesis(); ;) {
-        if (pindex == chainActive.Genesis()) {
-            pindex = chainActive.Next(pindex); continue;
-        }
-        
+    CBlockIndex *pindex = chainActive.Genesis();
+    while (pindex) {
         CBlock block;
         if (!ReadBlockFromDisk(block, CDiskBlockPos(pindex->nFile, pindex->nDataPos), Params().GetConsensus()))
             break;
 
         unsigned int nSize = GetSerializeSize(fileout, block);
         fileout << FLATDATA(Params().MessageStart()) << nSize << block;
+        fflush(file);
 
-        if (pindex == chainActive.Tip())
-            break;
+        pindex = chainActive.Next(pindex);
     }
 
 

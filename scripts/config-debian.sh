@@ -2,14 +2,10 @@
 
 PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g')
 
-cd depends
-echo "Downloading Linux dependencies"
-make download-linux -j6
-echo "Building linux-x86_64 dependencies"
-make HOST=x86_64-pc-linux-gnu BUILD=x86_64-pc-linux-gnu all -j6
-cd ..
+export GCH_PATH=$PWD
+mkdir -p $GCH_PATH/build-host/debian
 
 echo "Configuring GalaxyCash for Debian"
-$PWD/autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure CXXFLAGS="-std=c++17 --param ggc-min-expand=1 --param ggc-min-heapsize=32768 -O2" --enable-shared=no --enable-static=yes --enable-glibc-back-compat=yes --with-gui=qt5 -prefix=`pwd`/depends/x86_64-pc-linux-gnu
+$GCH_PATH/autogen.sh
+$GCH_PATH/configure CXXFLAGS="-std=c++17 --param ggc-min-expand=1 --param ggc-min-heapsize=32768 -O2" --enable-shared=no --enable-static=yes --enable-glibc-back-compat=yes --with-gui=qt5 -prefix=$GCH_PATH/build-host/debian
 

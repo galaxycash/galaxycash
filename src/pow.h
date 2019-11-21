@@ -14,11 +14,11 @@ class CBlockHeader;
 class CBlockIndex;
 class uint256;
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int algo, bool fProofOfStake);
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake, int nAlgorithm);
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int nAlgorithm);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex);
 
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int algo, bool fProofOfStake, const Consensus::Params& params);
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, int nAlgorithm, bool fProofOfStake, const Consensus::Params& params);
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);

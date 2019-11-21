@@ -101,13 +101,12 @@ public:
         consensus.nSubsidyHalvingInterval = 210000;
 
         consensus.BIP16Height = 0;
-        consensus.BIP34Height = 339994;
-        consensus.BIP34Hash = uint256S("000000000000000237f50af4cfe8924e8693abc5bd8ae5abb95bc6d230f5953f");
-        consensus.powLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
-        consensus.bnInitialHashTarget = uint256S("0000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 40;
+        consensus.BIP34Height = 1;
+        consensus.BIP34Hash = uint256S("000002e5d366c89b16195d618462f5ad14f8bbfaf39a93f2593c2ceb67d94c16");
+        consensus.powLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
 
         // POS
-        consensus.stakeLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
+        consensus.stakeLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");
         consensus.nPOSFirstBlock = 61300;
         consensus.nStakeMinConfirmations = 50;
 
@@ -117,7 +116,6 @@ public:
         consensus.nTargetTimespan2 = 24 * 60 * 60; // 24 hours
         consensus.nStakeTargetSpacing = 2 * 60;
         consensus.nStakeTargetTimespan = 6 * 60 * 60;                      // 6 hours
-        consensus.nTargetSpacingWorkMax = std::numeric_limits<int>::max(); // 2-hour
         consensus.nStakeMinAge = 6 * 60 * 60;                              // minimum age for coin age
         consensus.nStakeMaxAge = std::numeric_limits<int>::max();
         consensus.nModifierInterval = 5 * 60; // Modifier interval: time to elapse before new modifier is computed
@@ -129,8 +127,6 @@ public:
 
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
-        consensus.nMinerConfirmationWindow = consensus.nTargetTimespan / consensus.nTargetSpacing;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100001");
@@ -220,7 +216,6 @@ public:
         consensus.BIP34Height = 293368;
         consensus.BIP34Hash = uint256S("00000002c0b976c7a5c9878f1cec63fb4d88d68d614aedeaf8158c42d904795e");
         consensus.powLimit = uint256S("0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff");            // ~arith_uint256(0) >> 28;
-        consensus.bnInitialHashTarget = uint256S("00000007ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 29;
 
         consensus.nLastPoW = 130000;
         consensus.nSubsidyHalvingInterval = 210000;
@@ -237,7 +232,6 @@ public:
         consensus.nTargetTimespan2 = 24 * 60 * 60; // 24 hours
         consensus.nStakeTargetSpacing = 2 * 60;
         consensus.nStakeTargetTimespan = 6 * 60 * 60;                      // 6 hours
-        consensus.nTargetSpacingWorkMax = std::numeric_limits<int>::max(); // 2-hour
         consensus.nStakeMinAge = 6 * 60 * 60;                              // minimum age for coin age
         consensus.nStakeMaxAge = std::numeric_limits<int>::max();
         consensus.nModifierInterval = 5 * 60; // Modifier interval: time to elapse before new modifier is computed
@@ -245,8 +239,6 @@ public:
 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
-        consensus.nMinerConfirmationWindow = 2016;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -311,11 +303,9 @@ public:
         consensus.BIP34Height = 100000000; // BIP34 has not activated on regtest (far in the future so block v1 are not rejected in tests)
         consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");            // ~arith_uint256(0) >> 28;
-        consensus.bnInitialHashTarget = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 29;
 
         consensus.nTargetTimespan = 7 * 24 * 60 * 60;                         // two weeks
         consensus.nStakeTargetSpacing = 10 * 60;                              // 10-minute block spacing
-        consensus.nTargetSpacingWorkMax = 12 * consensus.nStakeTargetSpacing; // 2-hour
         consensus.nTargetSpacing = consensus.nStakeTargetSpacing;
 
         consensus.nStakeMinAge = 60 * 60 * 24; // test net min age is 1 day
@@ -325,8 +315,6 @@ public:
 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
-        consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
-        consensus.nMinerConfirmationWindow = 144;       // Faster than normal for regtest (144 instead of 2016)
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");

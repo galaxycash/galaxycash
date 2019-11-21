@@ -25,7 +25,6 @@ enum DeploymentPos {
  */
 struct Params {
     uint256 hashGenesisBlock;
-    int nLastPoW;
     /** Block height at which BIP16 becomes active */
     int BIP16Height;
     /** Block height and hash at which BIP34 becomes active */
@@ -41,8 +40,6 @@ struct Params {
     uint256 defaultAssumeValid;
 
     /** galaxycash stuff */
-    uint256 bnInitialHashTarget;
-    int64_t nTargetSpacingWorkMax;
     int64_t nStakeMinAge;
     int64_t nStakeMaxAge;
     int64_t nModifierInterval;
@@ -52,7 +49,7 @@ struct Params {
     int64_t nPOSFirstBlock, nMergeFirstBlock, nMergeLastBlock;
     int64_t nTargetTimespan, nStakeTargetTimespan, nTargetTimespan2;
     int64_t nTargetSpacing, nStakeTargetSpacing, nTargetSpacing2;
-    int32_t nLastPowBlock;
+    int32_t nLastPoW;
     bool fPOWNoRetargeting;
     uint256 stakeLimit;
     uint256 powLimit;
@@ -62,35 +59,17 @@ struct Params {
     const uint256& ProofOfWorkLimit() const { return powLimit; }
     const uint256& ProofOfStakeLimit() const { return stakeLimit; }
 
-    bool IsProtocolV1(int32_t nHeight) const { return nHeight <= nHeightV2; }
-    bool IsProtocolV2(int32_t nHeight) const { return nHeight > nHeightV2; }
+    bool POWNoRetargeting() const { return fPOWNoRetargeting; }
+    bool IsProtocolV1(int32_t nHeight) const { return nHeight <= 35000; }
+    bool IsProtocolV2(int32_t nHeight) const { return nHeight > 35000; }
     bool IsProtocolV3(int32_t nHeight) const { return nHeight > nLastPoW; }
-
-    int64_t TargetTimespan(int32_t nHeight) const
-    {
-        if (IsProtocolV3(nHeight)) return nStakeTargetTimespan;
-        return IsProtocolV2(nHeight) ? nTargetTimespan2 : nTargetTimespan;
-    }
-    int64_t TargetSpacing(int32_t nHeight) const
-    {
-        if (IsProtocolV3(nHeight)) return nStakeTargetSpacing;
-        return IsProtocolV2(nHeight) ? nTargetSpacing2 : nTargetSpacing;
-    }
-
-    int64_t StakeTargetTimespan(int32_t nHeight) const
-    {
-        return nStakeTargetTimespan;
-    }
-    int64_t StakeTargetSpacing(int32_t nHeight) const
-    {
-        return nStakeTargetSpacing;
-    }
-
-    int64_t DifficultyAdjustmentInterval(int32_t nHeight) const
-    {
-        return IsProtocolV2(nHeight) ? (nTargetTimespan2 / nTargetSpacing2) : (nTargetTimespan / nTargetSpacing);
-    }
+    int64_t TargetTimespan(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nStakeTargetTimespan; return IsProtocolV2(nHeight) ? nTargetTimespan2 : nTargetTimespan; }
+    int64_t TargetSpacing(int32_t nHeight) const { if (IsProtocolV3(nHeight)) return nStakeTargetSpacing; return IsProtocolV2(nHeight) ? nTargetSpacing2 : nTargetSpacing; }
+    int64_t StakeTargetTimespan(int32_t nHeight) const { return nStakeTargetTimespan; }
+    int64_t StakeTargetSpacing(int32_t nHeight) const { return nStakeTargetSpacing; }   
+    int64_t DifficultyAdjustmentInterval(int32_t nHeight) const { if (IsProtocolV2(nHeight)) return nStakeTargetTimespan / nStakeTargetSpacing; return IsProtocolV2(nHeight) ? (nTargetTimespan2 / nTargetSpacing2) : (nTargetTimespan / nTargetSpacing); }
     int64_t StakeDifficultyAdjustmentInterval(int32_t nHeight) const { return (nStakeTargetTimespan / nStakeTargetSpacing); }
+
     int64_t POSStart() const { return nPOSFirstBlock; }
     int64_t MergeStart() const { return nMergeFirstBlock; }
     int64_t MergeEnd() const { return nMergeLastBlock; }

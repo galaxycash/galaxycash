@@ -2745,7 +2745,7 @@ static bool FindUndoPos(CValidationState& state, int nFile, CDiskBlockPos& pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckSignature = true, bool fOldClient = false)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !(block.nFlags & CBlockIndex::BLOCK_SUBSIDY) && !(block.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+    if (fCheckPOW && !(block.nFlags & CBlockIndex::BLOCK_SUBSIDY) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
         if (fOldClient)
             return true;
         else
@@ -2858,7 +2858,7 @@ bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& 
  *  in ConnectBlock().
  *  Note that -reindex-chainstate skips the validation that happens here!
  */
-static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, CValidationState& state, const CChainParams& params, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
+static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, bool fOldClient, CValidationState& state, const CChainParams& params, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
@@ -2894,7 +2894,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
         return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
             strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-
     return true;
 }
 
@@ -2908,6 +2907,8 @@ bool IsDeveloperBlock(const CBlock& block);
 
 static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const CBlockIndex* pindexPrev)
 {
+    block.MakeFlags();
+    
     if (pindexPrev == NULL && block.GetHash() == Params().GetConsensus().hashGenesisBlock)
         return true;
     if (pindexPrev == NULL)
@@ -2943,6 +2944,13 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     }
 
 
+    // Checking difficulty
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    if (!(block.nFlags & CBlockIndex::BLOCK_SUBSIDY) && (pindexPrev->nHeight >= consensusParams.nLastPoW)) {
+        int nDiffBits = pindexPrev ? GetNextTargetRequired(pindexPrev, CBlockHeader::ALGO_X12, true, consensusParams) : consensusParams.powLimit.GetCompact();
+        if (block.nBits != nDiffBits) 
+            return state.Invalid(false, REJECT_INVALID, "bad-diffbits", "bad difficulty");
+    }
     return true;
 }
 
@@ -2953,7 +2961,7 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
     uint256 hash = block.GetHash();
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex* pindex = nullptr;
-    bool fSetAsPos = fProofOfStake || (block.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE);
+    bool fSetAsPos = (block.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) ? true : (block.nFlags & CBlockIndex::BLOCK_SUBSIDY ? false : fProofOfStake);
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
         if (miSelf != mapBlockIndex.end()) {
             // Block header is already known.
@@ -2965,7 +2973,7 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
             return true;
         }
 
-        if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), !fProofOfStake, fProofOfStake, fOldClient)) {
+        if (!(block.nFlags & CBlockIndex::BLOCK_SUBSIDY) && !CheckBlockHeader(block, state, chainparams.GetConsensus(), !fProofOfStake, fProofOfStake, fOldClient)) {
             if (fOldClient)
                 fSetAsPos = !fProofOfStake; // our guess was wrong - correct it
             else {
@@ -2982,7 +2990,7 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
         pindexPrev = (*mi).second;
         if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
-        if (!ContextualCheckBlockHeader(block, fSetAsPos, state, chainparams, pindexPrev, GetAdjustedTime()))
+        if (!ContextualCheckBlockHeader(block, fSetAsPos, fOldClient, state, chainparams, pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
         if (!pindexPrev->IsValid(BLOCK_VALID_SCRIPTS)) {
@@ -3093,34 +3101,16 @@ bool CBlockIndex::CheckProofOfWork(const CBlock& block)
 
 void FixIndex(CBlockIndex* pindex, const CBlock& block)
 {
-    uint32_t oldFlags = pindex->nFlags;
-    bool dirty = false;
-
-
-    if (pindex->nVersion  != block.nVersion) { dirty=true; pindex->nVersion = block.nVersion; }
-    if (pindex->nBits  != block.nBits) { dirty=true; pindex->nBits = block.nBits; }
-    if (pindex->nNonce  != block.nNonce) { dirty=true; pindex->nNonce = block.nNonce; }
-    if (pindex->nTime  != block.nTime) { dirty=true; pindex->nTime = block.nTime; }
-
-    if (block.IsDeveloperBlock()) {
-        pindex->nFlags = CBlockIndex::BLOCK_SUBSIDY;
-        if (pindex->nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) pindex->nFlags &= ~CBlockIndex::BLOCK_PROOF_OF_STAKE;
-    } else if (block.IsProofOfStake()) {
-        pindex->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
-    } else {
-        if (pindex->nFlags & CBlockIndex::BLOCK_SUBSIDY) pindex->nFlags &= ~CBlockIndex::BLOCK_SUBSIDY;
-        if (pindex->nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE) pindex->nFlags &= ~CBlockIndex::BLOCK_PROOF_OF_STAKE;
-    }
-
-    pindex->SetStakeEntropyBit(block.GetStakeEntropyBit());
-    if (oldFlags != pindex->nFlags || dirty)
-        setDirtyBlockIndex.insert(pindex);
+    if (pindex->GetBlockHash() != block.GetHash()) return;
+    block.MakeFlags();
+    if (pindex->nFlags != block.nFlags) { pindex->nFlags = block.nFlags; setDirtyBlockIndex.insert(pindex); }
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock, bool fCheckPoS)
 {
-    const CBlock& block = *pblock;
+    pblock->MakeFlags();
+    const CBlock &block = *pblock;
 
     if (fNewBlock) *fNewBlock = false;
     AssertLockHeld(cs_main);
@@ -3128,23 +3118,32 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     CBlockIndex* pindexDummy = nullptr;
     CBlockIndex*& pindex = ppindex ? *ppindex : pindexDummy;
 
+
     if (!AcceptBlockHeader(block, block.IsProofOfStake(), state, chainparams, &pindex))
         return false;
 
     FixIndex(pindex, block);
 
+    int nHeight = pindex->nHeight;
+
+    if (pblock->IsProofOfStake() && nHeight < chainparams.GetConsensus().nPOSFirstBlock) {
+        pindex->nStatus |= BLOCK_FAILED_VALID;
+        setDirtyBlockIndex.insert(pindex);
+        return state.DoS(100, false, REJECT_INVALID, "bad-block-type", false, "proof of stake wave is not started");      
+    }
+
+    if (!pblock->IsDeveloperBlock() && pblock->IsProofOfWork() && (nHeight > chainparams.GetConsensus().nLastPoW)) {
+        pindex->nStatus |= BLOCK_FAILED_VALID;
+        setDirtyBlockIndex.insert(pindex);
+        return state.DoS(100, false, REJECT_INVALID, "bad-block-type", false, "proof of work wave is ended");      
+    }
 
     // peercoin: we should only accept blocks that can be connected to a prev block with validated PoS
     if (fCheckPoS && pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
         return error("%s: this block does not connect to any valid known block", __func__);
     }
 
-    // Check proof of work or proof-of-stake
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-    if (pindex->pprev && pindex->nBits != GetNextTargetRequired(pindex->pprev, pindex->GetBlockAlgorithm(), pindex->IsProofOfStake(), consensusParams)) {
-        error("Bad block %s,\nSource block\n%s\nPrevious block\n%s\n", block.IsProofOfWork() ? "proof-of-work" : "proof-of-stake", pindex->GetBlockHeader().ToString(), pindex->pprev->GetBlockHeader().ToString());
-        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", "incorrect proof of work/proof-of-stake");
-    }
+
 
     // Try to process all requested blocks that we don't have, but only
     // process an unrequested block if it's new and has enough work to
@@ -3195,6 +3194,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
         return state.DoS(100, false, REJECT_INVALID, "bad-pos", false, "proof of stake is incorrect");
     }
 
+
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)
     if (!IsInitialBlockDownload() && chainActive.Tip() == pindex->pprev)
@@ -3212,6 +3212,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error: ") + e.what());
     }
+
 
     CheckBlockIndex(chainparams.GetConsensus());
 

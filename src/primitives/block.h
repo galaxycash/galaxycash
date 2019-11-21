@@ -31,7 +31,8 @@ public:
     uint32_t nNonce;
 
     // galaxycash: A copy from CBlockIndex.nFlags from other clients. We need this information because we are using headers-first syncronization.
-    int32_t nFlags;
+    mutable int32_t nFlags;
+    mutable bool fFlags;
     // galaxycash: Used in CheckProofOfStake().
     static const int32_t NORMAL_SERIALIZE_SIZE = 80;
     static const int32_t MINIMAL_VERSION = 9;
@@ -69,8 +70,10 @@ public:
         READWRITE(nNonce);
 
         // galaxycash: do not serialize nFlags when computing hash
-        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_GALAXYCASH))
+        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_GALAXYCASH)) {
             READWRITE(nFlags);
+            READWRITE(fFlags);
+        }
     }
 
     void SetNull()
@@ -82,6 +85,7 @@ public:
         nBits = 0;
         nNonce = 0;
         nFlags = 0;
+        fFlags = false;
     }
 
     bool IsNull() const
@@ -89,11 +93,13 @@ public:
         return (nBits == 0);
     }
 
-    void SetAlgorithm(const int32_t algo)
+    void SetAlgorithm(const int32_t nAlgorithm)
     {
-        switch (algo) {
+        switch (nAlgorithm) {
         case ALGO_X11:
             nVersion = X11_VERSION;
+        case ALGO_X12:
+            nVersion = X12_VERSION;    
         case ALGO_X13:
             nVersion = X13_VERSION;
         case ALGO_SHA256D:
@@ -107,9 +113,12 @@ public:
 
     int32_t GetAlgorithm() const
     {
+        if (nFlags & (1 << 0)) return ALGO_X12;
         switch (nVersion) {
         case X11_VERSION:
             return ALGO_X11;
+        case X12_VERSION:
+            return ALGO_X12;
         case X13_VERSION:
             return ALGO_X13;
         case SHA256D_VERSION:
@@ -161,7 +170,7 @@ public:
     std::vector<unsigned char> vchBlockSig;
 
     // memory only
-    mutable bool fChecked, fCheckedModifier;
+    mutable bool fChecked;
 
     CBlock()
     {
@@ -185,7 +194,7 @@ public:
         READWRITE(vtx);
         READWRITE(vchBlockSig);
 
-        MakeFlags();
+        if (!fFlags) MakeFlags();
     }
 
     bool CopyBlock(CBlock &out) const;
@@ -194,13 +203,19 @@ public:
     {
         CBlockHeader::SetNull();
         vtx.clear();
-        fChecked = fCheckedModifier = false;
+        fChecked = false;
         vchBlockSig.clear();
     }
 
-    void MakeFlags() {
-        if (IsDeveloperBlock()) { if (!(nFlags & (1 << 2))) nFlags |= (1 << 2); if (nFlags & (1 << 0)) nFlags &= ~(1 << 0); }
-        else if (IsProofOfStake()) { if (!(nFlags & (1 << 0))) nFlags |= (1 << 0); };
+    void MakeFlags() const {
+        if (fFlags) return;
+        nFlags = 0;
+        if (IsDeveloperBlock()) { nFlags |= (1 << 2); }
+        else if (IsProofOfStake()) { nFlags |= (1 << 0); };
+
+        uint32_t nEntropyBit = GetStakeEntropyBit();
+        nFlags |= ((nEntropyBit && nEntropyBit <= 1) ? (1 << 1) : 0);
+        fFlags = true;
     }
 
     CBlockHeader GetBlockHeader() const

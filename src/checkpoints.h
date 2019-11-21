@@ -22,6 +22,7 @@ namespace Checkpoints
 //! Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
 CBlockIndex* GetLastCheckpoint(const CCheckpointData& data);
 uint256 GetLatestHardenedCheckpoint();
+int GetLatestHardenedCheckpointHeight();
 bool HasCheckpoint(const uint256 &hash);
 
 } //namespace Checkpoints
