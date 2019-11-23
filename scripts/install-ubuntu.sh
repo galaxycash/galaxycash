@@ -3,7 +3,7 @@
 gcc --version
 g++ --version
 
-chmod 644 -R .
+chmod 755 -R .
 
 ./contrib/install_db4.sh `pwd`
 #flags arent being picked up, so need to link
