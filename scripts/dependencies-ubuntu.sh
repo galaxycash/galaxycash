@@ -1,5 +1,5 @@
 #!/bin/bash -ev
-sudo add-apt-repository -y ppa:bitcoin/bitcoin
+
 sudo apt-get update -qq
 sudo apt-get upgrade -y -qq
 sudo apt-get install -y -qq autoconf build-essential pkg-config libssl-dev libboost-all-dev
