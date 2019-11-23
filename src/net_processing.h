@@ -82,7 +82,5 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats);
 /** Increase a node's misbehavior score. */
 void Misbehaving(NodeId nodeid, int howmuch);
 
-void AddBlockToQueue(std::shared_ptr<CBlock> pblock);
-void ThreadBlockQueue();
 
 #endif // BITCOIN_NET_PROCESSING_H

@@ -110,7 +110,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (!pblocktemplate.get())
         return nullptr;
     pblock = &pblocktemplate->block; // pointer for convenience
-    pblock->nVersion = CBlockHeader::X12_VERSION;
+    pblock->SetAlgorithm(CBlockHeader::ALGO_X12);
     pblock->nTime = GetAdjustedTime();
 
     LOCK(cs_main);

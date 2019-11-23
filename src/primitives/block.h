@@ -228,6 +228,7 @@ public:
         block.nBits = nBits;
         block.nNonce = nNonce;
         block.nFlags = nFlags;
+        block.fFlags = fFlags;
         return block;
     }
 

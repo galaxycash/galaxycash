@@ -1570,7 +1570,7 @@ UniValue createbootstrap(const JSONRPCRequest& request)
         // Open history file to append
     CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull())
-        return error("WriteBlockToDisk: OpenBlockFile failed");
+        return error("createbootstrap: open bootstrap file failed");
 
     CBlockIndex *pindex = chainActive.Genesis();
     while (pindex) {

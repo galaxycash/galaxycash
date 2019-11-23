@@ -211,23 +211,22 @@ public:
     CTestNetParams() : CChainParams()
     {
         strNetworkID = "test";
-        consensus.nHeightV2 = 35000;
-        consensus.BIP16Height = 0;
-        consensus.BIP34Height = 293368;
-        consensus.BIP34Hash = uint256S("00000002c0b976c7a5c9878f1cec63fb4d88d68d614aedeaf8158c42d904795e");
-        consensus.powLimit = uint256S("0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff");            // ~arith_uint256(0) >> 28;
 
         consensus.nLastPoW = 130000;
         consensus.nSubsidyHalvingInterval = 210000;
-        consensus.nMergeFirstBlock = consensus.nMergeLastBlock = 0;
+
+        consensus.BIP16Height = 0;
+        consensus.BIP34Height = 1;
+        consensus.BIP34Hash = uint256S("000002e5d366c89b16195d618462f5ad14f8bbfaf39a93f2593c2ceb67d94c16");
+        consensus.powLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
 
         // POS
-        consensus.stakeLimit = uint256S("00000fffff000000000000000000000000000000000000000000000000000000");
-        consensus.nPOSFirstBlock = 25;
-        consensus.nStakeMinConfirmations = 10;
+        consensus.stakeLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");
+        consensus.nPOSFirstBlock = 61300;
+        consensus.nStakeMinConfirmations = 50;
 
-        consensus.nTargetSpacing = 60;         // 3 minutes
-        consensus.nTargetSpacing2 = 30;       // 10 minutes
+        consensus.nTargetSpacing = 3 * 60;         // 3 minutes
+        consensus.nTargetSpacing2 = 10 * 60;       // 10 minutes
         consensus.nTargetTimespan = 6 * 60 * 60;   // 6 hours
         consensus.nTargetTimespan2 = 24 * 60 * 60; // 24 hours
         consensus.nStakeTargetSpacing = 2 * 60;
@@ -235,57 +234,74 @@ public:
         consensus.nStakeMinAge = 6 * 60 * 60;                              // minimum age for coin age
         consensus.nStakeMaxAge = std::numeric_limits<int>::max();
         consensus.nModifierInterval = 5 * 60; // Modifier interval: time to elapse before new modifier is computed
-        consensus.nCoinbaseMaturity = 2;
+        consensus.nCoinbaseMaturity = 11;
 
-        consensus.fPowAllowMinDifficultyBlocks = true;
+        // Merge
+        consensus.nMergeFirstBlock = consensus.nCoinbaseMaturity + 2;
+        consensus.nMergeLastBlock = 95;
+
+        consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100001");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x0000000002e9e7b00e1f6dc5123a04aad68dd0f0968d8c7aa45f6640795c37b1"); //1135275
+        consensus.defaultAssumeValid = uint256("0x7590d46bb45d01f3e02f079a516acf5c8b8234aa522098eb7bcb9a924b598611");
 
-        pchMessageStart[0] = 0xcb;
-        pchMessageStart[1] = 0xf2;
-        pchMessageStart[2] = 0xc0;
-        pchMessageStart[3] = 0xef;
+        /**
+         * The message start string is designed to be unlikely to occur in normal data.
+         * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+         * a large 32-bit integer with any alignment.
+         */
+        pchMessageStart[0] = 0x4e;
+        pchMessageStart[1] = 0xe6;
+        pchMessageStart[2] = 0xe6;
+        pchMessageStart[3] = 0x4e;
 
         nDefaultPort = 17604;
-        nPruneAfterHeight = 1000;
+        nPruneAfterHeight = 0;
 
-        genesis = CreateGenesisBlock(1345083810, 1345090000, 122894938, 0x1d0fffff, 1);
+        genesis = CreateGenesisBlock(1515086697, 1515086697, 1303736, UintToArith256(consensus.powLimit).GetCompact(), 9);
         consensus.hashGenesisBlock = genesis.GetHash();
+        assert(consensus.hashGenesisBlock == uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468"));
+        assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
-        vFixedSeeds.clear();
+        // Note that of those which support the service bits prefix, most only support a subset of
+        // possible options.
+        // This is fine at runtime as we'll fall back to using them as a oneshot if they dont support the
+        // service bits we want, but we should get them updated to support all service bits wanted by any
+        // release ASAP to avoid it where possible.
         vSeeds.clear();
 
-
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 196);
-        base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 239);
-        base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
-        base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 38); // galaxycash: addresses begin with 'G'
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 99);
+        base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 89);
+        base58Prefixes[EXT_PUBLIC_KEY] = {0x1D, 0x88, 0xB2, 0x23};
+        base58Prefixes[EXT_SECRET_KEY] = {0x1D, 0x88, 0x2D, 0x56};
 
         // human readable prefix to bench32 address
-        bech32_hrp = "tgc";
+        bech32_hrp = "gc";
 
-        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
+        vFixedSeeds.clear();
 
         fMiningRequiresPeers = true;
         fDefaultConsistencyChecks = false;
-        fRequireStandard = false;
+        fRequireStandard = true;
         fMineBlocksOnDemand = false;
 
 
         checkpointData = {
-            {}};
+            {{0, uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468")}}
+            };
+
 
         chainTxData = ChainTxData{
-            // Data as of block 000000000000033cfa3c975eb83ecf2bb4aaedf68e6d279f6ed2b427c64caff9 (height 1260526)
-            1547644079,
-            746761,
-            0.00231};
+            // Data as of block 9a4004b1327ae419b54cf9afa360b0aece7abe21a5a01860f3e131afde31c037 (height 466000).
+            1515086697, // * UNIX timestamp of last known number of transactions
+            1,     // * total number of transactions between genesis and that timestamp
+                        //   (the tx=... number in the SetBestChain debug.log lines)
+            0.0};
     }
 };
 

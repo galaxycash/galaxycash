@@ -1663,8 +1663,6 @@ bool AppInitMain()
 
     sporkManager.Init();
     threadGroup.create_thread(boost::bind(&ThreadSporks));
-
-
-    threadGroup.create_thread(boost::bind(&ThreadBlockQueue));
+    
     return true;
 }

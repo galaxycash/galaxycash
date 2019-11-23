@@ -2773,7 +2773,6 @@ uint64_t CConnman::CalculateKeyedNetGroup(const CAddress& ad) const
 void RelayInv(const CInv& inv)
 {
     g_connman->ForEachNode([=, &inv](CNode* pnode) {
-        if (pnode->nVersion > OLD_VERSION)
-            pnode->PushInventory(inv);
+        pnode->PushInventory(inv);
     });
 }
