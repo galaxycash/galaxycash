@@ -18,10 +18,8 @@ To Build
 ---------------------
 
 ```bash
-./autogen.sh
-./configure
-make
-make install # optional
+scripts/config-debian.sh
+make install -j2
 ```
 
 This will build galaxycash-qt as well if the dependencies are met.

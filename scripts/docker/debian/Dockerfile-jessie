@@ -17,7 +17,7 @@ RUN apt-get -qq update && \
 COPY galaxycash.tar.gz /galaxycash.tar.gz
 RUN tar -xvf /galaxycash.tar.gz
 
-RUN cd /galaxycash && ./scripts/dependencies-ubuntu.sh && ./scripts/install-ubuntu.sh && \
+RUN chmod -R 644 galaxycash && cd /galaxycash && ./scripts/dependencies-ubuntu.sh && ./scripts/install-ubuntu.sh && \
 	apt-get purge git build-essential -qy && \
 	apt-get autoremove -qy && \
 	apt-get clean
