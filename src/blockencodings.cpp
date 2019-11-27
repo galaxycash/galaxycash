@@ -21,7 +21,7 @@ ReadStatus FillBlock(CBlock& block, const std::vector<CTransactionRef>& txs)
     block.vtx.resize(txs.size());
 
     for (size_t i = 0; i < txs.size(); i++) {
-        block.vtx[i] = txs[i];
+        block.vtx[i] = std::move(txs[i]);
     }
 
     CValidationState state;

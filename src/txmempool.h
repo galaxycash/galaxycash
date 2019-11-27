@@ -545,6 +545,7 @@ public:
     void removeConflicts(const CTransaction& tx);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight = 0);
 
+    
     void clear();
     void _clear(); //lock free
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb);
@@ -632,6 +633,7 @@ public:
     }
 
     CTransactionRef get(const uint256& hash) const;
+    inline bool lookup(uint256 hash, CTransactionRef& result) const { if (exists(hash)) { result = get(hash); return true; } return false; }
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 

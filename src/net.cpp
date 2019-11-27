@@ -1379,11 +1379,11 @@ void CConnman::ThreadSocketHandler()
                 } else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL) {
                     LogPrintf("socket sending timeout: %is\n", nTime - pnode->nLastSend);
                     pnode->fDisconnect = true;
-                } else if (nTime - pnode->nLastRecv > (pnode->nVersion <= OLD_VERSION ? TIMEOUT_INTERVAL : 20 * 60)) {
+                } else if (nTime - pnode->nLastRecv > TIMEOUT_INTERVAL) {
                     LogPrintf("socket receive timeout: %is\n", nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
-                } else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90 * 60)) {
-                    LogPrintf("socket receive timeout: %is\n", nTime - pnode->nLastRecv);
+                } else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60)) {
+                    LogPrintf("socket receive timeout: %ds\n", nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
                 } else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros()) {
                     LogPrintf("ping timeout: %fs\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
@@ -2615,6 +2615,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fClient = false; // set by version message
     fFeeler = false;
     fSuccessfullyConnected = false;
+    fVerack = false;
     fDisconnect = false;
     nRefCount = 0;
     nSendSize = 0;
@@ -2773,6 +2774,7 @@ uint64_t CConnman::CalculateKeyedNetGroup(const CAddress& ad) const
 void RelayInv(const CInv& inv)
 {
     g_connman->ForEachNode([=, &inv](CNode* pnode) {
+        if (pnode->fDisconnect) return;
         pnode->PushInventory(inv);
     });
 }

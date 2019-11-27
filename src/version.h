@@ -20,42 +20,42 @@ static const int OLD_VERSION = 90920;            // galaxycash: used to communic
 static const int MIN_MASTERNODE_VERSION = 90920; // galaxycash: minimal masternode protocol version
 
 //! initial proto version, to be increased after version/verack negotiation
-static const int INIT_PROTO_VERSION = 90920;
+static const int INIT_PROTO_VERSION = 90918;
 
 //! In this version, 'getheaders' was introduced.
-static const int GETHEADERS_VERSION = 90920;
+static const int GETHEADERS_VERSION = 31800;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 90920;
+static const int MIN_PEER_PROTO_VERSION = INIT_PROTO_VERSION;
 
 //! nTime field added to CAddress, starting with this version;
 //! if possible, avoid requesting addresses nodes older than this
-static const int CADDR_TIME_VERSION = 60000;
+static const int CADDR_TIME_VERSION = 31402;
 
 //! BIP 0031, pong message, is enabled for all versions AFTER this one
 static const int BIP0031_VERSION = 60000;
 
 //! "filter*" commands are disabled without NODE_BLOOM after and including this version
-static const int NO_BLOOM_VERSION = 94000;
+static const int NO_BLOOM_VERSION = 70011;
 
 //! "sendheaders" command and announcing blocks with headers starts with this version
 static const int SENDHEADERS_VERSION = 94000;
 
 //! "feefilter" tells peers to filter invs to you by fee starts with this version
-static const int FEEFILTER_VERSION = 94000;
+static const int FEEFILTER_VERSION = 70013;
+
+//! short-id-based block download starts with this version
+static const int SHORT_IDS_BLOCKS_VERSION = 70014;
+
+//! not banning for invalid compact blocks starts with this version
+static const int INVALID_CB_NO_BAN_VERSION = 70015;
+
 
 // minimum peer version that can receive masternode payments
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
 static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = 90920;
 static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = 90920;
-
-// only request blocks from nodes outside this range of versions
-static const int NOBLKS_VERSION_START = 90000;
-static const int NOBLKS_VERSION_END = 90000;
-
-// "mempool" command, enhanced "getdata" behavior starts with this version:
-static const int MEMPOOL_GD_VERSION = 90920;
 
 // reject blocks with non-canonical signatures starting from this version
 static const int CANONICAL_BLOCK_SIG_VERSION = 90920;

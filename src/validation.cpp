@@ -113,7 +113,7 @@ class ConnectTrace;
  */
 class CChainState
 {
-private:
+public:
     /**
      * The set of all CBlockIndex entries with BLOCK_VALID_TRANSACTIONS (for itself and all ancestors) and
      * as good as our current tip or better. Entries may be failed, though, and pruning nodes may be
@@ -159,7 +159,6 @@ private:
      */
     CCriticalSection m_cs_chainstate;
 
-public:
     CChain chainActive;
     BlockMap mapBlockIndex;
     std::multimap<CBlockIndex*, CBlockIndex*> mapBlocksUnlinked;
@@ -2897,6 +2896,43 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
     return true;
 }
 
+
+/**
+ **/
+bool ReconsiderBlock(CValidationState& state, CBlockIndex* pindex)
+{
+    AssertLockHeld(cs_main);
+
+    int nHeight = pindex->nHeight;
+
+    // Remove the invalidity flag from this block and all its descendants.
+    BlockMap::iterator it = mapBlockIndex.begin();
+    while (it != mapBlockIndex.end()) {
+        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
+            it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            setDirtyBlockIndex.insert(it->second);
+            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && g_chainstate.setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
+                g_chainstate.setBlockIndexCandidates.insert(it->second);
+            }
+            if (it->second == pindexBestInvalid) {
+                // Reset invalid block marker if it was pointing to one of those.
+                pindexBestInvalid = NULL;
+            }
+        }
+        it++;
+    }
+
+    // Remove the invalidity flag from all ancestors too.
+    while (pindex != NULL) {
+        if (pindex->nStatus & BLOCK_FAILED_MASK) {
+            pindex->nStatus &= ~BLOCK_FAILED_MASK;
+            setDirtyBlockIndex.insert(pindex);
+        }
+        pindex = pindex->pprev;
+    }
+    return true;
+}
+
 /** NOTE: This function is not currently invoked by ConnectBlock(), so we
  *  should consider upgrade issues if we change which consensus rules are
  *  enforced in this function (eg by adding a new consensus rule). See comment
@@ -2988,8 +3024,20 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("%s: prev block not found", __func__), 0, "prev-blk-not-found");
         pindexPrev = (*mi).second;
-        if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
-            return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+
+        if (pindexPrev->nStatus & BLOCK_FAILED_MASK) {
+            if (pindex && Checkpoints::CheckBlock(pindex->nHeight - 1, block.hashPrevBlock, true)) {
+                LogPrintf("%s : Reconsidering block %s height %d\n", __func__, pindexPrev->GetBlockHash().GetHex(), pindexPrev->nHeight);
+                CValidationState statePrev;
+                ReconsiderBlock(statePrev, pindexPrev);
+                if (statePrev.IsValid()) {
+                    ActivateBestChain(statePrev, chainparams, nullptr);
+                    return true;
+                }
+            }
+            return state.DoS(10, error("%s : prev block height=%d hash=%s is invalid, unable to add block %s", __func__, pindexPrev->nHeight, block.hashPrevBlock.GetHex(), block.GetHash().GetHex()),
+                             REJECT_INVALID, "bad-prevblk");
+        }
         if (!ContextualCheckBlockHeader(block, fSetAsPos, fOldClient, state, chainparams, pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
@@ -3024,6 +3072,27 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
     return true;
 }
 
+// Exposed wrapper for AcceptBlockHeader
+bool ProcessNewBlockHeader(const CBlockHeader& header, bool fOldClient, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex)
+{
+    {
+        LOCK(cs_main);
+        bool fPoS = header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE;
+        CBlockIndex* pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
+        if (!g_chainstate.AcceptBlockHeader(header, fPoS, state, chainparams, &pindex, fOldClient)) {
+            if (ppindex) {
+                *ppindex = nullptr;
+            }
+            return false;
+        }
+
+        if (ppindex) {
+            *ppindex = pindex;
+        }
+    }
+    NotifyHeaderTip();
+    return true;
+}
 
 // Exposed wrapper for AcceptBlockHeader
 bool ProcessNewBlockHeaders(const uint256& lastAcceptedHeader, const std::vector<CBlockHeader>& headers, bool fOldClient, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex, CBlockHeader* first_invalid)
@@ -3031,24 +3100,18 @@ bool ProcessNewBlockHeaders(const uint256& lastAcceptedHeader, const std::vector
     std::vector<CBlockHeader> vOldHeaders;
     {
         if (first_invalid != nullptr) first_invalid->SetNull();
-
-        LOCK(cs_main);
         for (const CBlockHeader& header : headers) {
-            bool fPoS = header.nFlags & CBlockIndex::BLOCK_PROOF_OF_STAKE;
-
-            CBlockIndex* pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
-            bool accepted = g_chainstate.AcceptBlockHeader(header, fPoS, state, chainparams, &pindex, fOldClient);
+            const CBlockIndex* pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
+            bool accepted = ProcessNewBlockHeader(header, fOldClient, state, chainparams, &pindex);
 
             if (!accepted) {
                 if (first_invalid) *first_invalid = header;
                 return false;
             }
-            if (ppindex) {
+            if (ppindex)
                 *ppindex = pindex;
-            }
         }
     }
-    NotifyHeaderTip();
     return true;
 }
 
@@ -3197,7 +3260,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)
-    if (!IsInitialBlockDownload() && chainActive.Tip() == pindex->pprev)
+    if (chainActive.Tip() == pindex->pprev)
         GetMainSignals().NewPoWValidBlock(pindex, pblock);
 
     // Write block to history file

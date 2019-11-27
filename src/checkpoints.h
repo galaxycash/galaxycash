@@ -25,6 +25,12 @@ uint256 GetLatestHardenedCheckpoint();
 int GetLatestHardenedCheckpointHeight();
 bool HasCheckpoint(const uint256 &hash);
 
+//! Returns true if block passes checkpoint checks
+bool CheckBlock(int nHeight, const uint256& hash, bool fMatchesCheckpoint = false);
+
+//! Return conservative estimate of total number of blocks, 0 if unknown
+int GetTotalBlocksEstimate();
+
 } //namespace Checkpoints
 
 #endif // BITCOIN_CHECKPOINTS_H

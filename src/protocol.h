@@ -108,12 +108,20 @@ extern const char* MERKLEBLOCK;
  */
 extern const char* GETBLOCKS;
 /**
+ * The getheader message requests a headers message that provides block
+ * header starting from a particular point in the block chain.
+ */
+extern const char* GETHEADER;
+/**
  * The getheaders message requests a headers message that provides block
  * headers starting from a particular point in the block chain.
  * @since protocol version 31800.
  * @see https://galaxycash.org/en/developer-reference#getheaders
  */
 extern const char* GETHEADERS;
+/**
+ */
+extern const char* GETCHAINSTATE;
 /**
  * The getsporks message requests a for sporks data
  */
@@ -124,10 +132,13 @@ extern const char* GETSPORKS;
  */
 extern const char* TX;
 /**
- * The headers message sends one or more block headers to a node which
- * previously requested certain headers with a getheaders message.
- * @since protocol version 31800.
- * @see https://galaxycash.org/en/developer-reference#headers
+ * The header message sends one block header to a node which
+ */
+extern const char* HEADER;
+/**
+ */
+extern const char* CHAINSTATE;
+/**
  */
 extern const char* HEADERS;
 /**
@@ -148,10 +159,6 @@ extern const char* SPORKS;
 
 extern const char* MASTERNODE_WINNER;
 extern const char* MASTERNODE_SCANNING_ERROR;
-extern const char* BUDGET_VOTE;
-extern const char* BUDGET_PROPOSAL;
-extern const char* BUDGET_FINALIZED;
-extern const char* BUDGET_FINALIZED_VOTE;
 extern const char* MASTERNODE_QUORUM;
 extern const char* MASTERNODE_ANNOUNCE;
 extern const char* MASTERNODE_PING;
@@ -279,6 +286,12 @@ enum ServiceFlags : uint64_t {
     // Bitcoin Core nodes used to support this by default, without advertising this bit,
     // but no longer do as of protocol version 70011 (= NO_BLOOM_VERSION)
     NODE_BLOOM = (1 << 2),
+    // NODE_WITNESS indicates that a node can be asked for blocks and transactions including
+    // witness data.
+    NODE_WITNESS = (1 << 3), // NON-SUPPORTED
+    // NODE_XTHIN means the node supports Xtreme Thinblocks
+    // If this is turned off then the node will not service nor make xthin requests
+    NODE_XTHIN = (1 << 4), // NOT SUPPORTED
     // NODE_NETWORK_LIMITED means the same as NODE_NETWORK with the limitation of only
     // serving the last 288 (2 day) blocks
     // See BIP159 for details on how this is implemented.
@@ -387,6 +400,7 @@ enum GetDataMsg {
     MSG_BLOCK = 2,
     MSG_FILTERED_BLOCK,
     MSG_SPORK,
+    MSG_HEADER,
     MSG_SPORKS,
     MSG_MASTERNODE_WINNER,
     MSG_MASTERNODE_SCANNING_ERROR,
@@ -394,6 +408,7 @@ enum GetDataMsg {
     MSG_MASTERNODE_ANNOUNCE,
     MSG_MASTERNODE_PING
 };
+
 
 /** inv message data */
 class CInv
@@ -418,13 +433,13 @@ public:
     std::string GetCommand() const;
     std::string ToString() const;
 
+    bool IsKnownType() const;
+    bool IsMasterNodeType() const;
+
     // TODO: make private (improves encapsulation)
 public:
     int type;
     uint256 hash;
 };
-
-/** galaxycash: How much temperature a PoW header will remove */
-extern const unsigned int POW_HEADER_COOLING;
 
 #endif // BITCOIN_PROTOCOL_H

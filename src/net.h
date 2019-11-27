@@ -651,7 +651,7 @@ public:
     bool m_manual_connection;
     bool fClient;
     const bool fInbound;
-    std::atomic_bool fSuccessfullyConnected;
+    std::atomic_bool fSuccessfullyConnected, fVerack;
     std::atomic_bool fDisconnect;
     // We use fRelayTxes for two purposes -
     // a) it allows us to not relay tx invs before receiving the peer's version message
@@ -688,6 +688,7 @@ public:
 
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
+    std::vector<CInv> vInventoryToSend;
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
@@ -740,6 +741,9 @@ public:
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
 
+    mutable CCriticalSection cs_addrName;
+    std::string addrName;
+
 private:
     const NodeId id;
     const uint64_t nLocalHostNonce;
@@ -748,9 +752,6 @@ private:
     const int nMyStartingHeight;
     int nSendVersion;
     std::list<CNetMessage> vRecvMsg; // Used only by SocketHandler thread
-
-    mutable CCriticalSection cs_addrName;
-    std::string addrName;
 
     // Our address, as reported by the peer
     CService addrLocal;
@@ -832,6 +833,7 @@ public:
     }
 
 
+
     void AddInventoryKnown(const CInv& inv)
     {
         {
@@ -852,7 +854,7 @@ public:
         }
     }
 
-    void PushBlockHash(const uint256& hash)
+    void PushBlockHash(const uint256 &hash)
     {
         LOCK(cs_inventory);
         vBlockHashesToAnnounce.push_back(hash);

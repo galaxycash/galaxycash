@@ -14,6 +14,7 @@
 
 namespace NetMsgType
 {
+const char* UNDEFINED = "undefined";
 const char* VERSION = "version";
 const char* VERACK = "verack";
 const char* ADDR = "addr";
@@ -22,8 +23,10 @@ const char* GETDATA = "getdata";
 const char* MERKLEBLOCK = "merkleblock";
 const char* GETBLOCKS = "getblocks";
 const char* GETHEADERS = "getheaders";
+const char* GETHEADER = "getheader";
 const char* TX = "tx";
 const char* HEADERS = "headers";
+const char* HEADER = "header";
 const char* BLOCK = "block";
 const char* GETSPORKS = "getsporks";
 const char* GETSPORK = "getspork";
@@ -53,7 +56,7 @@ const char* FEEFILTER = "feefilter";
 const char* CHECKPOINT = "checkpoint";
 const char* DSEE = "dsee";
 const char* MNWINNER = "masternode winner";
-const char* FILTEREDBLOCK = "filtered block";
+const char* FILTEREDBLOCK = MERKLEBLOCK;
 const char* GETBLOCKTXN = "getblocktxn";
 const char* BLOCKTXN = "blocktxn";
 } // namespace NetMsgType
@@ -62,30 +65,27 @@ const char* BLOCKTXN = "blocktxn";
  * messages above and in protocol.h.
  */
 const static std::string allNetMessageTypes[] = {
+    NetMsgType::UNDEFINED,
+    NetMsgType::TX,
+    NetMsgType::BLOCK,
+    NetMsgType::MERKLEBLOCK,
+    NetMsgType::SPORK,
+    NetMsgType::HEADER,
+    NetMsgType::SPORKS,
+    NetMsgType::MASTERNODE_WINNER,
+    NetMsgType::MASTERNODE_SCANNING_ERROR,
+    NetMsgType::MASTERNODE_QUORUM,
+    NetMsgType::MASTERNODE_QUORUM,
+    NetMsgType::MASTERNODE_ANNOUNCE,
+    NetMsgType::MASTERNODE_PING,
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
     NetMsgType::INV,
     NetMsgType::GETDATA,
-    NetMsgType::MERKLEBLOCK,
     NetMsgType::GETBLOCKS,
     NetMsgType::GETHEADERS,
     NetMsgType::GETSPORKS,
-    NetMsgType::TX,
-    NetMsgType::HEADERS,
-    NetMsgType::BLOCK,
-    NetMsgType::SPORK,
-    NetMsgType::SPORKS,
-    NetMsgType::MASTERNODE_WINNER,
-    NetMsgType::MASTERNODE_SCANNING_ERROR,
-    NetMsgType::BUDGET_VOTE,
-    NetMsgType::BUDGET_PROPOSAL,
-    NetMsgType::BUDGET_FINALIZED,
-    NetMsgType::BUDGET_FINALIZED_VOTE,
-    NetMsgType::MASTERNODE_QUORUM,
-    NetMsgType::MASTERNODE_QUORUM,
-    NetMsgType::MASTERNODE_ANNOUNCE,
-    NetMsgType::MASTERNODE_PING,
     NetMsgType::GETADDR,
     NetMsgType::MEMPOOL,
     NetMsgType::PING,
@@ -102,6 +102,23 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::FILTEREDBLOCK,
     NetMsgType::BLOCKTXN,
     NetMsgType::GETBLOCKTXN};
+
+static const char* GetDataMsgName[] =
+{
+    NetMsgType::UNDEFINED,
+    NetMsgType::TX,
+    NetMsgType::BLOCK,
+    NetMsgType::FILTEREDBLOCK,
+    NetMsgType::SPORK,
+    NetMsgType::HEADER,
+    NetMsgType::SPORKS,
+    NetMsgType::MASTERNODE_WINNER,
+    NetMsgType::MASTERNODE_SCANNING_ERROR,
+    NetMsgType::MASTERNODE_QUORUM,
+    NetMsgType::MASTERNODE_QUORUM,
+    NetMsgType::MASTERNODE_ANNOUNCE,
+    NetMsgType::MASTERNODE_PING,
+};
 
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes + ARRAYLEN(allNetMessageTypes));
 
@@ -199,6 +216,9 @@ std::string CInv::GetCommand() const
     case MSG_SPORK:
         return NetMsgType::SPORK;
         break;
+    case MSG_HEADER:
+        return NetMsgType::HEADER;
+        break;
     case MSG_SPORKS:
         return NetMsgType::SPORKS;
         break;
@@ -220,6 +240,15 @@ std::string CInv::GetCommand() const
     }
 }
 
+bool CInv::IsKnownType() const
+{
+    return (type >= 1 && type < (int)ARRAYLEN(GetDataMsgName));
+}
+
+bool CInv::IsMasterNodeType() const{
+     return (type >= 7);
+}
+
 std::string CInv::ToString() const
 {
     try {
@@ -233,6 +262,4 @@ const std::vector<std::string>& getAllNetMessageTypes()
 {
     return allNetMessageTypesVec;
 }
-
-const unsigned int POW_HEADER_COOLING = 70;
 

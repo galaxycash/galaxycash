@@ -14,6 +14,29 @@
 
 namespace Checkpoints {
 
+    bool CheckBlock(int nHeight, const uint256& hash, bool fMatchesCheckpoint)
+    {
+        if (!fCheckpointsEnabled)
+            return true;
+
+        const MapCheckpoints& checkpoints = Params().Checkpoints().mapCheckpoints;
+
+        MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
+        // If looking for an exact match, then return false
+        if (i == checkpoints.end()) return !fMatchesCheckpoint;
+        return hash == i->second;
+    }
+    
+    int GetTotalBlocksEstimate()
+    {
+        if (!fCheckpointsEnabled)
+            return 0;
+
+        const MapCheckpoints& checkpoints = Params().Checkpoints().mapCheckpoints;
+
+        return checkpoints.rbegin()->first;
+    }
+
     CBlockIndex* GetLastCheckpoint(const CCheckpointData& data)
     {
         const MapCheckpoints& checkpoints = data.mapCheckpoints;

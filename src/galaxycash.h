@@ -783,6 +783,141 @@ static inline CGalaxyCashConsensusRef MakeGalaxyCashConsensusRef(CGalaxyCashCons
     return CGalaxyCashConsensusRef(in);
 }
 
+enum {
+    CGalaxyCashValue_Null = 0,
+    CGalaxyCashValue_Integer,
+    CGalaxyCashValue_Float,
+    CGalaxyCashValue_Double,
+    CGalaxyCashValue_Boolean,
+    CGalaxyCashValue_String,
+    CGalaxyCashValue_Array,
+    CGalaxyCashValue_Object,
+    CGalaxyCashValue_Function,
+    CGalaxyCashValue_Value
+};
+
+enum {
+    CGalaxyCashValue_Unsigned = (1 << 0),
+};
+
+class CGalaxyCashValue {
+public:
+    mutable uint32_t          refs;
+    mutable uint8_t           type;
+    mutable uint32_t          flags;
+    mutable std::vector<char> data;
+
+    CGalaxyCashValue() : refs(1) { SetNull(); }
+    virtual ~CGalaxyCashValue() {}
+
+    CGalaxyCashValue *Grab() {
+        refs++;
+        return this;
+    }
+
+
+    CGalaxyCashValue *Drop() {
+        if (refs == 1) {
+            refs--;
+            delete this;
+            return nullptr;
+        }
+        if (refs > 0)
+            refs--;
+        return this;
+    }
+
+    bool IsNull() const {
+        return (type == 0);
+    }
+
+    void SetNull() {
+        type = 0;
+        flags = 0;
+        data.clear();
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(type);
+        READWRITE(flags);
+        READWRITE(data);
+    }
+
+    uint256 GetHash() const
+    {
+        return SerializeHash(*this);
+    }
+
+    bool IsInt8() const {
+        return (type == CGalaxyCashValue_Integer);
+    }
+
+    bool IsUInt8() const {
+        return IsInt8() && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    void *ToPtr() {
+        if (!data.size()) return nullptr;
+        return  (void*) data.data();
+    }
+    const void *ToPtr() const {
+        if (!data.size()) return nullptr;
+        return  (const void*) data.data();
+    }
+    int8_t &ToInt8() {
+        assert(data.size() >= 1);
+        return *((int8_t *) ToPtr());
+    }
+    const int8_t &ToInt8() const {
+        assert(data.size() >= 1);
+        return *((int8_t *) ToPtr());
+    }
+    uint8_t &UToInt8() {
+        assert(data.size() >= 1);
+        return *((uint8_t *) ToPtr());
+    }
+    const uint8_t &UToInt8() const {
+        assert(data.size() >= 1);
+        return *((uint8_t *) ToPtr());
+    }
+    int16_t &ToInt16() {
+        assert(data.size() >= 2);
+        return *((int16_t *) ToPtr());
+    }
+    const int16_t &ToInt16() const {
+        assert(data.size() >= 2);
+        return *((int16_t *) ToPtr());
+    }
+    uint16_t &UToInt16() {
+        assert(data.size() >= 2);
+        return *((uint16_t *) ToPtr());
+    }
+    const uint16_t &UToInt16() const {
+        assert(data.size() >= 2);
+        return *((uint16_t *) ToPtr());
+    }   
+    int32_t &ToInt32() {
+        assert(data.size() >= 4);
+        return *((int32_t *) ToPtr());
+    }
+    const int32_t &ToInt32() const {
+        assert(data.size() >= 4);
+        return *((int32_t *) ToPtr());
+    }
+    uint32_t &UToInt32() {
+        assert(data.size() >= 4);
+        return *((uint32_t *) ToPtr());
+    }
+    const uint32_t &UToInt32() const {
+        assert(data.size() >= 4);
+        return *((uint32_t *) ToPtr());
+    }    
+};
+
 class CGalaxyCashDB : public CDBWrapper
 {
 public:
