@@ -1526,7 +1526,7 @@ bool AppInitMain()
 
 
     CConnman::Options connOptions;
-    connOptions.nLocalServices = gArgs.GetArg("-masternode", false) ? (nLocalServices | NODE_MASTERNODE) : nLocalServices;
+    connOptions.nLocalServices = gArgs.GetArg("-masternode", false) ? ServiceFlags(nLocalServices | NODE_MASTERNODE) : nLocalServices;
     connOptions.nMaxConnections = nMaxConnections;
     connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
     connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
