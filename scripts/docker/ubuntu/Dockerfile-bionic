@@ -1,0 +1,23 @@
+FROM ubuntu:bionic
+
+#Default branch name master
+ARG BRANCH_NAME=master
+#Default
+ARG REPO_SLUG=galaxycash/galaxycash
+ENV REPO_SLUG=${REPO_SLUG}
+ENV REPO_URL=https://github.com/${REPO_SLUG}
+
+RUN apt-get -qq update && \
+    apt-get -qqy install \
+    git \
+    sudo
+#RUN git clone ${REPO_URL} --branch $BRANCH_NAME --single-branch --depth 1
+
+COPY galaxycash.tar.gz /galaxycash.tar.gz
+RUN tar -xvf /galaxycash.tar.gz
+
+#xenial
+#Missing requirement: libtool
+RUN apt install -yqq libtool-bin
+RUN cd /galaxycash/scripts && ./dependencies-ubuntu.sh
+RUN cd /galaxycash && scripts/install-ubuntu.sh

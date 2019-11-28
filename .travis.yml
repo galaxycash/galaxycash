@@ -6,17 +6,10 @@ matrix:
       - os: linux
         services: docker
         env:
-          - V=Dockerfile-stretch
+          - V=Dockerfile-bionic
         script:
           - ./archive.sh
-          - docker build -f scripts/docker/debian/Dockerfile-stretch .
-      - os: linux
-        services: docker
-        env:
-          - V=Dockerfile-jessie
-        script:
-          - ./archive.sh
-          - docker build -f scripts/docker/debian/Dockerfile-jessie .
+          - docker build -f scripts/docker/ubuntu/Dockerfile-bionic .
       #  env:
       #    - V=windows-Dockerfile-xenial
       #  script:

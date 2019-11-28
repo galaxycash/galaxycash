@@ -3965,23 +3965,12 @@ static const std::string OUTPUT_TYPE_STRING_LEGACY = "legacy";
 
 OutputType ParseOutputType(const std::string& type, OutputType default_type)
 {
-    if (type.empty()) {
-        return default_type;
-    } else if (type == OUTPUT_TYPE_STRING_LEGACY) {
-        return OUTPUT_TYPE_LEGACY;
-    } else {
-        return OUTPUT_TYPE_NONE;
-    }
+    return OUTPUT_TYPE_LEGACY;
 }
 
 const std::string& FormatOutputType(OutputType type)
 {
-    switch (type) {
-    case OUTPUT_TYPE_LEGACY:
-        return OUTPUT_TYPE_STRING_LEGACY;
-    default:
-        assert(false);
-    }
+    return OUTPUT_TYPE_STRING_LEGACY;
 }
 
 void CWallet::LearnRelatedScripts(const CPubKey& key, OutputType type)

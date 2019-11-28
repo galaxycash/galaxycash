@@ -109,17 +109,8 @@ bool WalletParameterInteraction()
     nTxConfirmTarget = gArgs.GetArg("-txconfirmtarget", DEFAULT_TX_CONFIRM_TARGET);
     bSpendZeroConfChange = gArgs.GetBoolArg("-spendzeroconfchange", DEFAULT_SPEND_ZEROCONF_CHANGE);
 
-    g_address_type = ParseOutputType(gArgs.GetArg("-addresstype", ""));
-    if (g_address_type == OUTPUT_TYPE_NONE) {
-        return InitError(strprintf("Unknown address type '%s'", gArgs.GetArg("-addresstype", "")));
-    }
-
-    // If changetype is set in config file or parameter, check that it's valid.
-    // Default to OUTPUT_TYPE_NONE if not set.
-    g_change_type = ParseOutputType(gArgs.GetArg("-changetype", ""), OUTPUT_TYPE_NONE);
-    if (g_change_type == OUTPUT_TYPE_NONE && !gArgs.GetArg("-changetype", "").empty()) {
-        return InitError(strprintf("Unknown change type '%s'", gArgs.GetArg("-changetype", "")));
-    }
+    g_address_type = OUTPUT_TYPE_LEGACY;
+    g_change_type = OUTPUT_TYPE_LEGACY;
 
     return true;
 }
