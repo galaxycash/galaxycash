@@ -24,6 +24,8 @@ ReadStatus FillBlock(CBlock& block, const std::vector<CTransactionRef>& txs)
         block.vtx[i] = std::move(txs[i]);
     }
 
+    block.MakeFlags();
+
     CValidationState state;
     if (!CheckBlock(block, state, Params().GetConsensus())) {
         // TODO: We really want to just check merkle tree manually here,
@@ -34,6 +36,5 @@ ReadStatus FillBlock(CBlock& block, const std::vector<CTransactionRef>& txs)
             return READ_STATUS_FAILED; // Possible Short ID collision
         return READ_STATUS_CHECKBLOCK_FAILED;
     }
-
     return READ_STATUS_OK;
 }

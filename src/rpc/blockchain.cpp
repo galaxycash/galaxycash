@@ -1183,6 +1183,8 @@ UniValue getinfo(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("version", GALAXYCASH_VERSION));
+    obj.push_back(Pair("protocol", PROTOCOL_VERSION));
     obj.push_back(Pair("chain", Params().NetworkIDString()));
     obj.push_back(Pair("blocks", (int)chainActive.Height()));
     obj.push_back(Pair("headers", pindexBestHeader ? pindexBestHeader->nHeight : -1));
@@ -1193,9 +1195,14 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
     obj.push_back(Pair("chainwork", chainActive.Tip()->nChainTrust.GetHex()));
     obj.push_back(Pair("size_on_disk", CalculateCurrentUsage()));
+    obj.push_back(Pair("paytxfee", ValueFromAmount(MIN_TX_FEE)));
+    obj.push_back(Pair("mininput", ValueFromAmount(MIN_TXOUT_AMOUNT)));
+    obj.push_back(Pair("moneysupply", pindexBestHeader->nMoneySupply));
+    obj.push_back(Pair("testnet", Params().NetworkIDString() == "test"));    
 
     const CPubKey& pubkey = Params().DevPubKey();
     obj.push_back(Pair("pubkey", HexStr(pubkey.begin(), pubkey.end())));
+    obj.push_back(Pair("devkeyassigned", Params().DevKey().IsValid()));
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();

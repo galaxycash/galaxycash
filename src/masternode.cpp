@@ -3898,25 +3898,6 @@ void ThreadMasternode()
             //if (!lockMain) continue;
 
             masternodeSync.Process();
-            if(c % 5 == 0 && RequestedMasterNodeList < 36){
-                bool fIsInitialDownload = IsInitialBlockDownload();
-                if(!fIsInitialDownload) {
-                    g_connman->ForEachNode([=](CNode *pnode) {
-                        if (pnode->GetRecvVersion() <= OLD_VERSION) {
-                            //keep track of who we've asked for the list
-                            if(pnode->HasFulfilledRequest("mnsync-old")) return;
-                            pnode->FulfilledRequest("mnsync-old");
-
-                            LogPrintf("Successfully synced, asking for Masternode list and payment list\n");
-
-                            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("dseg", CTxIn())); //request full mn list
-                            g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("mnget")); //sync payees
-
-                            RequestedMasterNodeList++;
-                        }
-                    });
-                }
-            }
             if (masternodeSync.IsBlockchainSynced()) {
                 c++;
 

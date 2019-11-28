@@ -287,10 +287,10 @@ void PushNodeVersion(CNode *pnode, CConnman* connman, int64_t nTime)
     CAddress addrMe = CAddress(CService(), nLocalNodeServices);
 
     if (pnode->nVersion <= OLD_VERSION) {
-        connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
+        connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
             nonce, strSubVersion, nNodeStartingHeight));
     } else
-        connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
+        connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
             nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes));
 
     if (fLogIPs) {
@@ -1391,16 +1391,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             return false;
         }
     }
-        
-    // peercoin: set/unset network serialization mode for new clients
-    if (pfrom->nVersion != 0) {
-        if (pfrom->nVersion <= OLD_VERSION)
-            vRecv.SetType(vRecv.GetType() & ~SER_GALAXYCASH);
-        else
-            vRecv.SetType(vRecv.GetType() | SER_GALAXYCASH);
-    }
-    // At this point, the outgoing message serialization version can't change.
-    const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
+
 
 
     if (strCommand == NetMsgType::REJECT)
@@ -1433,7 +1424,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // Each connection can only send one version message
         if (pfrom->nVersion != 0)
         {
-            connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version message")));
+            connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version message")));
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 1);
             return false;
@@ -1462,7 +1453,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (!pfrom->fInbound && !pfrom->fFeeler && !pfrom->m_manual_connection && !HasAllDesirableServiceFlags(nServices))
         {
             LogPrint(BCLog::NET, "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n", pfrom->GetId(), nServices, GetDesirableServiceFlags(nServices));
-            connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
+            connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
                                strprintf("Expected to offer services %08x", GetDesirableServiceFlags(nServices))));
             pfrom->fDisconnect = true;
             return false;
@@ -1483,7 +1474,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         {
             // disconnect from peers older than this proto version
             LogPrint(BCLog::NET, "peer=%d using obsolete version %i; disconnecting\n", pfrom->GetId(), nVersion);
-            connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
+            connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
             pfrom->fDisconnect = true;
             return false;
@@ -1523,7 +1514,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (pfrom->fInbound)
             PushNodeVersion(pfrom, connman, GetAdjustedTime());
 
-        connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERACK));
+        connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERACK));
 
         pfrom->nServices = nServices;
         pfrom->SetAddrLocal(addrMe);
@@ -1629,7 +1620,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return false;
     }
 
-    else if (strCommand == NetMsgType::VERACK)
+
+        
+    // peercoin: set/unset network serialization mode for new clients
+    if (pfrom->nVersion != 0) {
+        if (pfrom->nVersion <= OLD_VERSION)
+            vRecv.SetType(vRecv.GetType() & ~SER_GALAXYCASH);
+        else
+            vRecv.SetType(vRecv.GetType() | SER_GALAXYCASH);
+    }
+    // At this point, the outgoing message serialization version can't change.
+    const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
+
+    if (strCommand == NetMsgType::VERACK)
     {
         LOCK(cs_main);
         pfrom->SetRecvVersion(std::min(pfrom->nVersion.load(), PROTOCOL_VERSION));
@@ -1648,7 +1651,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // We send this to non-NODE NETWORK peers as well, because even
             // non-NODE NETWORK peers can announce blocks (such as pruning
             // nodes)
-            const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDHEADERS));
         }
 

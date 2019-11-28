@@ -845,9 +845,9 @@ UniValue estimatefee(const JSONRPCRequest& request)
 
     CFeeRate feeRate = mempool.estimateFee(nBlocks);
     if (feeRate == CFeeRate(0))
-        return -1.0;
+        return ValueFromAmount(MIN_TX_FEE);
 
-    CAmount feeValue = std::max((CAmount)(COIN * 0.0001), feeRate.GetFeePerK());
+    CAmount feeValue = std::max(MIN_TX_FEE, feeRate.GetFeePerK());
     return ValueFromAmount(feeValue);
 }
 
@@ -896,10 +896,10 @@ UniValue estimatesmartfee(const JSONRPCRequest& request)
 
     CFeeRate feeRate = mempool.estimateFee(nBlocks);
     if (feeRate == CFeeRate(0))
-        return -1.0;
+        return ValueFromAmount(MIN_TX_FEE);
 
     UniValue result(UniValue::VOBJ);
-    CAmount feeValue = std::max((CAmount)(COIN * 0.0001), feeRate.GetFeePerK());
+    CAmount feeValue = std::max(MIN_TX_FEE, feeRate.GetFeePerK());
     result.push_back(Pair("feerate", ValueFromAmount(feeValue)));
     result.push_back(Pair("blocks", chainActive.Height()));
     return result;
