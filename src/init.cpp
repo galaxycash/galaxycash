@@ -505,7 +505,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE));
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
     }
-    strUsage += HelpMessageOpt("-nominting", _("Disable minting of POS blocks"));
+    strUsage += HelpMessageOpt("-staking", _("Disable minting of POS blocks"));
 
     return strUsage;
 }

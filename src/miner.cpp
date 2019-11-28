@@ -494,7 +494,7 @@ void PoSMiner(CWallet* pwallet)
 
     std::string strMintMessage = _("Info: Staking suspended due to locked wallet.");
     std::string strMintSyncMessage = _("Info: Staking suspended while synchronizing wallet.");
-    std::string strMintDisabledMessage = _("Info: Staking disabled by 'nominting' option.");
+    std::string strMintDisabledMessage = _("Info: Staking disabled by 'staking' option.");
     std::string strMintBlockMessage = _("Info: Staking suspended due to block creation failure.");
     std::string strMintEmpty = _("");
     if (!gArgs.GetBoolArg("-staking", true)) {
