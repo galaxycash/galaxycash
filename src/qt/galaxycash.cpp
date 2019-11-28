@@ -35,6 +35,7 @@
 #ifdef ENABLE_WALLET
 #include <wallet/wallet.h>
 #endif
+#include <masternode.h>
 
 #include <memory>
 #include <stdint.h>
@@ -648,6 +649,18 @@ int main(int argc, char* argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
     app.setStyle(QStyleFactory::create("Fusion"));
+    
+    /// 7a. parse masternode.conf
+    std::string strErr;
+    try {
+
+        masternodeConfig.read(strErr);
+    
+    } catch (const std::exception& e) {
+        QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QObject::tr("Error: Cannot parse masternode configuration file: %1. Only use key=value syntax.").arg(e.what()));
+        return EXIT_FAILURE;
+    }
 
     QPalette darkPalette;
     darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));

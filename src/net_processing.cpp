@@ -916,7 +916,10 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 
 static void RelayTransaction(const CTransaction& tx, CConnman* connman)
 {
-    mapRelay[tx.GetHash()] = MakeTransactionRef(tx);
+    CInv inv(MSG_TX, tx.GetHash());
+    connman->ForEachNode([&inv](CNode* pnode) {
+        pnode->PushInventory(inv);
+    });
 }
 
 static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connman)

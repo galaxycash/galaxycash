@@ -4023,7 +4023,7 @@ CTxDestination CWallet::AddAndGetDestinationForScript(const CScript& script, Out
 
 static int64_t GetStakeCombineThreshold()
 {
-    return 500 * COIN;
+    return 50000 * COIN;
 }
 static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 

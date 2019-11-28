@@ -1568,7 +1568,7 @@ bool AppInitMain()
 
 #ifdef ENABLE_WALLET
     StartWallets(scheduler);
-    if (gArgs.GetBoolArg("-stakegen", true))
+    if (gArgs.GetBoolArg("-staking", true))
         MintStake(threadGroup);
 #endif
 
