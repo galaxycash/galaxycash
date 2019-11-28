@@ -2821,6 +2821,32 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
     }
 
+    // masternode payments / budgets
+    CBlockIndex* pindexPrev = chainActive.Tip();
+    int nHeight = 0;
+    if (pindexPrev != NULL) {
+        if (pindexPrev->GetBlockHash() == block.hashPrevBlock) {
+            nHeight = pindexPrev->nHeight + 1;
+        } else { //out of order
+            BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+            if (mi != mapBlockIndex.end() && (*mi).second)
+                nHeight = (*mi).second->nHeight + 1;
+        }
+
+        if (nHeight != 0 && !IsInitialBlockDownload()) {
+            // check masternode/budget payment
+            if (!IsBlockPayeeValid(block, nHeight)) { 
+                
+                if (nHeight >= consensusParams.FirstMNPaymentRejectionBlock())
+                    return state.DoS(0, error("%s : Couldn't find masternode/budget payment", __func__), REJECT_INVALID, "bad-cb-payee");
+                else {
+                    error("%s : Couldn't find masternode/budget payment for block %i", __func__, nHeight);
+                }
+            }
+        } else {
+            LogPrint(BCLog::MASTERNODE, "%s: Masternode payment check skipped on sync - skipping IsBlockPayeeValid()\n", __func__);
+        }
+    }
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx) {
