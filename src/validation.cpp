@@ -2836,12 +2836,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (nHeight != 0 && !IsInitialBlockDownload()) {
             // check masternode/budget payment
             if (!IsBlockPayeeValid(block, nHeight)) { 
-                
-                if (nHeight >= consensusParams.FirstMNPaymentRejectionBlock())
-                    return state.DoS(0, error("%s : Couldn't find masternode/budget payment", __func__), REJECT_INVALID, "bad-cb-payee");
-                else {
-                    error("%s : Couldn't find masternode/budget payment for block %i", __func__, nHeight);
-                }
+                error("%s : Couldn't find masternode/budget payment for block %i", __func__, nHeight);
             }
         } else {
             LogPrint(BCLog::MASTERNODE, "%s: Masternode payment check skipped on sync - skipping IsBlockPayeeValid()\n", __func__);

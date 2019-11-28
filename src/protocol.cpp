@@ -34,13 +34,9 @@ const char* SPORK = "spork";
 const char* SPORKS = "sporks";
 const char* MASTERNODE_WINNER = "mnw";
 const char* MASTERNODE_SCANNING_ERROR = "mnse";
-const char* BUDGET_VOTE = "mn-budget-vote";
-const char* BUDGET_PROPOSAL = "mn-budget-proposal";
-const char* BUDGET_FINALIZED = "mn-budget-finalized";
-const char* BUDGET_FINALIZED_VOTE = "mn-budget-finalized";
-const char* MASTERNODE_QUORUM = "mn-quorum";
-const char* MASTERNODE_ANNOUNCE = "mn-announce";
-const char* MASTERNODE_PING = "mn-ping";
+const char* MASTERNODE_QUORUM = "mnq";
+const char* MASTERNODE_ANNOUNCE = "mnb";
+const char* MASTERNODE_PING = "mnp";
 const char* GETADDR = "getaddr";
 const char* MEMPOOL = "mempool";
 const char* PING = "ping";
@@ -55,7 +51,7 @@ const char* SENDHEADERS = "sendheaders";
 const char* FEEFILTER = "feefilter";
 const char* CHECKPOINT = "checkpoint";
 const char* DSEE = "dsee";
-const char* MNWINNER = "masternode winner";
+const char* MNWINNER = "mnw";
 const char* FILTEREDBLOCK = MERKLEBLOCK;
 const char* GETBLOCKTXN = "getblocktxn";
 const char* BLOCKTXN = "blocktxn";
@@ -74,7 +70,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::SPORKS,
     NetMsgType::MASTERNODE_WINNER,
     NetMsgType::MASTERNODE_SCANNING_ERROR,
-    NetMsgType::MASTERNODE_QUORUM,
     NetMsgType::MASTERNODE_QUORUM,
     NetMsgType::MASTERNODE_ANNOUNCE,
     NetMsgType::MASTERNODE_PING,
@@ -114,7 +109,6 @@ static const char* GetDataMsgName[] =
     NetMsgType::SPORKS,
     NetMsgType::MASTERNODE_WINNER,
     NetMsgType::MASTERNODE_SCANNING_ERROR,
-    NetMsgType::MASTERNODE_QUORUM,
     NetMsgType::MASTERNODE_QUORUM,
     NetMsgType::MASTERNODE_ANNOUNCE,
     NetMsgType::MASTERNODE_PING,
