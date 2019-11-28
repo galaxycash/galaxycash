@@ -59,24 +59,24 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
     return blockValue * 0.95;
 }
 
-static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256& hashBlock, bool fAllowSlow)
+static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256 *h = nullptr)
 {
-    return ::GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, fAllowSlow, NULL);
+    bool fAllowSlow = true;
+    uint256 hashBlock;
+    bool fOk = ::GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, fAllowSlow, NULL);
+    if (h) *h = hashBlock;
+    return fOk;
 }
 
-/// Is the inputs associated with this public key? (and there is 10000 PIV - checking if valid masternode)
+
 static bool IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey)
 {
-    CScript payee2;
-    payee2 = GetScriptForDestination(pubkey.GetID());
-
+    CTxDestination payee;
     CTransactionRef txVin;
-    uint256 hash;
-    if (GetTransaction2(vin.prevout.hash, txVin, hash, true)) {
-        for (CTxOut out : txVin->vout) {
-            if (out.nValue == MasternodeCollateral(chainActive.Tip()->nHeight) * COIN) {
-                if (out.scriptPubKey == payee2) return true;
-            }
+    if (GetTransaction2(vin.prevout.hash, txVin)) {
+        CTxOut out = txVin->vout[vin.prevout.n];
+        if (out.nValue == MASTERNODE_COLLATERAL) {
+            return (CScriptID(out.scriptPubKey) == CScriptID(GetScriptForRawPubKey(pubkey)));
         }
     }
 
@@ -158,25 +158,20 @@ static bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKey
     CScript pubScript;
 
     txinRet = CTxIn(out.tx->GetHash(), out.i);
-    pubScript = out.tx->tx->vout[out.i].scriptPubKey; // the inputs PubKey
 
-    CTxDestination address1;
-    ExtractDestination(pubScript, address1);
-    CBitcoinAddress address2(address1);
+    CTxDestination dest;
+    ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, dest);
 
-    CKeyID keyID;
-    if (!address2.GetKeyID(keyID)) {
-        LogPrintf("CWallet::GetVinAndKeysFromOutput -- Address does not refer to a key\n");
-        return false;
-    }
 
     bool fOk = false;
     for (CWalletRef pwallet : vpwallets) {
-        if (pwallet->GetKey(keyID, keyRet)) {
+        CKeyID id = GetKeyForDestination(*pwallet, dest);
+        if (pwallet->HaveKey(id)) {
+            pwallet->GetKey(id, keyRet);
             fOk = true;
-            break;
         }
     }
+
     if (!fOk) {
         LogPrintf("CWallet::GetVinAndKeysFromOutput -- Private key for address is not known\n");
         return false;
@@ -191,7 +186,7 @@ static bool GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& ke
     // wait for reindex and/or import to finish
     if (fImporting || fReindex) return false;
 
-    int64_t collateral = MasternodeCollateral(chainActive.Tip()->nHeight) * COIN;
+    int64_t collateral = MASTERNODE_COLLATERAL;
     for (CWalletRef pwallet : vpwallets) {
         // Find possible candidates
         std::vector<COutput> vPossibleCoins;
@@ -543,7 +538,7 @@ void CMasternode::Check(bool forceCheck)
         std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
         CBitcoinAddress gdevAddr;
         gdevAddr.SetString(devAddr);
-        CTxOut vout = CTxOut((MasternodeCollateral(chainActive.Tip()->nHeight) * 0.99) * COIN, GetScriptForDestination(gdevAddr.Get()));
+        CTxOut vout = CTxOut((MASTERNODE_COLLATERAL_AMOUNT - 1) * COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
 
@@ -916,7 +911,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
     CBitcoinAddress gdevAddr;
     gdevAddr.SetString(devAddr);
-    CTxOut vout = CTxOut((MasternodeCollateral(chainActive.Tip()->nHeight) * 0.99) * COIN, GetScriptForDestination(gdevAddr.Get()));
+    CTxOut vout = CTxOut((MASTERNODE_COLLATERAL_AMOUNT - 1) * COIN, GetScriptForDestination(gdevAddr.Get()));
     tx.vin.push_back(vin);
     tx.vout.push_back(vout);
 
@@ -950,10 +945,10 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     // should be at least not earlier than block when 1000 PIV tx got MASTERNODE_MIN_CONFIRMATIONS
     uint256 hashBlock = 0;
     CTransactionRef tx2;
-    GetTransaction2(vin.prevout.hash, tx2, hashBlock, true);
+    GetTransaction2(vin.prevout.hash, tx2, &hashBlock);
     BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi != mapBlockIndex.end() && (*mi).second) {
-        CBlockIndex* pMNIndex = (*mi).second;                                                        // block for 1000 PIVX tx -> 1 confirmation
+        CBlockIndex* pMNIndex = (*mi).second;                                                        // block for 1000 GalaxyCash tx -> 1 confirmation
         CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + MASTERNODE_MIN_CONFIRMATIONS - 1]; // block where tx got MASTERNODE_MIN_CONFIRMATIONS
         if (pConfIndex->GetBlockTime() > sigTime) {
             LogPrint(BCLog::MASTERNODE, "mnb - Bad sigTime %d for Masternode %s (%i conf block is at %d)\n",
@@ -1156,7 +1151,7 @@ void CMasternodePing::Relay()
 
 
 //
-// Bootup the Masternode, look for a 10000 PIVX input and register on the network
+// Bootup the Masternode, look for a 10000 GalaxyCash input and register on the network
 //
 void CActiveMasternode::ManageStatus()
 {
@@ -1546,16 +1541,14 @@ bool CActiveMasternode::GetMasterNodeVin(CTxIn& vin, CPubKey& pubkey, CKey& secr
 // Extract Masternode vin information from output
 bool CActiveMasternode::GetVinFromOutput(COutput out, CTxIn& vin, CPubKey& pubkey, CKey& secretKey)
 {
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
     CScript pubScript;
 
-    vin = CTxIn(out.tx->GetHash(), out.i);
-    pubScript = out.tx->tx->vout[out.i].scriptPubKey; // the inputs PubKey
+    CInputCoin coin(out.tx, out.i);
 
-    CTxDestination address1;
-    ExtractDestination(pubScript, address1);
+	vin = CTxIn(coin.outpoint.hash,coin.outpoint.n);
+
+	CTxDestination address1;
+    ExtractDestination(coin.txout.scriptPubKey, address1);
     CBitcoinAddress address2(address1);
 
     CKeyID keyID;
@@ -1564,15 +1557,8 @@ bool CActiveMasternode::GetVinFromOutput(COutput out, CTxIn& vin, CPubKey& pubke
         return false;
     }
 
-    bool fOk = false;
-    for (CWalletRef pwallet : vpwallets) {
-        if (!pwallet->GetKey(keyID, secretKey)) {
-            fOk = true;
-            break;
-        }
-    }
-    if (!fOk) {
-        LogPrintf("CActiveMasternode::GetMasterNodeVin - Private key for address is not known\n");
+    if (vpwallets.size() >= 1 && !vpwallets[0]->GetKey(keyID, secretKey)) {
+        LogPrintf ("CActiveMasternode::GetMasterNodeVin - Private key for address is not known\n");
         return false;
     }
 
@@ -1583,6 +1569,9 @@ bool CActiveMasternode::GetVinFromOutput(COutput out, CTxIn& vin, CPubKey& pubke
 // get all possible outputs for running Masternode
 std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
 {
+    CWalletRef pwallet = vpwallets.size() >= 1 ? vpwallets[0] : nullptr;
+    if (!pwallet) return std::vector<COutput>();
+
     std::vector<COutput> vCoins;
     std::vector<COutput> filteredCoins;
     std::vector<COutPoint> confLockedCoins;
@@ -1599,12 +1588,11 @@ std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
 
             COutPoint outpoint = COutPoint(mnTxHash, nIndex);
             confLockedCoins.push_back(outpoint);
-            for (CWalletRef pwallet : vpwallets)
-                pwallet->UnlockCoin(outpoint);
+            pwallet->UnlockCoin(outpoint);
         }
     }
 
-    for (CWalletRef pwallet : vpwallets) {
+    {
         // Retrieve all possible outputs
         pwallet->AvailableCoins(vCoins);
 
@@ -1616,7 +1604,7 @@ std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
 
         // Filter
         for (const COutput& out : vCoins) {
-            if (out.tx->tx->vout[out.i].nValue == MasternodeCollateral(chainActive.Tip()->nHeight) * COIN) { //exactly
+            if (out.tx->tx->vout[out.i].nValue == MASTERNODE_COLLATERAL) { //exactly
                 filteredCoins.push_back(out);
             }
         }
@@ -3408,7 +3396,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
         CBitcoinAddress gdevAddr;
         gdevAddr.SetString(devAddr);
-        CTxOut vout = CTxOut((MasternodeCollateral(chainActive.Tip()->nHeight) * 0.99) * COIN, GetScriptForDestination(gdevAddr.Get()));
+        CTxOut vout = CTxOut((MASTERNODE_COLLATERAL_AMOUNT - 1) * COIN, GetScriptForDestination(gdevAddr.Get()));
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
 
@@ -3427,10 +3415,10 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             }
 
             // verify that sig time is legit in past
-            // should be at least not earlier than block when 1000 PIVX tx got MASTERNODE_MIN_CONFIRMATIONS
+            // should be at least not earlier than block when 1000 GalaxyCash tx got MASTERNODE_MIN_CONFIRMATIONS
             uint256 hashBlock = 0;
             CTransactionRef tx2;
-            GetTransaction2(vin.prevout.hash, tx2, hashBlock, true);
+            GetTransaction2(vin.prevout.hash, tx2, &hashBlock);
             BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
             if (mi != mapBlockIndex.end() && (*mi).second) {
                 CBlockIndex* pMNIndex = (*mi).second;                                                        // block for 10000 PIV tx -> 1 confirmation

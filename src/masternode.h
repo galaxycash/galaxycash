@@ -14,11 +14,8 @@
 #include "validation.h"
 #include "wallet/wallet.h"
 
-inline int64_t MasternodeCollateral(int nHeight)
-{
-    return 100000;
-}
-
+#define MASTERNODE_COLLATERAL_AMOUNT (100000)
+#define MASTERNODE_COLLATERAL (MASTERNODE_COLLATERAL_AMOUNT * COIN)
 #define BUDGET_CYCLE_BLOCKS 25000
 #define BUDGET_FEE_CONFIRMATIONS 12
 #define MASTERNODE_COUNT_DRIFT 20

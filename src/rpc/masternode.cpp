@@ -69,7 +69,7 @@ UniValue listmasternodes(const JSONRPCRequest& request)
             "    \"outidx\": n,         (numeric) Collateral transaction output index\n"
             "    \"pubkey\": \"key\",   (string) Masternode public key used for message broadcasting\n"
             "    \"status\": s,         (string) Status (ENABLED/EXPIRED/REMOVE/etc)\n"
-            "    \"addr\": \"addr\",      (string) Masternode PIVX address\n"
+            "    \"addr\": \"addr\",      (string) Masternode GalaxyCash address\n"
             "    \"version\": v,        (numeric) Masternode protocol version\n"
             "    \"lastseen\": ttt,     (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last seen\n"
             "    \"activetime\": ttt,   (numeric) The time in seconds since epoch (Jan 1 1970 GMT) masternode has been active\n"
@@ -227,6 +227,71 @@ UniValue masternodedebug(const JSONRPCRequest& request)
         throw std::runtime_error("Missing masternode input, please look at the documentation for instructions on masternode creation\n");
     else
         return activeMasternode.GetStatus();
+}
+
+
+UniValue startrawmasternode(const JSONRPCRequest& request)
+{
+    if (request.fHelp || (request.params.size() != 6))
+        throw std::runtime_error(
+            "startrawmasternode lockwallet alias hash index privkey addr\n"
+            "\nStart raw masternode\n");
+
+
+    bool fLock = (request.params[0].get_str() == "true" ? true : false);
+    std::string alias = request.params[1].get_str();
+    std::string txhash = request.params[2].get_str();
+    size_t txout = atou(request.params[3].get_str());
+    std::string privkey = request.params[4].get_str();
+    std::string addr = request.params[5].get_str();
+
+
+    for (CWalletRef pwallet : vpwallets) {
+        EnsureWalletIsUnlocked(pwallet);
+    }
+
+    {
+        int successful = 0;
+        int failed = 0;
+
+        UniValue resultsObj(UniValue::VARR);
+        {
+            std::string errorMessage;
+            CTxIn vin = CTxIn(uint256(txhash), txout);
+            CMasternode* pmn = mnodeman.Find(vin);
+            CMasternodeBroadcast mnb;
+
+            bool result = activeMasternode.CreateBroadcast(addr, privkey, txhash, std::to_string(txout), errorMessage, mnb);
+
+            UniValue statusObj(UniValue::VOBJ);
+            statusObj.push_back(Pair("result", result ? "success" : "failed"));
+
+            if (result) {
+                successful++;
+                statusObj.push_back(Pair("error", ""));
+            } else {
+                failed++;
+                statusObj.push_back(Pair("error", errorMessage));
+            }
+
+            resultsObj.push_back(statusObj);
+        }
+
+        if (fLock) {
+            for (CWalletRef pwallet : vpwallets) {
+                pwallet->Lock();
+            }
+        }
+
+
+        UniValue returnObj(UniValue::VOBJ);
+        returnObj.push_back(Pair("overall", strprintf("Successfully started %d masternodes, failed to start %d, total %d", successful, failed, successful + failed)));
+        returnObj.push_back(Pair("detail", resultsObj));
+
+        return returnObj;
+    }
+
+    return NullUniValue;
 }
 
 UniValue startmasternode(const JSONRPCRequest& request)
@@ -539,7 +604,7 @@ UniValue getmasternodestatus(const JSONRPCRequest& request)
             "  \"txhash\": \"xxxx\",      (string) Collateral transaction hash\n"
             "  \"outputidx\": n,        (numeric) Collateral transaction output index number\n"
             "  \"netaddr\": \"xxxx\",     (string) Masternode network address\n"
-            "  \"addr\": \"xxxx\",        (string) PIVX address for masternode payments\n"
+            "  \"addr\": \"xxxx\",        (string) GalaxyCash address for masternode payments\n"
             "  \"status\": \"xxxx\",      (string) Masternode status\n"
             "  \"message\": \"xxxx\"      (string) Masternode status message\n"
             "}\n"
@@ -580,7 +645,7 @@ UniValue getmasternodewinners(const JSONRPCRequest& request)
             "  {\n"
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": {\n"
-            "      \"address\": \"xxxx\",    (string) PIVX MN Address\n"
+            "      \"address\": \"xxxx\",    (string) GalaxyCash MN Address\n"
             "      \"nVotes\": n,          (numeric) Number of votes for winner\n"
             "    }\n"
             "  }\n"
@@ -593,7 +658,7 @@ UniValue getmasternodewinners(const JSONRPCRequest& request)
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": [\n"
             "      {\n"
-            "        \"address\": \"xxxx\",  (string) PIVX MN Address\n"
+            "        \"address\": \"xxxx\",  (string) GalaxyCash MN Address\n"
             "        \"nVotes\": n,        (numeric) Number of votes for winner\n"
             "      }\n"
             "      ,...\n"
@@ -928,6 +993,7 @@ static const CRPCCommand commands[] =
         {"masternode", "masternodecurrent", &masternodecurrent, {}},
         {"masternode", "masternodedebug", &masternodedebug, {}},
         {"masternode", "startmasternode", &startmasternode, {"type", "lockwallet", "alias"}},
+        {"masternode", "startrawmasternode", &startrawmasternode, {"lockwallet", "alias", "txhash", "txindex", "privkey", "addr"}},
         {"masternode", "createmasternodekey", &createmasternodekey, {}},
         {"masternode", "getmasternodeoutputs", &getmasternodeoutputs, {}},
         {"masternode", "listmasternodeconf", &listmasternodeconf, {"filter"}},
