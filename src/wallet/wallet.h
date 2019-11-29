@@ -677,7 +677,8 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl = nullptr) const;
-
+    bool SelectCoinsForStaking(const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet) const;
+        
     CWalletDB* pwalletdbEncryption;
 
     //! the current wallet version: clients below this version are not able to load the wallet
@@ -843,6 +844,8 @@ public:
         AssertLockHeld(cs_wallet);
         return nWalletMaxVersion >= wf;
     }
+
+    void AvailableCoinsForStaking(std::vector<COutput>& vCoins) const;
 
     /**
      * populate vCoins with vector of available COutputs.
