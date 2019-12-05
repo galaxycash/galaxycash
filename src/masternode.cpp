@@ -154,12 +154,10 @@ static bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKey
     // wait for reindex and/or import to finish
     if (fImporting || fReindex) return false;
 
-    CScript pubScript;
-
-    txinRet = CTxIn(out.tx->GetHash(), out.i);
-
     CTxDestination dest;
-    ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, dest);
+    CInputCoin coin(out.tx, out.i);
+    txinRet = CTxIn(coin.outpoint.hash, coin.outpoint.n);
+    ExtractDestination(coin.txout.scriptPubKey, dest);
 
 
     bool fOk = false;
