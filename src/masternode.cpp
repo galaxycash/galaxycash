@@ -908,7 +908,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     std::string devAddr = "GL83ZiVZ26z3stMtrF91WJ5f77q6EnKXnC";
     CBitcoinAddress gdevAddr;
     gdevAddr.SetString(devAddr);
-    CTxOut vout = CTxOut((MASTERNODE_COLLATERAL_AMOUNT - 1) * COIN, GetScriptForDestination(gdevAddr.Get()));
+    CTxOut vout = CTxOut(MASTERNODE_COLLATERAL - 1, GetScriptForDestination(gdevAddr.Get()));
     tx.vin.push_back(vin);
     tx.vout.push_back(vout);
 
