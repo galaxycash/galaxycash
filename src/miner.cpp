@@ -488,9 +488,10 @@ void PoSMiner(CWallet* pwallet)
     {
         std::vector<COutput> vCoins;
         pwallet->AvailableCoins(vCoins, false);
-        pos_timio = gArgs.GetArg("-staketimio", 50) + 30 * sqrt(vCoins.size());
+        pos_timio = gArgs.GetArg("-staketimio", 500) + 30 * sqrt(vCoins.size());
         LogPrintf("Set proof-of-stake timeout: %ums for %u UTXOs\n", pos_timio, vCoins.size());
     }
+
 
     std::string strMintMessage = _("Info: Staking suspended due to locked wallet.");
     std::string strMintSyncMessage = _("Info: Staking suspended while synchronizing wallet.");
@@ -520,13 +521,14 @@ void PoSMiner(CWallet* pwallet)
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
                 while (g_connman == nullptr || g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || IsInitialBlockDownload()) {
-                    MilliSleep(1000);
+                    MilliSleep(5 * 1000);
                     LogPrint(BCLog::WALLET, "%: Wait for peers\n", __func__);
                 }
             }
             while (GuessVerificationProgress(Params().TxData(), chainActive.Tip()) < 0.996) {
                 LogPrintf("Minter thread sleeps while sync at %f\n", GuessVerificationProgress(Params().TxData(), chainActive.Tip()));
                 strMintWarning = strMintSyncMessage;
+                MilliSleep(10000);
             }
 
             strMintWarning = strMintEmpty;
@@ -538,8 +540,9 @@ void PoSMiner(CWallet* pwallet)
             bool fPoSCancel = false;
             std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, pwallet, &fPoSCancel));
             if (!pblocktemplate.get()) {
-                if (fPoSCancel == true) {
-                    LogPrint(BCLog::WALLET, "%: NoN PoS block, continue\n", __func__);
+                if (fPoSCancel == true)
+                {
+                    MilliSleep(pos_timio);
                     continue;
                 }
                 strMintWarning = strMintBlockMessage;
@@ -563,8 +566,9 @@ void PoSMiner(CWallet* pwallet)
 
                 LogPrintf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString());
                 ProcessBlockFound(pblock, Params());
+                MilliSleep(60 * 1000 + GetRand(4 * 60 * 1000));
             }
-
+            MilliSleep(pos_timio);
             continue;
         }
     } catch (boost::thread_interrupted) {

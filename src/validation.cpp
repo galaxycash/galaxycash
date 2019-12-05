@@ -41,7 +41,6 @@
 #include <warnings.h>
 
 #include <bignum.h>
-#include <checkpointsync.h>
 #include <kernel.h>
 #include <keystore.h>
 
@@ -1926,16 +1925,6 @@ void static UpdateTip(const CBlockIndex* pindexNew, const CChainParams& chainPar
         }
     }
 
-#ifdef ENABLE_CHECKPOINTS
-    if (!IsSyncCheckpointEnforced()) // checkpoint advisory mode
-    {
-        if (pindexNew->pprev && !CheckSyncCheckpoint(pindexNew->GetBlockHash(), pindexNew->pprev))
-            strCheckpointWarning = _("Warning: checkpoint on different blockchain fork, contact developers to resolve the issue");
-        else
-            strCheckpointWarning = "";
-    }
-#endif
-
     LogPrintf("%s: new best=%s height=%d version=0x%08x log2_trust=%.8g moneysupply=%s tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)", __func__,
         pindexNew->GetBlockHash().ToString(), pindexNew->nHeight, pindexNew->nVersion,
         log(pindexNew->nChainTrust.getdouble()) / log(2.0),
@@ -2893,13 +2882,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
             return state.DoS(100, error("%s: forked chain older than last checkpoint (height %d)", __func__, nHeight), REJECT_CHECKPOINT, "bad-fork-prior-to-checkpoint");
     }
 
-#ifdef ENABLE_CHECKPOINTS
-    // galaxycash: check that the block satisfies synchronized checkpoint
-    if (IsSyncCheckpointEnforced() // checkpoint enforce mode
-        && !IsInitialBlockDownload() && !CheckSyncCheckpoint(block.GetHash(), pindexPrev))
-        return state.Invalid(error("AcceptBlock() : rejected by synchronized checkpoint"));
-#endif
-
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast() || block.GetBlockTime() + MAX_FUTURE_BLOCK_TIME < pindexPrev->GetBlockTime())
         return state.Invalid(false, REJECT_INVALID, "time-too-old", "block's timestamp is too early");
@@ -3047,17 +3029,7 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
         pindexPrev = (*mi).second;
 
         if (pindexPrev->nStatus & BLOCK_FAILED_MASK) {
-            if (pindex && Checkpoints::CheckBlock(pindex->nHeight - 1, block.hashPrevBlock, true)) {
-                LogPrintf("%s : Reconsidering block %s height %d\n", __func__, pindexPrev->GetBlockHash().GetHex(), pindexPrev->nHeight);
-                CValidationState statePrev;
-                ReconsiderBlock(statePrev, pindexPrev);
-                if (statePrev.IsValid()) {
-                    ActivateBestChain(statePrev, chainparams, nullptr);
-                    return true;
-                }
-            }
-            return state.DoS(10, error("%s : prev block height=%d hash=%s is invalid, unable to add block %s", __func__, pindexPrev->nHeight, block.hashPrevBlock.GetHex(), block.GetHash().GetHex()),
-                             REJECT_INVALID, "bad-prevblk");
+            return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
         }
         if (!ContextualCheckBlockHeader(block, fSetAsPos, fOldClient, state, chainparams, pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
@@ -3084,11 +3056,6 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStak
         *ppindex = pindex;
 
     CheckBlockIndex(chainparams.GetConsensus());
-
-    //ppcTODO - move this somewhere in the upper calls, where pfrom is visible
-    //    // peercoin: ask for pending sync-checkpoint if any
-    //    if (!IsInitialBlockDownload())
-    //        AskForPendingSyncCheckpoint(pfrom);
 
     return true;
 }
@@ -3300,11 +3267,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
 
     CheckBlockIndex(chainparams.GetConsensus());
 
-#ifdef ENABLE_CHECKPOINTS
-    // peercoin: check pending sync-checkpoint
-    AcceptPendingSyncCheckpoint();
-#endif
-
     return true;
 }
 
@@ -3347,12 +3309,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     CValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!g_chainstate.ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
-
-#ifdef ENABLE_CHECKPOINTS
-    // peercoin: if responsible for sync-checkpoint send it
-    if (Params().DevKey().IsValid() && (int)gArgs.GetArg("-checkpointdepth", -1) >= 0)
-        SendSyncCheckpoint(AutoSelectSyncCheckpoint());
-#endif
 
     return true;
 }
@@ -3610,14 +3566,6 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
             return false;
         }
     }
-#ifdef ENABLE_CHECKPOINTS
-    // peercoin: load hashSyncCheckpoint
-    if (!pblocktree->ReadSyncCheckpoint(hashSyncCheckpoint)) {
-        LogPrintf("LoadBlockIndexDB(): synchronized checkpoint not read\n");
-        hashSyncCheckpoint = chainparams.GetConsensus().hashGenesisBlock;
-    }
-    LogPrintf("LoadBlockIndexDB(): synchronized checkpoint %s\n", hashSyncCheckpoint.ToString());
-#endif
     // Check whether we need to continue reindexing
     bool fReindexing = false;
     pblocktree->ReadReindexing(fReindexing);

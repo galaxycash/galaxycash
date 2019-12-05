@@ -68,14 +68,14 @@ CChainParams::CChainParams()
 
 const CKey &CChainParams::DevKey() const {
     std::string devkey = gArgs.GetArg("-devkey", "");
+    if (!key.IsValid() && !devkey.empty()) {
+        CBitcoinSecret secret;
+        if (!secret.SetString(devkey))
+            return key;
 
-    CBitcoinSecret secret;
-    if (!secret.SetString(devkey))
-        return key;
-
-    key = secret.GetKey();
-    assert(pubKey == key.GetPubKey());
-
+        key = secret.GetKey();
+        assert(pubKey == key.GetPubKey());
+    }
     return key; 
 }
 
@@ -102,7 +102,7 @@ public:
 
         consensus.BIP16Height = 0;
         consensus.BIP34Height = 1;
-        consensus.BIP34Hash = uint256S("000002e5d366c89b16195d618462f5ad14f8bbfaf39a93f2593c2ceb67d94c16");
+        consensus.BIP34Hash = uint256S("0x000002e5d366c89b16195d618462f5ad14f8bbfaf39a93f2593c2ceb67d94c16");
         consensus.powLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
 
         // POS
@@ -132,7 +132,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100001");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256("0x7590d46bb45d01f3e02f079a516acf5c8b8234aa522098eb7bcb9a924b598611");
+        consensus.defaultAssumeValid = uint256("0x9a4004b1327ae419b54cf9afa360b0aece7abe21a5a01860f3e131afde31c037");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -193,15 +193,17 @@ public:
             {300000, uint256S("0x38ad3b008a319b0fd98fb9309b728628aeae8f1c0dd32a4c6b26647512500b49")},
             {350000, uint256S("0x849e4381fc9ed722e32d105f05a673f9431ac838d6200eb62dc01acb6a9df3f7")},
             {450000, uint256S("0xae77be762ec79fc75e4be9ad2c61f1cc477738b4d3b9bf568ae16208e254598e")},
-            {466000, uint256S("0x9a4004b1327ae419b54cf9afa360b0aece7abe21a5a01860f3e131afde31c037")}}};
+            {466000, uint256S("0x9a4004b1327ae419b54cf9afa360b0aece7abe21a5a01860f3e131afde31c037")},
+            {480000, uint256S("0xcdd2849b2781eaedaa6273a2ebd56c8827435e2d85f93861a9b50493ecf143ca")},
+            {490000, uint256S("0xf9652d83e27d0e6bfc3e18894bdfb411013b9dc587b771b3579510b6de36d632")}}};
 
 
         chainTxData = ChainTxData{
             // Data as of block 9a4004b1327ae419b54cf9afa360b0aece7abe21a5a01860f3e131afde31c037 (height 466000).
-            1571724176, // * UNIX timestamp of last known number of transactions
-            841189,     // * total number of transactions between genesis and that timestamp
+            1575522400, // * UNIX timestamp of last known number of transactions
+            898427,     // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
-            0.01486123738803377};
+            0.01491497937413473};
     }
 };
 
@@ -218,33 +220,8 @@ public:
         consensus.nLastPoW = 130000;
         consensus.nSubsidyHalvingInterval = 210000;
 
-        consensus.BIP16Height = 0;
-        consensus.BIP34Height = 1;
-        consensus.BIP34Hash = uint256S("000002e5d366c89b16195d618462f5ad14f8bbfaf39a93f2593c2ceb67d94c16");
-        consensus.powLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");                                                                                                            // ~arith_uint256(0) >> 32;
-
-        // POS
-        consensus.stakeLimit = uint256S("0x00000fffff000000000000000000000000000000000000000000000000000000");
-        consensus.nPOSFirstBlock = 61300;
-        consensus.nStakeMinConfirmations = 50;
-
-        consensus.nTargetSpacing = 3 * 60;         // 3 minutes
-        consensus.nTargetSpacing2 = 10 * 60;       // 10 minutes
-        consensus.nTargetTimespan = 6 * 60 * 60;   // 6 hours
-        consensus.nTargetTimespan2 = 24 * 60 * 60; // 24 hours
-        consensus.nStakeTargetSpacing = 2 * 60;
-        consensus.nStakeTargetTimespan = 6 * 60 * 60;                      // 6 hours
-        consensus.nStakeMinAge = 6 * 60 * 60;                              // minimum age for coin age
-        consensus.nStakeMaxAge = std::numeric_limits<int>::max();
-        consensus.nModifierInterval = 5 * 60; // Modifier interval: time to elapse before new modifier is computed
-        consensus.nCoinbaseMaturity = 11;
-
-        // Merge
-        consensus.nMergeFirstBlock = consensus.nCoinbaseMaturity + 2;
-        consensus.nMergeLastBlock = 95;
-
-        consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.fPowNoRetargeting = false;
+        consensus.fPowAllowMinDifficultyBlocks = true;
+        consensus.fPowNoRetargeting = true;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100001");
@@ -267,8 +244,6 @@ public:
 
         genesis = CreateGenesisBlock(1515086697, 1515086697, 1303736, UintToArith256(consensus.powLimit).GetCompact(), 9);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x00000076b947553b6888ca82875e04a4db21fd904aae46589e1d183b63327468"));
-        assert(genesis.hashMerkleRoot == uint256S("0xa3df636e1166133b477fad35d677e81ab93f9c9d242bcdd0e9955c9982615915"));
 
         // Note that of those which support the service bits prefix, most only support a subset of
         // possible options.

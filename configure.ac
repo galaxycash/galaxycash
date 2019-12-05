@@ -100,13 +100,6 @@ AC_PATH_TOOL(OBJCOPY, objcopy)
 
 AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 
-# Enable sync checkpoints
-AC_ARG_ENABLE([checkpoints],
-  [AS_HELP_STRING([--disable-checkpoints],
-  [disable sync checkpoints (enabled by default)])],
-  [enable_checkpoints=$enableval],
-  [enable_checkpoints=yes])
-
 # Enable wallet
 AC_ARG_ENABLE([wallet],
   [AS_HELP_STRING([--disable-wallet],
@@ -740,7 +733,7 @@ fi
 
 BITCOIN_QT_INIT
 
-dnl sets $galaxycash_enable_qt, $galaxycash_enable_qt_test, $galaxycash_enable_qt_dbus
+dnl sets $galaxycash_enable_qt, $galaxycash_enable_qt_dbus
 BITCOIN_QT_CONFIGURE([$use_pkgconfig], [qt5])
 
 if test x$build_galaxycash_utils$build_galaxycashd$galaxycash_enable_qt = xnonononono; then
@@ -1057,15 +1050,6 @@ if test "x$use_ccache" = "xyes"; then
     AX_CHECK_PREPROC_FLAG([-Qunused-arguments],[CPPFLAGS="-Qunused-arguments $CPPFLAGS"])
 fi
 
-dnl enable sync checkpoints
-AC_MSG_CHECKING([if sync checkpoints should be enabled])
-if test x$enable_checkpoints != xno; then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE_UNQUOTED([ENABLE_CHECKPOINTS],[1],[Define to 1 to enable sync checkpoints])
-else
-  AC_MSG_RESULT(no)
-fi
-
 dnl enable wallet
 AC_MSG_CHECKING([if wallet should be enabled])
 if test x$enable_wallet != xno; then
@@ -1133,14 +1117,6 @@ if test x$galaxycash_enable_qt != xno; then
   if test x$XGETTEXT = x; then
     AC_MSG_WARN("xgettext is required to update qt translations")
   fi
-
-  AC_MSG_CHECKING([whether to build test_galaxycash-qt])
-  if test x$use_gui_tests$galaxycash_enable_qt_test = xyesyes; then
-    AC_MSG_RESULT([yes])
-    BUILD_TEST_QT="yes"
-  else
-    AC_MSG_RESULT([no])
-  fi
 fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
@@ -1159,7 +1135,6 @@ fi
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
-AM_CONDITIONAL([ENABLE_CHECKPOINTS],[test x$enable_checkpoints = xyes])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$galaxycash_enable_qt = xyes])
 AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
@@ -1281,7 +1256,6 @@ esac
 
 echo
 echo "Options used to compile and link:"
-echo "  checkpoints   = $enable_checkpoints"
 echo "  with wallet   = $enable_wallet"
 echo "  with gui / qt = $galaxycash_enable_qt"
 if test x$galaxycash_enable_qt != xno; then

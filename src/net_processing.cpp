@@ -35,7 +35,6 @@
 
 #include <memory>
 
-#include <checkpointsync.h>
 
 #if defined(NDEBUG)
 #error "GalaxyCash cannot be compiled without assertions."
@@ -1566,15 +1565,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->MarkAddressGood(pfrom->addr);
         }
 
-#ifdef ENABLE_CHECKPOINTS
-        // peercoin: relay sync-checkpoint
-        {
-            LOCK(cs_main);
-            if (!checkpointMessage.IsNull())
-                checkpointMessage.RelayTo(pfrom);
-        }
-#endif
-
         // peercoin: relay alerts
         {
             LOCK(cs_mapAlerts);
@@ -1602,14 +1592,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->fDisconnect = true;
         }
 
-#ifdef ENABLE_CHECKPOINTS
-        // peercoin: ask for pending sync-checkpoint if any
-        if (!IsInitialBlockDownload())
-            AskForPendingSyncCheckpoint(pfrom);
-#endif
 
-        pfrom->fSuccessfullyConnected = true;
         pfrom->fVerack = false;
+        pfrom->fSuccessfullyConnected = true;
 
         return true;
     }
@@ -2537,18 +2522,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
         }
     }
-#ifdef ENABLE_CHECKPOINTS
-    else if (strCommand == NetMsgType::CHECKPOINT) {
-        CSyncCheckpoint checkpoint;
-        vRecv >> checkpoint;
-
-        if (checkpoint.ProcessSyncCheckpoint(pfrom))
-            if (g_connman)
-                g_connman->ForEachNode([&checkpoint](CNode* pnode) {
-                    checkpoint.RelayTo(pnode);
-                });
-    }
-#endif
 
     else if (strCommand == NetMsgType::NOTFOUND) {
         // We do not care about the NOTFOUND message, but logging an Unknown Command
@@ -2862,8 +2835,9 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
     {
+        
         // Don't send anything until the version handshake is complete
-        if (pto->fDisconnect || !pto->fSuccessfullyConnected)
+        if (pto->nVersion == 0)
             return true;
 
         // If we get here, the outgoing message serialization version is set and can't change.

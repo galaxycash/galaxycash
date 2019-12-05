@@ -36,7 +36,6 @@
 
 #include <memory>
 
-#include <checkpointsync.h>
 
 #include "chain.h"
 #include "coins.h"

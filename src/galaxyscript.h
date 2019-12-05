@@ -52,32 +52,64 @@ enum {
 
 
 struct CVMTypeinfo {
-    uint32_t version;
+    enum Kind {
+        Kind_Null = 0,
+        Kind_Variable,
+        Kind_Pointer,
+        Kind_Function,
+        Kind_String,
+        Kind_Number,
+        Kind_Array,
+        Kind_Object,
+        Kind_Module
+    };
+    enum Flag {
+        Flag_None = 0,
+        Flag_Integer = BIT(0),
+        Flag_Float = BIT(1),
+        Flag_Double = BIT(2),
+        Flag_Boolean = BIT(3),
+        Flag_Bignum = BIT(4),
+        Flag_Unsigned = BIT(5),
+        Flag_Constant = BIT(6),
+        Flag_Import = BIT(7),
+        Flag_Export = BIT(8),
+        Flag_Native = BIT(9),
+        Flag_Buildin = BIT(10),
+        Flag_Property = BIT(11),
+        Flag_Async = BIT(12),
+        Flag_Void = BIT(13),
+        Flag_Symbol = BIT(14),
+        Flag_Callable = BIT(15),
+        Flag_Block = BIT(16)
+    };
+
+    uint32_t        version;
     std::string     name;
-    CVMTypeinfo *super;
-    CVMValue::Kind  kind;
+    CVMTypeinfo *   super;
+    Kind            kind;
     uint8_t         bits; // For numbers
     uint64_t        flags;
-    size_t          ctor;
-    size_t          dtor;
+    CVMTypeinfo *   ctor;
+    CVMTypeinfo *   dtor;
 
 
 
-    CVMTypeinfo() : super(nullptr) { SetNull(); }
+    CVMTypeinfo() : super(nullptr), ctor(nullptr), dtor(nullptr) { SetNull(); }
     CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags) {}
 
     inline void SetNull() {
         version = 1;
         name.clear();
-        kind = CVMValue::Kind_Null;
+        kind = Kind_Null;
         flags = 0;
         bits = 0;
         if (super) delete super;
-        super = nullptr;
+        super = ctor = dtor = nullptr;
     }
 
     inline bool IsNull() {
-        return name.empty() && (kind == CVMValue::Kind_Null);
+        return name.empty() && (kind == Kind_Null);
     }
     
     ADD_SERIALIZE_METHODS;
@@ -119,39 +151,6 @@ struct CVMTypeinfo {
     static CVMTypeinfo &ModuleType();
 };
 
-struct CVMVariable {
-    uint32_t version;
-    CVMTypeinfo type;
-    std::string name, fullname;
-    size_t addr;
-    uint64_t flags;
-
-    ADD_SERIALIZE_METHODS;
-    
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(this->version);
-        READWRITE(name);
-        READWRITE(fullname);
-        READWRITE(addr);
-        READWRITE(flags);
-    }
-};
-
-struct CVMFunction : public CVMVariable {
-    std::vector<std::string> arguments;
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(*((CVMVariable*)this));
-        READWRITE(arguments);
-    }
-};
-
 struct CVMModuleHeader {
     uint32_t    version;
     uint32_t    time;
@@ -159,8 +158,8 @@ struct CVMModuleHeader {
     uint64_t    flags;
 
     std::vector<CVMTypeinfo> types;
-    std::vector<CVMVariable> variables;
-    std::vector<CVMFunction> functions;
+    std::vector<CVMTypeinfo> variables;
+    std::vector<CVMTypeinfo> functions;
     
     CModuleHeader() { SetNull(); }
 
@@ -266,51 +265,16 @@ typedef std::function<void(CVMState*)> CVMFunction;
 
 class CVMValue {
 public:
-    enum Kind {
-        Kind_Null = 0,
-        Kind_Variable,
-        Kind_Reference,
-        Kind_Pointer,
-        Kind_Function,
-        Kind_String,
-        Kind_Number,
-        Kind_Array,
-        Kind_Object,
-        Kind_Module
-    };
-    enum Flag {
-        Flag_None = 0,
-        Flag_Integer = BIT(0),
-        Flag_Float = BIT(1),
-        Flag_Double = BIT(2),
-        Flag_Boolean = BIT(3),
-        Flag_Bignum = BIT(4),
-        Flag_Unsigned = BIT(5),
-        Flag_Constant = BIT(6),
-        Flag_Import = BIT(7),
-        Flag_Export = BIT(8),
-        Flag_Native = BIT(9),
-        Flag_Buildin = BIT(10),
-        Flag_Property = BIT(11),
-        Flag_Async = BIT(12),
-        Flag_Void = BIT(13),
-        Flag_Symbol = BIT(14),
-        Flag_Callable = BIT(15),
-        Flag_Block = BIT(16)
-    };
-    
-    CVMValue *module;
     CVMValue *root;
     CVMValue *value;
 
-    Kind kind;
     std::string name;
     std::vector<char> data;
     std::vector<CVMValue*> values;
     std::unordered_map<std::string, CVMValue*> variables;
     CVMTypeinfo type;
     size_t refCounter;
-    uint8_t bits, addr;
+    uint8_t bits;
     uint64_t flags;
 
     CVMValue();
@@ -355,7 +319,6 @@ public:
     inline bool IsUInt16() const { return IsInteger() && IsUnsigned() && (Bits() == 16); }
     inline bool IsUInt32() const { return IsInteger() && IsUnsigned() && (Bits() == 32); }
     inline bool IsUInt64() const { return IsInteger() && IsUnsigned() && (Bits() == 64); }
-    inline bool IsReference() const { return (kind == Kind_Reference); }
     inline bool IsVariable() const { return (kind == Kind_Variable); }
     inline bool IsPrimitive() const { return IsString() || IsNumber() || IsPointer() || IsReference() || IsVariable(); }
     inline bool IsObject() const { return (kind == Kind_Object); }
@@ -406,7 +369,6 @@ public:
 
 
     inline std::string AsVariableName() {
-        if (kind == Kind_Reference) return GetFullname();
         return AsSource();
     }
 
@@ -1070,24 +1032,6 @@ public:
 typedef std::vector<CVMValue*> CValueVector;
 
 
-class CVMModule : public CVMValue {
-public:
-    static std::unordered_map<std::string, CVMModule*> modules;
-
-    CVMModuleHeader header;
-
-    CVMModule();
-    CVMModule(CVMValue *ns, const std::string &name, const Kind kind, const uint8_t bits = 64, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>());
-    CVMModule(CVMModule *module);
-    ~CVMModule();
-
-    static CVMModule *CompileModuleFromSource(const std::string &name, const std::string &source);
-    static CVMModule *CompileModuleFromFile(const std::string &name, const std::string &file);
-    static CVMModule *LoadModule(const std::string &name);
-    static bool       SaveModule(const std::string &name, CVMModule *module);
-};
-typedef std::vector<CVMModule*> CModuleVector;
-
 class CVMState {
 public:
     enum {
@@ -1182,9 +1126,14 @@ public:
     }
 };
 
+CVMValue *VMLoadModule(CVMValue *module, const std::string &name);
+CVMValue *VMSaveModule(CVMValue *module, const std::string &name);
+CVMValue *VMAddModule(const std::string &name);
+CVMValue *VMGetModule(const std::string &name);
 bool VMCall(CVMState *state, CVMValue *callable);
 bool VMCall(CVMValue *callable);
 bool VMRunSource(const std::string &source);
 bool VMRunFile(const std::string &file);
 */
+
 #endif

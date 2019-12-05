@@ -185,9 +185,6 @@ BITCOIN_CORE_H = \
   kernel.h \
   kernelrecord.h
 
-if ENABLE_CHECKPOINTS
-  BITCOIN_CORE_H += checkpointsync.h
-endif
 
 
 obj/build.h: FORCE
@@ -242,9 +239,6 @@ libgalaxycash_server_a_SOURCES = \
   kernel.cpp \
   $(BITCOIN_CORE_H)
 
-if ENABLE_CHECKPOINTS
-  libgalaxycash_server_a_SOURCES += checkpointsync.cpp
-endif
 
 if ENABLE_ZMQ
 libgalaxycash_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)

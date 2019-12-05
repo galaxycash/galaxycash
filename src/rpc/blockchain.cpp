@@ -1074,6 +1074,9 @@ static UniValue SoftForkMajorityDesc(int version, CBlockIndex* pindex, const Con
     bool activated = false;
     switch (version) {
     case 1:
+        activated = pindex->nHeight >= consensusParams.BIP16Height;
+        break;
+    case 2:
         activated = pindex->nHeight >= consensusParams.BIP34Height;
         break;
     }
@@ -1139,9 +1142,8 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();
     UniValue softforks(UniValue::VARR);
+    softforks.push_back(SoftForkDesc("bip16", 1, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip34", 2, tip, consensusParams));
-    softforks.push_back(SoftForkDesc("bip66", 3, tip, consensusParams));
-    softforks.push_back(SoftForkDesc("bip65", 4, tip, consensusParams));
     obj.push_back(Pair("softforks", softforks));
 
     obj.push_back(Pair("warnings", GetWarnings("statusbar")));
@@ -1185,6 +1187,7 @@ UniValue getinfo(const JSONRPCRequest& request)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("version", GALAXYCASH_VERSION));
     obj.push_back(Pair("protocol", PROTOCOL_VERSION));
+    obj.push_back(Pair("connectioncount", g_connman->GetNodeCount(CConnman::NumConnections::CONNECTIONS_ALL)));
     obj.push_back(Pair("chain", Params().NetworkIDString()));
     obj.push_back(Pair("blocks", (int)chainActive.Height()));
     obj.push_back(Pair("headers", pindexBestHeader ? pindexBestHeader->nHeight : -1));
@@ -1198,7 +1201,8 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("paytxfee", ValueFromAmount(MIN_TX_FEE)));
     obj.push_back(Pair("mininput", ValueFromAmount(MIN_TXOUT_AMOUNT)));
     obj.push_back(Pair("moneysupply", pindexBestHeader->nMoneySupply));
-    obj.push_back(Pair("testnet", Params().NetworkIDString() == "test"));    
+    obj.push_back(Pair("testnet", Params().NetworkIDString() == "test")); 
+
 
     const CPubKey& pubkey = Params().DevPubKey();
     obj.push_back(Pair("pubkey", HexStr(pubkey.begin(), pubkey.end())));
@@ -1207,9 +1211,8 @@ UniValue getinfo(const JSONRPCRequest& request)
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();
     UniValue softforks(UniValue::VARR);
+    softforks.push_back(SoftForkDesc("bip16", 1, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip34", 2, tip, consensusParams));
-    softforks.push_back(SoftForkDesc("bip66", 3, tip, consensusParams));
-    softforks.push_back(SoftForkDesc("bip65", 4, tip, consensusParams));
     obj.push_back(Pair("softforks", softforks));
 
     obj.push_back(Pair("warnings", GetWarnings("statusbar")));

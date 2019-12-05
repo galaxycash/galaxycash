@@ -49,7 +49,6 @@
 #endif
 #include <warnings.h>
 
-#include <checkpointsync.h>
 
 #include <memory>
 #include <stdint.h>
@@ -1333,12 +1332,6 @@ bool AppInitMain()
                     strLoadError = _("Error initializing block database");
                     break;
                 }
-
-#ifdef ENABLE_CHECKPOINTS
-                // galaxycash: initialize synchronized checkpoint
-                if (!fReindex && !WriteSyncCheckpoint(chainparams.GenesisBlock().GetHash()))
-                    return error("LoadBlockIndex() : failed to init sync checkpoint");
-#endif
 
                 // At this point we're either in reindex or we've loaded a useful
                 // block tree into mapBlockIndex!

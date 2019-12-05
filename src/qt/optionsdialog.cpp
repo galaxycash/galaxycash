@@ -167,10 +167,6 @@ void OptionsDialog::setModel(OptionsModel *_model)
     /* Display */
     connect(ui->lang, SIGNAL(valueChanged()), this, SLOT(showRestartWarning()));
     connect(ui->thirdPartyTxUrls, SIGNAL(textChanged(const QString &)), this, SLOT(showRestartWarning()));
-
-#ifndef ENABLE_CHECKPOINTS
-    ui->checkpointEnforce->setVisible(false);
-#endif
 }
 
 void OptionsDialog::setMapper()

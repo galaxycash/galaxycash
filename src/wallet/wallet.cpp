@@ -2536,19 +2536,19 @@ bool CWallet::SelectCoinsForStaking(const CAmount& nTargetValue, std::set<CInput
             break;
 
         CInputCoin coin(pcoin, i);
-        CAmount n = pcoin->tx->vout[i].nValue;
+        CAmount n = coin.txout.nValue;
         if (n >= nTargetValue)
         {
             // If input value is greater or equal to target then simply insert
             //    it into the current subset and exit
             setCoinsRet.insert(coin);
-            nValueRet += coin.txout.nValue;
+            nValueRet += n;
             break;
         }
         else if (n < nTargetValue + CENT)
         {
             setCoinsRet.insert(coin);
-            nValueRet += coin.txout.nValue;
+            nValueRet += n;
         }
     }
 

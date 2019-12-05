@@ -34,9 +34,6 @@
 /* Copyright year */
 #undef COPYRIGHT_YEAR
 
-/* Define to 1 to enable sync checkpoints */
-#undef ENABLE_CHECKPOINTS
-
 /* Define to 1 to enable wallet functions */
 #undef ENABLE_WALLET
 
