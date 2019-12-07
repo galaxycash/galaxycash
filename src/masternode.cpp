@@ -2121,7 +2121,6 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const s
         if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
             if (pfrom->HasFulfilledRequest("mnget")) {
                 LogPrintf("CMasternodePayments::ProcessMessageMasternodePayments() : mnget - peer already asked me for the list\n");
-                Misbehaving(pfrom->GetId(), 20);
                 return;
             }
         }
@@ -3218,7 +3217,6 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
                     int64_t t = (*i).second;
                     if (GetTime() < t) {
                         LogPrintf("CMasternodeMan::ProcessMessage() : dseg - peer already asked me for the list\n");
-                        Misbehaving(pfrom->GetId(), 34);
                         return;
                     }
                 }
@@ -3294,7 +3292,6 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
 
         if (protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
             LogPrintf("CMasternodeMan::ProcessMessage() : dsee - ignoring outdated Masternode %s protocol version %d < %d\n", vin.prevout.hash.ToString(), protocolVersion, masternodePayments.GetMinMasternodePaymentsProto());
-            Misbehaving(pfrom->GetId(), 1);
             return;
         }
 
@@ -3407,7 +3404,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         if (fAcceptable) {
             if (GetInputAge(vin) < MASTERNODE_MIN_CONFIRMATIONS) {
                 LogPrintf("CMasternodeMan::ProcessMessage() : dsee - Input must have least %d confirmations\n", MASTERNODE_MIN_CONFIRMATIONS);
-                Misbehaving(pfrom->GetId(), 20);
+                Misbehaving(pfrom->GetId(), 1);
                 return;
             }
 
@@ -3480,13 +3477,11 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
 
         if (sigTime > GetAdjustedTime() + 60 * 60) {
             LogPrintf("CMasternodeMan::ProcessMessage() : dseep - Signature rejected, too far into the future %s\n", vin.prevout.hash.ToString());
-            Misbehaving(pfrom->GetId(), 1);
             return;
         }
 
         if (sigTime <= GetAdjustedTime() - 60 * 60) {
             LogPrintf("CMasternodeMan::ProcessMessage() : dseep - Signature rejected, too far into the past %s - %d %d \n", vin.prevout.hash.ToString(), sigTime, GetAdjustedTime());
-            Misbehaving(pfrom->GetId(), 1);
             return;
         }
 
@@ -3852,8 +3847,9 @@ void CMasternodeSync::Process()
                     if (pindexPrev == NULL) return;
 
                     int nMnCount = mnodeman.CountEnabled();
-                    if (pnode->GetRecvVersion() <= OLD_VERSION) g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("dseg", CTxIn()));
                     g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("mnget", nMnCount)); //sync payees
+                    uint256 n = 0;
+                    g_connman->PushMessage(pnode, CNetMsgMaker(pnode->GetRecvVersion()).Make("mnvs", n)); //sync masternode votes
                     RequestedMasternodeAttempt++;
 
                     return;

@@ -26,10 +26,8 @@
 
 // GalaxyCash Scripting engine
 
-/*
 
 typedef std::vector<char> CVMBytecode;
-
 typedef std::vector<char> CScriptData;
 typedef std::vector<CScriptData> CScriptDataArray;
 typedef std::vector<std::string> CStringVector;
@@ -56,7 +54,7 @@ struct CVMTypeinfo {
         Kind_Null = 0,
         Kind_Variable,
         Kind_Pointer,
-        Kind_Function,
+        Kind_Callable,
         Kind_String,
         Kind_Number,
         Kind_Array,
@@ -80,8 +78,9 @@ struct CVMTypeinfo {
         Flag_Async = BIT(12),
         Flag_Void = BIT(13),
         Flag_Symbol = BIT(14),
-        Flag_Callable = BIT(15),
-        Flag_Block = BIT(16)
+        Flag_Function = BIT(15),
+        Flag_Block = BIT(16),
+        Flag_Frame = BIT(17)
     };
 
     uint32_t        version;
@@ -97,7 +96,7 @@ struct CVMTypeinfo {
 
 
     CVMTypeinfo() : super(nullptr), ctor(nullptr), dtor(nullptr) { SetNull(); }
-    CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags) {}
+    CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags), ctor(type->ctor ? new CVMTypeinfo(type->ctor) : nullptr), super(type->dtor ? new CVMTypeinfo(type->dtor) : nullptr) {}
 
     inline void SetNull() {
         version = 1;
@@ -110,7 +109,7 @@ struct CVMTypeinfo {
     }
 
     inline bool IsNull() {
-        return name.empty() && (kind == Kind_Null);
+        return name.empty() && (kind == CVMTypeinfo::Kind_Null);
     }
     
     ADD_SERIALIZE_METHODS;
@@ -149,6 +148,8 @@ struct CVMTypeinfo {
     static CVMTypeinfo &ObjectType();
     static CVMTypeinfo &ArrayType();
     static CVMTypeinfo &FunctionType();
+    static CVMTypeinfo &FrameType();
+    static CVMTypeinfo &BlockType();
     static CVMTypeinfo &ModuleType();
 };
 
@@ -275,8 +276,6 @@ public:
     std::unordered_map<std::string, CVMValue*> variables;
     CVMTypeinfo type;
     size_t refCounter;
-    uint8_t bits;
-    uint64_t flags;
 
     CVMValue();
     CVMValue(CVMValue *root, const CVMTypeinfo &type, const std::string &name, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>());
@@ -292,26 +291,26 @@ public:
 
     virtual void SetNull();
 
-    virtual uint64_t Flags() const { return flags; }
+    virtual uint64_t Flags() const { return type.flags; }
 
     inline bool IsNull() const {
-        if (kind == Kind_Null) return true;
-        else if (kind == Kind_Variable) return (value == nullptr);
-        else if (kind == Kind_Reference) return name.empty();
-        else if (kind == Kind_Pointer) return data.empty();
+        if (type.kind == CVMTypeinfo::Kind_Null) return true;
+        else if (type.kind == CVMTypeinfo::Kind_Variable) return (value == nullptr);
+        else if (type.kind == CVMTypeinfo::Kind_Reference) return name.empty();
+        else if (type.kind == CVMTypeinfo::Kind_Pointer) return data.empty();
         return false;
     }
-    inline bool IsBlock() const { return (flags & Flag_Block)}
-    inline bool IsPointer() const { return (kind == Kind_String); }
-    inline bool IsString() const { return (kind == Kind_String); }
-    inline bool IsSymbol() const { return (kind == Kind_String) && (Flags() & Flag_Symbol); }
-    inline bool IsNumber() const { return (kind == Kind_Number); }
-    inline bool IsBoolean() const { return (kind == Kind_Number) && (Flags() & Flag_Boolean); }
-    inline bool IsBignum() const { return (kind == Kind_Number) && (Flags() & Flag_Bignum); }
-    inline bool IsFloat() const { return (kind == Kind_Number) && (Flags() & Flag_Float); }
-    inline bool IsDouble() const { return (kind == Kind_Number) && (Flags() & Flag_Double); }
-    inline bool IsInteger() const { return (kind == Kind_Number) && (!(Flags() & Flag_Boolean) && !(Flags() & Flag_Float) && !(Flags() & Flag_Double) && !(Flags() & Flag_Bignum))); }
-    inline bool IsUnsigned() const { return (kind == Kind_Number) && (Flags() & Flag_Unsigned); }
+    inline bool IsBlock() const { return (type.type.flags & CVMTypeinfo::Flag_Block)}
+    inline bool IsPointer() const { return (type.kind == CVMTypeinfo::Kind_String); }
+    inline bool IsString() const { return (type.kind == CVMTypeinfo::Kind_String); }
+    inline bool IsSymbol() const { return (type.kind == CVMTypeinfo::Kind_String) && (Flags() & CVMTypeinfo::Flag_Symbol); }
+    inline bool IsNumber() const { return (type.kind == CVMTypeinfo::Kind_Number); }
+    inline bool IsBoolean() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Boolean); }
+    inline bool IsBignum() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Bignum); }
+    inline bool IsFloat() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Float); }
+    inline bool IsDouble() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Double); }
+    inline bool IsInteger() const { return (type.kind == CVMTypeinfo::Kind_Number) && (!(Flags() & CVMTypeinfo::Flag_Boolean) && !(Flags() & CVMTypeinfo::Flag_Float) && !(Flags() & CVMTypeinfo::Flag_Double) && !(Flags() & CVMTypeinfo::Flag_Bignum))); }
+    inline bool IsUnsigned() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Unsigned); }
     inline bool IsInt8() const { return IsInteger() && (Bits() == 8); }
     inline bool IsInt16() const { return IsInteger() && (Bits() == 16); }
     inline bool IsInt32() const { return IsInteger() && (Bits() == 32); }
@@ -320,18 +319,19 @@ public:
     inline bool IsUInt16() const { return IsInteger() && IsUnsigned() && (Bits() == 16); }
     inline bool IsUInt32() const { return IsInteger() && IsUnsigned() && (Bits() == 32); }
     inline bool IsUInt64() const { return IsInteger() && IsUnsigned() && (Bits() == 64); }
-    inline bool IsVariable() const { return (kind == Kind_Variable); }
+    inline bool IsVariable() const { return (type.kind == CVMTypeinfo::Kind_Variable); }
     inline bool IsPrimitive() const { return IsString() || IsNumber() || IsPointer() || IsReference() || IsVariable(); }
-    inline bool IsObject() const { return (kind == Kind_Object); }
-    inline bool IsArray() const { return (kind == Kind_Array); }
-    inline bool IsFunction() const { return (kind == Kind_Function); }
-    inline bool IsCallable() const { return (flags & Flag_Callable); }
+    inline bool IsObject() const { return (type.kind == CVMTypeinfo::Kind_Object); }
+    inline bool IsArray() const { return (type.kind == CVMTypeinfo::Kind_Array); }
+    inline bool IsFunction() const { return (type.kind == CVMTypeinfo::Kind_Callable) && (Flags() & CVMTypeinfo::Flag_Function); }
+    inline bool IsCallable() const { return (type.kind == CVMTypeinfo::Kind_Callable); }
+    inline bool IsModule() const { return (type.kind == CVMTypeinfo::Kind_Module); }
     
 
     inline std::string GetName() const { return name; }
     inline std::string GetFullname() const { return (root) ? (root->GetFullname().empty() ? GetName() : root->GetFullname() + (!GetName().empty() ? "." + GetName() : GetName())) : GetName(); }
 
-    inline bool IsCopable() const { return kind != Kind_Module; }
+    inline bool IsCopable() const { return (type.kind != CVMTypeinfo::Kind_Module); }
 
     inline CVMValue *Grab() { refCounter++; return this;}
     inline CVMValue *Drop() { refCounter--; if (refCounter == 0) { delete this; return nullptr; } return this; }
@@ -341,14 +341,14 @@ public:
 
     inline CVMValue *SetKeyValue(const std::string &name, CVMValue *value) {
         if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
-        variables[name] = new CVMValue(this, name, Kind_Variable, 0, Flag_Property);
+        variables[name] = new CVMValue(this, name, CVMTypeinfo::Kind_Variable, 0, CVMTypeinfo::Flag_Property);
         if (value) variables[name]->Assign(value);
         return variables[name];
     }
 
     inline CVMValue *SetKeyValue2(const std::string &name, CVMValue *value) {
         if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
-        variables[name] = new CVMValue(this, name, Kind_Variable, 0, Flag_Property);
+        variables[name] = new CVMValue(this, name, CVMTypeinfo::Kind_Variable, 0, CVMTypeinfo::Flag_Property);
         if (value) variables[name]->value = value->Grab();
         return variables[name];
     }
@@ -365,7 +365,7 @@ public:
     }
 
     inline size_t Bits() const {
-        return Bytes() * 8;
+        return type.bits;
     }
 
 
@@ -374,23 +374,23 @@ public:
     }
 
     inline bool AsBoolean() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint8_t*) data.data()) > 0;
                         else
                             return *((int8_t*) data.data()) > 0;
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0;
                     else return false;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint16_t*) data.data()) > 0;
                         else
                             return *((int16_t*) data.data()) > 0;
@@ -399,8 +399,8 @@ public:
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint32_t*) data.data()) > 0;
                         else
                             return *((int32_t*) data.data()) > 0;
@@ -409,8 +409,8 @@ public:
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint64_t*) data.data()) > 0;
                         else
                             return *((int64_t*) data.data()) > 0;
@@ -421,31 +421,31 @@ public:
                 default: return false;
             }
         }
-        else if (kind == Kind_Pointer)
+        else if (type.kind == CVMTypeinfo::Kind_Pointer)
             return ((void *) data.data()) != nullptr;
-        else if (kind == Kind_Reference)
+        else if (type.kind == CVMTypeinfo::Kind_Variable)
             return (value != nullptr);
         return false;
     }
 
     inline int8_t AsInt8() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int8_t) *((uint8_t*) data.data());
                         else
                             return *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int8_t) *((uint16_t*) data.data());
                         else
                             return (int8_t) *((int16_t*) data.data());
@@ -454,8 +454,8 @@ public:
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int8_t) *((uint32_t*) data.data());
                         else
                             return (int8_t) *((int32_t*) data.data());
@@ -464,8 +464,8 @@ public:
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int8_t) *((uint64_t*) data.data());
                         else
                             return (int8_t) *((int64_t*) data.data());
@@ -480,54 +480,54 @@ public:
     }   
     
     inline int16_t AsInt16() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int16_t) *((uint8_t*) data.data());
                         else
                             return (int16_t) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int16_t) *((uint16_t*) data.data());
                         else
                             return *((int16_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int16_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int16_t) *((uint32_t*) data.data());
                         else
                             return (int16_t) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int16_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int16_t) *((uint64_t*) data.data());
                         else
                             return (int16_t) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (int16_t) *((double*) data.data());
                     }
                     else return 0;
@@ -541,54 +541,54 @@ public:
     
     inline int32_t AsInt32() const { 
 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int32_t) *((uint8_t*) data.data());
                         else
                             return (int32_t) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int32_t) *((uint16_t*) data.data());
                         else
                             return (int32_t) *((int16_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int32_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int32_t) *((uint32_t*) data.data());
                         else
                             return *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int32_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int32_t) *((uint64_t*) data.data());
                         else
                             return (int32_t) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (int32_t) *((double*) data.data());
                     }
                     else return 0;
@@ -601,54 +601,54 @@ public:
     } 
         
     inline int32_t AsUInt32() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint32_t) *((uint8_t*) data.data());
                         else
                             return (uint32_t) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint32_t) *((uint16_t*) data.data());
                         else
                             return (uint32_t) *((int16_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (uint32_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint32_t*) data.data());
                         else
                             return (uint32_t) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (uint32_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint32_t) *((uint64_t*) data.data());
                         else
                             return (uint32_t) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (uint32_t) *((double*) data.data());
                     }
                     else return 0;
@@ -661,54 +661,54 @@ public:
     } 
 
     inline int64_t AsInt64() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int64_t) *((uint8_t*) data.data());
                         else
                             return (int64_t) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int64_t) *((uint16_t*) data.data());
                         else
                             return (int64_t) *((int16_t*) data.data());
                     }
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int64_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int64_t) *((uint32_t*) data.data());
                         else
                             return (int64_t) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (int64_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (int64_t) *((uint64_t*) data.data());
                         else
                             return *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (int64_t) *((double*) data.data());
                     }
                     else return 0;
@@ -721,54 +721,54 @@ public:
     }    
         
     inline uint64_t AsUInt64() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint64_t) *((uint8_t*) data.data());
                         else
                             return (uint64_t) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1 : 0;
                     else return 0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint64_t) *((uint16_t*) data.data());
                         else
                             return (uint64_t) *((int16_t*) data.data());
                     }
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (uint64_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (uint64_t) *((uint32_t*) data.data());
                         else
                             return (uint64_t) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (uint64_t) *((float*) data.data());
                     }
                     else return 0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return *((uint64_t*) data.data());
                         else
                             return (uint64_t) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (uint64_t) *((double*) data.data());
                     }
                     else return 0;
@@ -781,54 +781,54 @@ public:
     }    
 
     inline float AsFloat() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (float) *((uint8_t*) data.data());
                         else
                             return (float) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1.0f : 0.0f;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1.0f : 0.0f;
                     else return 0.0f;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (float) *((uint16_t*) data.data());
                         else
                             return (float) *((int16_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return *((float*) data.data());
                     }
                     else return 0.0f;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (float) *((uint32_t*) data.data());
                         else
                             return (float) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return *((float*) data.data());
                     }
                     else return 0.0f;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (float) *((uint64_t*) data.data());
                         else
                             return (float) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return (float) *((double*) data.data());
                     }
                     else return 0.0f;
@@ -842,54 +842,54 @@ public:
      
     
     inline float AsDouble() const { 
-        if (kind == Kind_Number) {
-            switch (bits)
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            switch (type.bits)
             {
                 case 8: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (double) *((uint8_t*) data.data());
                         else
                             return (double) *((int8_t*) data.data());
                     } 
-                    else if (flags & Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1.0 : 0.0;
+                    else if (type.flags & CVMTypeinfo::Flag_Boolean) return *((uint8_t*) data.data()) > 0 ? 1.0 : 0.0;
                     else return 0.0;
                 } 
                 break;
                 case 16: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (double) *((uint16_t*) data.data());
                         else
                             return (double) *((int16_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (double) *((float*) data.data());
                     }
                     else return 0.0;
                 } 
                 break;
                 case 32: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (double) *((uint32_t*) data.data());
                         else
                             return (double) *((int32_t*) data.data());
                     } 
-                    else if (flags & Flag_Float) {
+                    else if (type.flags & CVMTypeinfo::Flag_Float) {
                         return (double) *((float*) data.data());
                     }
                     else return 0.0;
                 } 
                 break;
                 case 64: { 
-                    if (flags & Flag_Integer) {
-                        if (flags & Flag_Unsigned)
+                    if (type.flags & CVMTypeinfo::Flag_Integer) {
+                        if (type.flags & CVMTypeinfo::Flag_Unsigned)
                             return (double) *((uint64_t*) data.data());
                         else
                             return (double) *((int64_t*) data.data());
                     } 
-                    else if (flags & Flag_Double) {
+                    else if (type.flags & CVMTypeinfo::Flag_Double) {
                         return *((double*) data.data());
                     }
                     else return 0.0;
@@ -903,46 +903,49 @@ public:
          
     inline uint256 AsBignum() const { 
         uint256 ret;
-        if (kind == Kind_Number) {
-            if (flags & Flag_Bignum) {
+        if (type.kind == CVMTypeinfo::Kind_Number) {
+            if (type.flags & CVMTypeinfo::Flag_Bignum) {
                 return *((uint256*) data.data());
             } else 
                 return uint256(AsUInt64());
-        } else if (kind == Kind_String) return uint256S(AsString());
+        } else if (type.kind == CVMTypeinfo::Kind_String) return uint256S(AsString());
         return ret;
     }  
 
     inline std::string AsString() const {
         std::string ret;
-        if (kind == Kind_String) {
+        if (type.kind == CVMTypeinfo::Kind_String) {
             return std::string(data.begin(), data.end());
         }
-        else if (kind == Kind_Number) {
-            if (flags & Flag_Bignum) return ((uint256*) data.data())->GetHex();
+        else if (type.kind == CVMTypeinfo::Kind_Number) {
+            if (type.flags & CVMTypeinfo::Flag_Bignum) return ((uint256*) data.data())->GetHex();
 
             std::ostringstream ss(ret);
             ss.imbue(std::locale::classic());
 
-            switch (bits)
+            switch (type.bits)
             {
-                case 8: {if (flags & Flag_Boolean) ss << (*((uint8_t*) data.data()) > 0 ? "true" : "false"); else if (flags & Flag_Unsigned) ss << *((uint8_t*)data.data()); else ss << *((int8_t*)data.data()); }break;
-                case 16: {if (flags & Flag_Float) ss << *((float*)data.data()); else if (flags & Flag_Unsigned) ss << *((uint16_t*)data.data()); else ss << *((int16_t*)data.data()); }break;
-                case 32: {if (flags & Flag_Float) ss << *((float*)data.data()); else if (flags & Flag_Unsigned) ss << *((uint32_t*)data.data()); else ss << *((int32_t*)data.data()); }break;
-                case 64: {if (flags & Flag_Double) ss << *((double*)data.data()); else if (flags & Flag_Unsigned) ss << *((uint64_t*)data.data()); else ss << *((int64_t*)data.data()); }break;
+                case 8: {if (type.flags & CVMTypeinfo::Flag_Boolean) ss << (*((uint8_t*) data.data()) > 0 ? "true" : "false"); else if (type.flags & CVMTypeinfo::Flag_Unsigned) ss << *((uint8_t*)data.data()); else ss << *((int8_t*)data.data()); }break;
+                case 16: {if (type.flags & CVMTypeinfo::Flag_Float) ss << *((float*)data.data()); else if (type.flags & CVMTypeinfo::Flag_Unsigned) ss << *((uint16_t*)data.data()); else ss << *((int16_t*)data.data()); }break;
+                case 32: {if (type.flags & CVMTypeinfo::Flag_Float) ss << *((float*)data.data()); else if (type.flags & CVMTypeinfo::Flag_Unsigned) ss << *((uint32_t*)data.data()); else ss << *((int32_t*)data.data()); }break;
+                case 64: {if (type.flags & CVMTypeinfo::Flag_Double) ss << *((double*)data.data()); else if (type.flags & CVMTypeinfo::Flag_Unsigned) ss << *((uint64_t*)data.data()); else ss << *((int64_t*)data.data()); }break;
                 default: ss << 0;
             }
         }
-        else if (kind == Kind_Pointer) {
+        else if (type.kind == CVMTypeinfo::Kind_Pointer) {
             std::ostringstream ss(ret);
             ss.imbue(std::locale::classic());
             ss << (void *) data.data();
         }
-        else if (kind == Kind_Reference) {
+        else if (type.kind == CVMTypeinfo::Kind_Variable) {
             return GetFullname();
         }
-        else if (kind == Kind_Object) return "[object Object]";
-        else if (kind == Kind_Array) return "[object Array]";
-        else if (kind == Kind_Function) return "[object Function]";
+        else if (type.kind == CVMTypeinfo::Kind_Object) return "[object Object]";
+        else if (type.kind == CVMTypeinfo::Kind_Array) return "[object Array]";
+        else if (type.kind == CVMTypeinfo::Kind_Callable && type.flags & CVMTypeinfo::Flag_Function) return "[object Callable]";
+        else if (type.kind == CVMTypeinfo::Kind_Callable && type.flags & CVMTypeinfo::Flag_Block) return "[object Block]";
+        else if (type.kind == CVMTypeinfo::Kind_Callable && type.flags & CVMTypeinfo::Flag_Frame) return "[object Frame]";
+        else if (type.kind == CVMTypeinfo::Kind_Callable) return "[object Callable]";
         return ret;
     }
 
@@ -957,50 +960,41 @@ public:
     }
 
     inline std::string AsSource() {
-        switch (kind)
+        switch (type.kind)
         {
-            case Kind_Null: return "null";
-            case Kind_String: return std::string("new ") + (flags & Flag_Symbol ? "Symbol" : "String") + "(\"" + std::string(data.begin(), data.end()) + "\")";
-            case Kind_Number:
+            case CVMTypeinfo::Kind_Null: return "null";
+            case CVMTypeinfo::Kind_String: return std::string("new ") + (type.flags & CVMTypeinfo::Flag_Symbol ? "Symbol" : "String") + "(\"" + std::string(data.begin(), data.end()) + "\")";
+            case CVMTypeinfo::Kind_Number:
             {
-                if (flags & Flag_Boolean) {
+                if (type.flags & CVMTypeinfo::Flag_Boolean) {
                     return AsBoolean() ? "true" : "false";
                 }
-                else if (flags & Flag_Integer) {
-                    return (flags & Flag_Unsigned) ? std::string("new Number(") + std::to_string(AsUInt64()) + ")" : "new Number(" + std::to_string(AsInt64()) + ")";
+                else if (type.flags & CVMTypeinfo::Flag_Integer) {
+                    return (type.flags & CVMTypeinfo::Flag_Unsigned) ? std::string("new Number(") + std::to_string(AsUInt64()) + ")" : "new Number(" + std::to_string(AsInt64()) + ")";
                 }
-                else if (flags & Flag_Float) {
+                else if (type.flags & CVMTypeinfo::Flag_Float) {
                     return std::string("new Number(") + std::to_string(AsFloat()) + ")";
                 }
-                else if (flags & Flag_Double) {
+                else if (type.flags & CVMTypeinfo::Flag_Double) {
                     return std::string("new Number(") + std::to_string(AsDouble()) + ")";
                 }
-                else if (flags & Flag_Bignum) {
+                else if (type.flags & CVMTypeinfo::Flag_Bignum) {
                     return std::string("new Number(\"")+AsBignum().GetHex()+"\")";
                 }
             } break;
-            case Kind_Variable: 
+            case CVMTypeinfo::Kind_Variable: 
             {
-                if (ns && ns->IsFunction() && !(flags & Flag_Property)) {
-                    return std::string("var ") + GetName() + " = " + (value ? value->AsSource() : "null");
-                } else if (ns && ns->IsArray()) {
-                    return value ? value->AsSource() : "null";
-                } else 
-                    return GetName() + ": " + (value ? value->AsSource() : "null");
+                return GetName() + ": " + (value ? value->AsSource() : "null");
             }
             break;
-            case Kind_Reference:
-            {
-                return GetFullname();
-            } break;
-            case Kind_Array:
+            case CVMTypeinfo::Kind_Array:
             {
                 std::string ret = "[";
                 for (std::vector<CVMValue*>::iterator it = values.begin(); it != values.end(); it++) ret += (*it)->AsSource();
                 ret += "]";
                 return ret;
             } break;
-            case Kind_Object:
+            case CVMTypeinfo::Kind_Object:
             {
                 std::string ret = "{";
                 for (std::unordered_map<std::string, CVMValue*>::iterator it = std::begin(variables); it != std::end(variables); it++) {
@@ -1010,23 +1004,40 @@ public:
                 ret += "}";
                 return ret;
             } break;
-            case Kind_Function:
+            case CVMTypeinfo::Kind_Callable:
             {
-                std::string ret = "function() {";
-                if (flags & Flag_Native) ret += "[native code]";
-                else {
-                    std::vector<char>::const_iterator it = data.begin();
-                    while (it < data.end()) ret += OpcodeAsString(it);
+                if (type.flags & CVMTypeinfo::Flag_Function) {
+                    std::string ret = "function()";
+                    if (type.flags & CVMTypeinfo::Flag_Native) ret += " { [native code] } ";
+                    else {
+                        std::vector<char>::const_iterator it = data.begin();
+                        while (it < data.end()) ret += OpcodeAsString(it);
+                    }
+                    return ret;
+                } else if (type.flags & CVMTypeinfo::Flag_Frame) {
+                    if (type.flags & CVMTypeinfo::Flag_Native) ret += " [native code] ";
+                    else {
+                        std::vector<char>::const_iterator it = data.begin();
+                        while (it < data.end()) ret += OpcodeAsString(it);
+                    }
+                    return ret;
+                } else if (type.flags & CVMTypeinfo::Flag_Block) {
+                    ret += " { "
+                    if (type.flags & CVMTypeinfo::Flag_Native) ret += " [native code] ";
+                    else {
+                        std::vector<char>::const_iterator it = data.begin();
+                        while (it < data.end()) ret += OpcodeAsString(it);
+                    }
+                    ret += " } ";
+                    return ret;
                 }
-                ret += "}";
-                return ret;
             } break;
         }
         return "";
     }
 
     inline size_t Length() const {
-        if (kind == Kind_String) return data.size() - 1;
+        if (type.kind == CVMTypeinfo::Kind_String) return data.size() - 1;
         else  return Bytes();
     }             
 };
@@ -1045,8 +1056,8 @@ public:
         size_t refCount;
         size_t pc;
         Frame *caller;
-        CVMValue *module;
-        CVMValue *ns, *rtn, *ths, *arguments;
+        CVMValue *frameValue;
+        CVMValue *returnValue, *thisValue, *arguments;
         CVMValue *callable;
         std::stack<CVMValue*> scope;
 
@@ -1054,22 +1065,21 @@ public:
             MakeFrame(nullptr, 0, nullptr, nullptr, nullptr);
         }
         Frame(Frame *caller, Frame *frame) : refCount(1) {
-            MakeFrame(caller, frame ? frame->pc : 0, frame ? frame->ths : nullptr, frame ? frame->callable : nullptr, frame ? frame->arguments : nullptr);
+            MakeFrame(caller, frame ? frame->pc : 0, frame ? frame->thisValue : nullptr, frame ? frame->callable : nullptr, frame ? frame->arguments : nullptr);
         }
-        Frame(Frame *caller, const size_t pc, CVMValue *ths, CVMValue *callable) : refCount(1)  {
-            MakeFrame(caller, pc, ths, callable, nullptr);
+        Frame(Frame *caller, const size_t pc, CVMValue *ths, CVMValue *callable, CVMValue *arguments) : refCount(1)  {
+            MakeFrame(caller, pc, ths, callable, arguments);
         }
         ~Frame() {
-            if (module) module->Drop();
-            if (ns) ns->Drop();
             if (caller) caller->Drop();
-            if (rtn) rtn->Drop();
-            if (ths) ths->Drop();
+            if (returnValue) returnValue->Drop();
+            if (thisValue) thisValue->Drop();
             if (arguments) arguments->Drop();
             if (callable) callable->Drop();
             while (scope.size()) {
                 scope.top()->Drop(); scope.pop();
             }
+            if (frameValue) frameValue->Drop();
         }
 
         Frame *Grab() {
@@ -1083,18 +1093,38 @@ public:
             return this;
         }
 
-        void MakeFrame(Frame *caller, const size_t pc, CVMValue *ths, CVMValue *callable, CVMValue *args) {
+
+        void PushScope(CVMValue *value) {
+            scope.push(value->Grab());
+        }
+
+        CVMValue *TopScope() {
+            return scope.top();
+        }
+
+        CVMValue *PopScope() {
+            assert(scope.size() > 1);
+            CVMValue *value = scope.top()->Drop(); scope.pop();
+            return value;
+        }
+
+        std::string RandName() const {
+            char name[17];
+            memset(name, 0, sizeof(name));
+            GetRandBytes((unsigned char *) name, sizeof(name) - 1);
+            return name;
+        }
+
+        void MakeFrame(Frame *caller, const size_t pc, CVMValue *thisValue, CVMValue *callable, CVMValue *args) {
             assert(callable != nullptr);
-            this->module = callable->module->Grab();
-            this->ns = CVMValue::MakeBlock(callable);
-            this->scope.push(this->ns->Grab());
+            this->frameValue = new CVMValue(callable->Grab(), CVMTypeinfo::FrameType(), RandName(), CVMTypeinfo::Flag_Frame);
+            this->scope.push(this->frameValue->Grab());
             this->caller = caller ? caller->Grab() : nullptr;
             this->callable = callable->Grab();
             this->pc = pc;
-            this->ths = this->ns->SetKeyValue("__gs_this__", ths)->Grab();
-            this->rtn = this->ns->SetKeyValue("__gs_return__", CVMValue())->Grab();
-            this->arguments = this->ns->SetKeyValue("__gs_arguments__", args ? args : new CVMValue(this->ns, CVMTypeinfo::ArrayType(), "__gs_arguments__", CVMValue::Flag_Buildin))->Grab();
-            if (args) this->arguments->Assign(args);
+            this->thisValue = this->frameValue->SetKeyValue("this", thisValue ? thisValue : callable);
+            this->returnValue = nullptr;
+            this->arguments = this->frameValue->SetKeyValue("arguments", args);
         }
     };
 
@@ -1135,6 +1165,6 @@ bool VMCall(CVMState *state, CVMValue *callable);
 bool VMCall(CVMValue *callable);
 bool VMRunSource(const std::string &source);
 bool VMRunFile(const std::string &file);
-*/
+
 
 #endif

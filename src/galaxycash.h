@@ -812,6 +812,7 @@ public:
     mutable std::vector<char> data;
 
     CGalaxyCashValue() : refs(1) { SetNull(); }
+    CGalaxyCashValue(const CGalaxyCashValue &value) : refs(1), type(value.type), bits(value.bits), flags(value.flags), data(value.data) {}
     virtual ~CGalaxyCashValue() {}
 
     CGalaxyCashValue *Grab() {
@@ -1020,7 +1021,17 @@ public:
     const double &ToDouble() const {
         assert(data.size() >= 8);
         return *((double *) ToPtr());
+    }
+
+    void SetBool(bool value) {
+        if (data.size() != 1) data.resize(1);
+        data[0] = value ? 1 : 0;
+        type = CGalaxyCashValue_Boolean;
     } 
+    bool ToBool() const {
+        if (type != CGalaxyCashValue_Boolean) return false;
+        return (ToUInt8() > 0);
+    }
 };
 
 class CGalaxyCashDB : public CDBWrapper
