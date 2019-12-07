@@ -830,9 +830,14 @@ UniValue createmasternodebroadcast(const JSONRPCRequest& request)
                     CDataStream ssMnb(SER_NETWORK, PROTOCOL_VERSION);
                     ssMnb << mnb;
                     statusObj.push_back(Pair("hex", HexStr(ssMnb.begin(), ssMnb.end())));
+
+                    mnodeman.UpdateMasternodeList(mnb);
+                    mnb.Relay();
                 } else {
                     statusObj.push_back(Pair("error_message", errorMessage));
                 }
+
+
                 break;
             }
         }
@@ -875,6 +880,9 @@ UniValue createmasternodebroadcast(const JSONRPCRequest& request)
                 CDataStream ssMnb(SER_NETWORK, PROTOCOL_VERSION);
                 ssMnb << mnb;
                 statusObj.push_back(Pair("hex", HexStr(ssMnb.begin(), ssMnb.end())));
+
+                mnodeman.UpdateMasternodeList(mnb);
+                mnb.Relay();
             } else {
                 failed++;
                 statusObj.push_back(Pair("error_message", errorMessage));
