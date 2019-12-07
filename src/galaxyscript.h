@@ -96,7 +96,7 @@ struct CVMTypeinfo {
 
 
     CVMTypeinfo() : super(nullptr), ctor(nullptr), dtor(nullptr) { SetNull(); }
-    CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags), ctor(type->ctor ? new CVMTypeinfo(type->ctor) : nullptr), super(type->dtor ? new CVMTypeinfo(type->dtor) : nullptr) {}
+    CVMTypeinfo(CVMTypeinfo *type) : version(type->version), name(type->name), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags), ctor(type->ctor ? new CVMTypeinfo(type->ctor) : nullptr), dtor(type->dtor ? new CVMTypeinfo(type->dtor) : nullptr) {}
 
     inline void SetNull() {
         version = 1;
@@ -105,6 +105,8 @@ struct CVMTypeinfo {
         flags = 0;
         bits = 0;
         if (super) delete super;
+        if (ctor) delete ctor;
+        if (dtor) delete dtor;
         super = ctor = dtor = nullptr;
     }
 
@@ -118,13 +120,60 @@ struct CVMTypeinfo {
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(this->version);
-        READWRITE(super);
+        if (ser_action.ForRead()) {
+            int8_t ff = 0;
+            s >> ff;
+            if (ff) {
+                super = new CVMTypeinfo();
+                READWRITE(*super);
+            } else {
+                if (super) delete super;
+                super = nullptr;
+            }
+        } else {
+            if (super) {
+                s << int8_t(1);
+                s << *super;
+            } else {
+                s << int8_t(0);
+            }
+        }
         READWRITE(name);
         READWRITE(*(int8_t*)&kind);
         READWRITE(flags);
         READWRITE(bits);
-        READWRITE(ctor);
-        READWIRTE(dtor);
+        if (ser_action.ForRead()) {
+            int8_t ff = 0;
+            s >> ff;
+            if (ff) {
+                ctor = new CVMTypeinfo();
+                READWRITE(*ctor);
+            } else {
+                if (ctor) delete ctor;
+                ctor = nullptr;
+            }
+            s >> ff;
+            if (ff) {
+                dtor = new CVMTypeinfo();
+                READWRITE(*dtor);
+            } else {
+                if (dtor) delete dtor;
+                dtor = nullptr;
+            }
+        } else {
+            if (ctor) {
+                s << int8_t(1);
+                s << *ctor;
+            } else {
+                s << int8_t(0);
+            }
+            if (dtor) {
+                s << int8_t(1);
+                s << *dtor;
+            } else {
+                s << int8_t(0);
+            }
+        }
     }
 
     static CVMTypeinfo &UndefinedType();
@@ -151,6 +200,8 @@ struct CVMTypeinfo {
     static CVMTypeinfo &FrameType();
     static CVMTypeinfo &BlockType();
     static CVMTypeinfo &ModuleType();
+    static CVMTypeinfo &VariableType();
+    static CVMTypeinfo &PropertyType();
 };
 
 struct CVMModuleHeader {
@@ -278,7 +329,7 @@ public:
     size_t refCounter;
 
     CVMValue();
-    CVMValue(CVMValue *root, const CVMTypeinfo &type, const std::string &name, const uint64_t flags = 0, const std::vector<char> &data = std::vector<char>());
+    CVMValue(CVMValue *root, const CVMTypeinfo &type, const std::string &name, const std::vector<char> &data = std::vector<char>());
     CVMValue(CVMValue *value);
     virtual ~CVMValue();
 
@@ -295,12 +346,11 @@ public:
 
     inline bool IsNull() const {
         if (type.kind == CVMTypeinfo::Kind_Null) return true;
-        else if (type.kind == CVMTypeinfo::Kind_Variable) return (value == nullptr);
-        else if (type.kind == CVMTypeinfo::Kind_Reference) return name.empty();
+        else if (type.kind == CVMTypeinfo::Kind_Variable) return name.empty() || (value == nullptr);
         else if (type.kind == CVMTypeinfo::Kind_Pointer) return data.empty();
         return false;
     }
-    inline bool IsBlock() const { return (type.type.flags & CVMTypeinfo::Flag_Block)}
+
     inline bool IsPointer() const { return (type.kind == CVMTypeinfo::Kind_String); }
     inline bool IsString() const { return (type.kind == CVMTypeinfo::Kind_String); }
     inline bool IsSymbol() const { return (type.kind == CVMTypeinfo::Kind_String) && (Flags() & CVMTypeinfo::Flag_Symbol); }
@@ -309,7 +359,7 @@ public:
     inline bool IsBignum() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Bignum); }
     inline bool IsFloat() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Float); }
     inline bool IsDouble() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Double); }
-    inline bool IsInteger() const { return (type.kind == CVMTypeinfo::Kind_Number) && (!(Flags() & CVMTypeinfo::Flag_Boolean) && !(Flags() & CVMTypeinfo::Flag_Float) && !(Flags() & CVMTypeinfo::Flag_Double) && !(Flags() & CVMTypeinfo::Flag_Bignum))); }
+    inline bool IsInteger() const { return (type.kind == CVMTypeinfo::Kind_Number) && (!(Flags() & CVMTypeinfo::Flag_Boolean) && !(Flags() & CVMTypeinfo::Flag_Float) && !(Flags() & CVMTypeinfo::Flag_Double) && !(Flags() & CVMTypeinfo::Flag_Bignum)); }
     inline bool IsUnsigned() const { return (type.kind == CVMTypeinfo::Kind_Number) && (Flags() & CVMTypeinfo::Flag_Unsigned); }
     inline bool IsInt8() const { return IsInteger() && (Bits() == 8); }
     inline bool IsInt16() const { return IsInteger() && (Bits() == 16); }
@@ -320,10 +370,13 @@ public:
     inline bool IsUInt32() const { return IsInteger() && IsUnsigned() && (Bits() == 32); }
     inline bool IsUInt64() const { return IsInteger() && IsUnsigned() && (Bits() == 64); }
     inline bool IsVariable() const { return (type.kind == CVMTypeinfo::Kind_Variable); }
-    inline bool IsPrimitive() const { return IsString() || IsNumber() || IsPointer() || IsReference() || IsVariable(); }
+    inline bool IsProperty() const { return (type.kind == CVMTypeinfo::Kind_Variable) && (type.flags & CVMTypeinfo::Flag_Property); }
+    inline bool IsPrimitive() const { return IsString() || IsNumber() || IsPointer() || IsVariable(); }
     inline bool IsObject() const { return (type.kind == CVMTypeinfo::Kind_Object); }
     inline bool IsArray() const { return (type.kind == CVMTypeinfo::Kind_Array); }
     inline bool IsFunction() const { return (type.kind == CVMTypeinfo::Kind_Callable) && (Flags() & CVMTypeinfo::Flag_Function); }
+    inline bool IsBlock() const { return (type.kind == CVMTypeinfo::Kind_Callable) && (Flags() & CVMTypeinfo::Flag_Block); }
+    inline bool IsFrame() const { return (type.kind == CVMTypeinfo::Kind_Callable) && (Flags() & CVMTypeinfo::Flag_Frame); }
     inline bool IsCallable() const { return (type.kind == CVMTypeinfo::Kind_Callable); }
     inline bool IsModule() const { return (type.kind == CVMTypeinfo::Kind_Module); }
     
@@ -341,14 +394,14 @@ public:
 
     inline CVMValue *SetKeyValue(const std::string &name, CVMValue *value) {
         if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
-        variables[name] = new CVMValue(this, name, CVMTypeinfo::Kind_Variable, 0, CVMTypeinfo::Flag_Property);
+        variables[name] = new CVMValue(this, CVMTypeinfo::PropertyType(), name);
         if (value) variables[name]->Assign(value);
         return variables[name];
     }
 
     inline CVMValue *SetKeyValue2(const std::string &name, CVMValue *value) {
         if (variables.count(name) && variables[name] != nullptr) { if (value) {variables[name]->Assign(value);} else {variables[name]->SetNull();} return variables[name]; }
-        variables[name] = new CVMValue(this, name, CVMTypeinfo::Kind_Variable, 0, CVMTypeinfo::Flag_Property);
+        variables[name] = new CVMValue(this, CVMTypeinfo::PropertyType(), name);
         if (value) variables[name]->value = value->Grab();
         return variables[name];
     }
@@ -1015,6 +1068,7 @@ public:
                     }
                     return ret;
                 } else if (type.flags & CVMTypeinfo::Flag_Frame) {
+                    std::string ret = "";
                     if (type.flags & CVMTypeinfo::Flag_Native) ret += " [native code] ";
                     else {
                         std::vector<char>::const_iterator it = data.begin();
@@ -1022,7 +1076,7 @@ public:
                     }
                     return ret;
                 } else if (type.flags & CVMTypeinfo::Flag_Block) {
-                    ret += " { "
+                    std::string ret = " { ";
                     if (type.flags & CVMTypeinfo::Flag_Native) ret += " [native code] ";
                     else {
                         std::vector<char>::const_iterator it = data.begin();
@@ -1031,6 +1085,7 @@ public:
                     ret += " } ";
                     return ret;
                 }
+                return " [object Callable] ";
             } break;
         }
         return "";
@@ -1117,7 +1172,7 @@ public:
 
         void MakeFrame(Frame *caller, const size_t pc, CVMValue *thisValue, CVMValue *callable, CVMValue *args) {
             assert(callable != nullptr);
-            this->frameValue = new CVMValue(callable->Grab(), CVMTypeinfo::FrameType(), RandName(), CVMTypeinfo::Flag_Frame);
+            this->frameValue = new CVMValue(callable->Grab(), CVMTypeinfo::FrameType(), RandName());
             this->scope.push(this->frameValue->Grab());
             this->caller = caller ? caller->Grab() : nullptr;
             this->callable = callable->Grab();
