@@ -2869,7 +2869,8 @@ bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& 
  */
 static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, bool fOldClient, CValidationState& state, const CChainParams& params, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
-    assert(pindexPrev != nullptr);
+    if (!pindexPrev)
+        return (block.GetHash() == Params().GenesisBlock().GetHash());
     const int nHeight = pindexPrev->nHeight + 1;
 
     // Check against checkpoints
@@ -3376,7 +3377,9 @@ bool GalaxyCashContextualBlockChecks(const CBlock& block, CValidationState& stat
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     AssertLockHeld(cs_main);
-    assert(pindexPrev && pindexPrev == chainActive.Tip());
+    if (!pindexPrev && pindexPrev != chainActive.Tip()) {
+        return (block.GetHash() == chainActive.Genesis()->GetBlockHash());
+    }
     CCoinsViewCache viewNew(pcoinsTip.get());
     CBlockIndex indexDummy(block);
     indexDummy.pprev = pindexPrev;

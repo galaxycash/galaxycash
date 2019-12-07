@@ -157,15 +157,15 @@ public:
         // This is fine at runtime as we'll fall back to using them as a oneshot if they dont support the
         // service bits we want, but we should get them updated to support all service bits wanted by any
         // release ASAP to avoid it where possible.
-        vSeeds.emplace_back("galaxy-hub.online");
-        vSeeds.emplace_back("seed.galaxy-hub.online");
         vSeeds.emplace_back("47.254.145.101");
         vSeeds.emplace_back("178.143.10.120");
         vSeeds.emplace_back("185.239.238.235");
         vSeeds.emplace_back("31.47.184.15");
         vSeeds.emplace_back("203.208.98.192");
         vSeeds.emplace_back("79.138.52.171");
-
+        vSeeds.emplace_back("galaxy-hub.online");
+        vSeeds.emplace_back("seed.galaxy-hub.online");
+        
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 38); // galaxycash: addresses begin with 'G'
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 99);
         base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 89);

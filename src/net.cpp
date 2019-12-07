@@ -1571,6 +1571,10 @@ void CConnman::ThreadDNSAddressSeed()
                     addr.nTime = GetTime() - 3 * nOneDay - GetRand(4 * nOneDay); // use a random age between 3 and 7 days old
                     vAdd.push_back(addr);
                     found++;
+                    CAddress addr53 = CAddress(CService(ip, 53), requiredServiceBits); // 56 port
+                    addr53.nTime = GetTime() - 3 * nOneDay - GetRand(4 * nOneDay); // use a random age between 3 and 7 days old
+                    vAdd.push_back(addr53);
+                    found++;
                 }
                 addrman.Add(vAdd, resolveSource);
             } else {

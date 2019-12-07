@@ -13,6 +13,7 @@
 #include <net.h>
 #include <pubkey.h>
 
+
 #include <map>
 #include <memory>
 #include <string>
@@ -26,6 +27,9 @@
 #include <serialize.h>
 
 #include <galaxyscript.h>
+
+#include <uint256.h>
+#include <arith_uint256.h>
 
 struct CGalaxyCashOperand {
     uint8_t type;
@@ -803,7 +807,7 @@ enum {
 class CGalaxyCashValue {
 public:
     mutable uint32_t          refs;
-    mutable uint8_t           type;
+    mutable uint8_t           type, bits;
     mutable uint32_t          flags;
     mutable std::vector<char> data;
 
@@ -833,6 +837,7 @@ public:
 
     void SetNull() {
         type = 0;
+        bits = 0;
         flags = 0;
         data.clear();
     }
@@ -853,11 +858,47 @@ public:
     }
 
     bool IsInt8() const {
-        return (type == CGalaxyCashValue_Integer);
+        return (type == CGalaxyCashValue_Integer) && (bits == 8);
     }
 
     bool IsUInt8() const {
         return IsInt8() && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsInt16() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 16);
+    }
+
+    bool IsUInt16() const {
+        return IsInt16() && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsInt32() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 32);
+    }
+
+    bool IsUInt32() const {
+        return IsInt32() && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsInt64() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 64);
+    }
+
+    bool IsUInt64() const {
+        return IsInt64() && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsUInt160() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 160) && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsUInt256() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 160) && (flags & CGalaxyCashValue_Unsigned);
+    }
+
+    bool IsUInt512() const {
+        return (type == CGalaxyCashValue_Integer) && (bits == 512) && (flags & CGalaxyCashValue_Unsigned);
     }
 
     void *ToPtr() {
@@ -876,11 +917,11 @@ public:
         assert(data.size() >= 1);
         return *((int8_t *) ToPtr());
     }
-    uint8_t &UToInt8() {
+    uint8_t &ToUInt8() {
         assert(data.size() >= 1);
         return *((uint8_t *) ToPtr());
     }
-    const uint8_t &UToInt8() const {
+    const uint8_t &ToUInt8() const {
         assert(data.size() >= 1);
         return *((uint8_t *) ToPtr());
     }
@@ -892,11 +933,11 @@ public:
         assert(data.size() >= 2);
         return *((int16_t *) ToPtr());
     }
-    uint16_t &UToInt16() {
+    uint16_t &ToUInt16() {
         assert(data.size() >= 2);
         return *((uint16_t *) ToPtr());
     }
-    const uint16_t &UToInt16() const {
+    const uint16_t &ToUInt16() const {
         assert(data.size() >= 2);
         return *((uint16_t *) ToPtr());
     }   
@@ -908,14 +949,78 @@ public:
         assert(data.size() >= 4);
         return *((int32_t *) ToPtr());
     }
-    uint32_t &UToInt32() {
+    uint32_t &ToUInt32() {
         assert(data.size() >= 4);
         return *((uint32_t *) ToPtr());
     }
-    const uint32_t &UToInt32() const {
+    const uint32_t &ToUInt32() const {
         assert(data.size() >= 4);
         return *((uint32_t *) ToPtr());
-    }    
+    } 
+    int64_t &ToInt64() {
+        assert(data.size() >= 8);
+        return *((int64_t *) ToPtr());
+    }
+    const int64_t &ToInt64() const {
+        assert(data.size() >= 8);
+        return *((int64_t *) ToPtr());
+    }
+    uint64_t &ToUInt64() {
+        assert(data.size() >= 8);
+        return *((uint64_t *) ToPtr());
+    }
+    const uint64_t &ToUInt64() const {
+        assert(data.size() >= 8);
+        return *((uint64_t *) ToPtr());
+    }   
+    uint160 &ToUInt160() {
+        assert(data.size() >= sizeof(uint160));
+        return *((uint160 *) ToPtr());
+    }
+    const uint160 &ToUInt160() const {
+        assert(data.size() >= sizeof(uint160));
+        return *((const uint160 *) ToPtr());
+    } 
+    uint256 &ToUInt256() {
+        assert(data.size() >= sizeof(uint256));
+        return *((uint256 *) ToPtr());
+    }
+    const uint256 &ToUInt256() const {
+        assert(data.size() >= sizeof(uint256));
+        return *((const uint256 *) ToPtr());
+    }
+    arith_uint256 &ToArithUInt256() {
+        assert(data.size() >= sizeof(arith_uint256));
+        return *((arith_uint256 *) ToPtr());
+    }
+    const arith_uint256 &ToArithUInt256() const {
+        assert(data.size() >= sizeof(arith_uint256));
+        return *((const arith_uint256 *) ToPtr());
+    }
+    uint512 &ToUInt512() {
+        assert(data.size() >= sizeof(uint512));
+        return *((uint512 *) ToPtr());
+    }
+    const uint512 &ToUInt512() const {
+        assert(data.size() >= sizeof(uint512));
+        return *((const uint512 *) ToPtr());
+    } 
+    float &ToFloat() {
+        assert(data.size() >= 4);
+        return *((float *) ToPtr());
+    }
+    const float &ToFloat() const {
+        assert(data.size() >= 4);
+        return *((float *) ToPtr());
+    }
+    double &ToDouble() {
+        assert(data.size() >= 8);
+        return *((double *) ToPtr());
+    }
+    const double &ToDouble() const {
+        assert(data.size() >= 8);
+        return *((double *) ToPtr());
+    } 
 };
 
 class CGalaxyCashDB : public CDBWrapper

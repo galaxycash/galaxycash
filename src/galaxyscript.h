@@ -86,6 +86,7 @@ struct CVMTypeinfo {
 
     uint32_t        version;
     std::string     name;
+    std::string     module;
     CVMTypeinfo *   super;
     Kind            kind;
     uint8_t         bits; // For numbers
