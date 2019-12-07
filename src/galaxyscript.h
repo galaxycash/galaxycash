@@ -214,7 +214,7 @@ struct CVMModuleHeader {
     std::vector<CVMTypeinfo> variables;
     std::vector<CVMTypeinfo> functions;
     
-    CModuleHeader() { SetNull(); }
+    CVMModuleHeader() { SetNull(); }
 
     inline void SetNull() {
         version = 1;
