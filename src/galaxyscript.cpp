@@ -13,6 +13,272 @@
 #include <util.h>
 
 #define BIT(x) (1 << x)
+
+std::string VMRandName()
+{
+    char name[17];
+    memset(name, 0, sizeof(name));
+    GetRandBytes((unsigned char*)name, sizeof(name) - 1);
+    return name;
+}
+
+void VMNullConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::NullType();
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::NullType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "null";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_Null;
+        type.flags = CVMTypeinfo::Flag_Native;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_null_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMNullConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMUndefinedConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::UndefinedType();
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::UndefinedType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "undefined";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_Undefined;
+        type.flags = CVMTypeinfo::Flag_Native;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_undefined_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMUndefinedConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMVoidConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::VoidType();
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::VoidType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "void";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_Null;
+        type.flags = CVMTypeinfo::Flag_Native | CVMTypeinfo::Flag_Void;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_void_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMVoidConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMStringConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::StringType();
+        if (frame.arguments->Length() > 0) value->Assign(frame.arguments->GetArrayElement(0));
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::StringType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "String";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_String;
+        type.flags = CVMTypeinfo::Flag_Native;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_string_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMStringConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMSymbolConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::SymbolType();
+        if (frame.arguments->Length() > 0) value->Assign(frame.arguments->GetArrayElement(0));
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::SymbolType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "Symbol";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_String;
+        type.flags = CVMTypeinfo::Flag_Native | CVMTypeinfo::Flag_Symbol;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_symbol_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMSymbolConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMArrayConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::ArrayType();
+        if (frame.arguments->Length() > 0) value->Assign(frame.arguments);
+    }
+}
+
+CVMTypeinfo& CVMTypeinfo::ArrayType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "Array";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_Array;
+        type.flags = CVMTypeinfo::Flag_Native;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_array_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMArrayConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
+void VMObjectConstructor(CVMState* state)
+{
+    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+
+    CVMState::Frame& frame = state->frame.top();
+    CVMValue* value = state->Pop();
+    if (value) {
+        value->SetNull();
+        value->type = CVMTypeinfo::ObjectType();
+        if (frame.arguments->Length() > 0) value->Assign(frame.arguments);
+    }
+}
+
+
+CVMTypeinfo& CVMTypeinfo::ObjectType()
+{
+    static CVMTypeinfo type;
+    static bool init = false;
+    if (!init) {
+        type.name = "Object";
+        type.module = "std";
+        type.kind = CVMTypeinfo::Kind_Object;
+        type.flags = CVMTypeinfo::Flag_Native;
+
+        static CVMTypeinfo ctor;
+        ctor.name = "__gs_object_constructor__";
+        ctor.module = "std";
+        ctor.kind = CVMTypeinfo::Kind_Callable;
+        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
+        ctor.addr = (int64_t)(void*)&VMObjectConstructor;
+
+        type.ctor = &ctor;
+
+        init = true;
+    }
+    return type;
+}
+
 /*
 CVMValue::CVMValue() : refCounter(1) {
     SetNull();

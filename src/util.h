@@ -116,6 +116,7 @@ enum LogFlags : uint32_t {
     STAKE = (1 << 24),
     SPORK = (1 << 25),
     WALLET = (1 << 26),
+    SCRIPT = (1 << 27),
     ALERT = (1 << 30),
     ALL = ~(uint32_t)0,
 };
