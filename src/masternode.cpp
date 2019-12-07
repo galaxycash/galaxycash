@@ -60,9 +60,8 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
 
 static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256 *h = nullptr)
 {
-    bool fAllowSlow = true;
     uint256 hashBlock;
-    bool fOk = ::GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, fAllowSlow, NULL);
+    bool fOk = ::GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true, NULL);
     if (h) *h = hashBlock;
     return fOk;
 }
@@ -70,14 +69,14 @@ static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256 *h
 
 static bool IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey)
 {
-    CScript payee2;
-    payee2 = GetScriptForDestination(pubkey.GetID());
+    CScript payee2 = GetScriptForDestination(pubkey.GetID());
 
     CTransactionRef txVin;
     if (GetTransaction2(vin.prevout.hash, txVin)) {
-        CTxOut out = txVin->vout[vin.prevout.n];
-        if (out.nValue == MASTERNODE_COLLATERAL) {
-            if (out.scriptPubKey == payee2) return true;
+        for (CTxOut out : txVin->vout) {
+            if (out.nValue == MASTERNODE_COLLATERAL) {
+                if (out.scriptPubKey == payee2) return true;
+            }
         }
     }
 
