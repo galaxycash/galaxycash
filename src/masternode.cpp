@@ -70,12 +70,14 @@ static bool GetTransaction2(const uint256& hash, CTransactionRef& tx, uint256 *h
 
 static bool IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey)
 {
-    CTxDestination payee;
+    CScript payee2;
+    payee2 = GetScriptForDestination(pubkey.GetID());
+
     CTransactionRef txVin;
     if (GetTransaction2(vin.prevout.hash, txVin)) {
         CTxOut out = txVin->vout[vin.prevout.n];
         if (out.nValue == MASTERNODE_COLLATERAL) {
-            return (CScriptID(out.scriptPubKey) == CScriptID(GetScriptForRawPubKey(pubkey)));
+            if (out.scriptPubKey == payee2) return true;
         }
     }
 
