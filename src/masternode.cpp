@@ -3829,6 +3829,7 @@ void CMasternodeSync::Process()
             if (RequestedMasternodeAssets == MASTERNODE_SYNC_MNW) {
                 if (gArgs.GetBoolArg("-masternode", false) || lastMasternodeWinner > 0 && lastMasternodeWinner < GetTime() - MASTERNODE_SYNC_TIMEOUT * 2 && RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD) { //hasn't received a new item in the last five seconds, so we'll move to the
                     GetNextAsset();
+                    activeMasternode.ManageStatus();
                     return;
                 }
 
@@ -3839,6 +3840,7 @@ void CMasternodeSync::Process()
                     if (lastMasternodeWinner == 0 &&
                         (RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD * 3 || GetTime() - nAssetSyncStarted > MASTERNODE_SYNC_TIMEOUT * 5)) {
                         GetNextAsset();
+                        activeMasternode.ManageStatus();
                         return;
                     }
 
