@@ -292,7 +292,7 @@ CSym *CCTopScope() {
 static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 bool CCLoadSourceFile(const fs::path &path, std::vector<wchar_t> &buffer) {
-    std::string spath = converter.to_bytes(path.c_str());
+    std::string spath = path.c_str();
     std::ifstream file(spath, std::ios_base::in);
     if (!file.is_open())
         return false;
