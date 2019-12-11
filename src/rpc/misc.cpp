@@ -33,6 +33,10 @@
 
 #include <univalue.h>
 
+#include "galaxycash.h"
+#include "galaxyscript.h"
+#include "galaxyscript-compiler.h"
+
 #ifdef ENABLE_WALLET
 class DescribeAddressVisitor : public boost::static_visitor<UniValue>
 {
@@ -579,6 +583,7 @@ UniValue echo(const JSONRPCRequest& request)
 
 static UniValue getinfo_deprecated(const JSONRPCRequest& request)
 {
+    if (request.fHelp || request.params.size() < 1)
     throw JSONRPCError(RPC_METHOD_NOT_FOUND,
         "getinfo\n"
         "\nThis call was removed in version 0.8. Use the appropriate fields from:\n"
@@ -587,6 +592,21 @@ static UniValue getinfo_deprecated(const JSONRPCRequest& request)
         "- getwalletinfo: balance, keypoololdest, keypoolsize, paytxfee, unlocked_until, walletversion\n"
         "\ngalaxycash-cli has the option -getinfo to collect and format these in the old format."
     );
+}
+
+static UniValue runscript(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 1)
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND,
+            "run \"file\"\n"
+        );
+
+    std::string path = request.params[0].get_str();
+    if (!CCCompileFile(path)) {
+        return std::string("Failed to compile file ") + path;
+    }
+    
+    return NullUniValue;
 }
 
 static const CRPCCommand commands[] =
@@ -599,11 +619,13 @@ static const CRPCCommand commands[] =
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
 
+    /* script */
+    { "script",             "run",                    &runscript,              {"file"}},
+
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
-    { "hidden",             "echojson",               &echo,                   {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
-    { "hidden",             "getinfo",                &getinfo_deprecated,     {}},
+    { "hidden",             "echojson",               &echo,                   {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}}
 };
 
 void RegisterMiscRPCCommands(CRPCTable &t)

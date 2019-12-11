@@ -506,6 +506,8 @@ if TARGET_WINDOWS
   qt_galaxycash_qt_SOURCES += $(BITCOIN_RC)
 endif
 qt_galaxycash_qt_LDADD = qt/libgalaxycashqt.a $(LIBBITCOIN_SERVER)
+qt_galaxycash_qt_LDADD += $(LIBGALAXYCASH) 
+
 if ENABLE_WALLET
 qt_galaxycash_qt_LDADD += $(LIBBITCOIN_WALLET)
 endif

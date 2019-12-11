@@ -21,9 +21,6 @@
 #include <utilstrencodings.h>
 #include <vector>
 
-
-#include <galaxyscript-parser.h>
-
 // GalaxyCash Scripting engine
 
 
@@ -283,7 +280,7 @@ struct CVMTypeinfo {
     static CVMTypeinfo& PropertyType();
 };
 
-struct CVMModuleHeader {
+struct CVMModule {
     uint32_t version;
     uint32_t time;
     std::string name;
@@ -293,7 +290,9 @@ struct CVMModuleHeader {
     std::vector<CVMTypeinfo> variables;
     std::vector<CVMTypeinfo> functions;
 
-    CVMModuleHeader() { SetNull(); }
+    CVMModule() { SetNull(); }
+    CVMModule(const CVMModule &mod) : version(mod.version), time(mod.time), name(mod.name), flags(mod.flags), types(mod.types), variables(mod.variables), functions(mod.functions) {    
+    }
 
     inline void SetNull()
     {
