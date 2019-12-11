@@ -1200,7 +1200,8 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("size_on_disk", CalculateCurrentUsage()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(MIN_TX_FEE)));
     obj.push_back(Pair("mininput", ValueFromAmount(MIN_TXOUT_AMOUNT)));
-    obj.push_back(Pair("moneysupply", pindexBestHeader->nMoneySupply));
+    obj.push_back(Pair("moneysupply", ValueFromAmount(pindexBestHeader->nMoneySupply)));
+    obj.push_back(Pair("maxmoneysupply", ValueFromAmount(MAX_MONEY)));
     obj.push_back(Pair("testnet", Params().NetworkIDString() == "test")); 
 
 
