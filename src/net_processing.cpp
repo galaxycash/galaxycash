@@ -1113,7 +1113,48 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *txinfo.tx));
                     push = true;
                 }
+            } 
+            
+            if (!push && inv.type == MSG_SPORK) {
+                if (mapSporks.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapSporks[inv.hash];
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, ss));
+                        push = true;
+                }
             }
+            
+            if (!push && inv.type == MSG_MASTERNODE_WINNER) {
+                    if (masternodePayments.mapMasternodePayeeVotes.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << masternodePayments.mapMasternodePayeeVotes[inv.hash];
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODE_WINNER, ss));
+                        push = true;
+                    }
+            }
+            
+            if (!push && inv.type == MSG_MASTERNODE_ANNOUNCE) {
+                if (mnodeman.mapSeenMasternodeBroadcast.count(inv.hash)) {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    ss.reserve(1000);
+                    ss << mnodeman.mapSeenMasternodeBroadcast[inv.hash];
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODE_ANNOUNCE, ss));
+                    push = true;
+                }
+             }
+             
+             if (!push && inv.type == MSG_MASTERNODE_PING) {
+                if (mnodeman.mapSeenMasternodePing.count(inv.hash)) {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    ss.reserve(1000);
+                    ss << mnodeman.mapSeenMasternodePing[inv.hash];
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODE_PING, ss));
+                    push = true;
+                }
+            }
+
             if (!push) {
                 vNotFound.push_back(inv);
             }
