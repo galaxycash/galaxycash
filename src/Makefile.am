@@ -432,7 +432,6 @@ libgalaxycash_a_SOURCES =
 libgalaxycash_a_SOURCES += \
   galaxycash.cpp \
   galaxyscript-compiler.cpp \
-  galaxyscript-parser.cpp \
   galaxyscript.cpp \
   $(BITCOIN_CORE_H)
 

@@ -824,8 +824,10 @@ static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 bool CCLoadSourceFile(const fs::path &path, std::string &buffer) {
     FILE *file = fsbridge::fopen(path, "rb");
     if (!file) return false;
-    while (feof(file) != EOF) {
-        buffer += (char) fgetc(file);
+    while (true) {
+        int c = fgetc(file);
+        if (c == EOF) break;
+        buffer += (char) c;
     }
     fclose(file);
     return true;
