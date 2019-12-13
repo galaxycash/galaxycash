@@ -83,17 +83,19 @@ static bool IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey)
     return false;
 }
 /// Set the private/public key values, returns true if successful
-static bool GetKeysFromSecret(std::string strSecret, CKey& keyRet, CPubKey& pubkeyRet)
+static bool GetKeysFromSecret(const std::string& strSecret, CKey& keyRet, CPubKey& pubkeyRet)
 {
     CBitcoinSecret vchSecret;
 
-    if (!vchSecret.SetString(strSecret)) return false;
+    if(!vchSecret.SetString(strSecret)) return false;
 
     keyRet = vchSecret.GetKey();
     pubkeyRet = keyRet.GetPubKey();
 
     return true;
 }
+
+
 /// Set the private/public key values, returns true if successful
 static bool SetKey(std::string strSecret, std::string& errorMessage, CKey& key, CPubKey& pubkey)
 {
@@ -1397,8 +1399,8 @@ bool CActiveMasternode::CreateBroadcast(std::string strService, std::string strK
         return false;
     }
 
-    if (!SetKey(strKeyMasternode, errorMessage, keyMasternode, pubKeyMasternode)) {
-        errorMessage = strprintf("Can't find keys for masternode %s - %s", strService, errorMessage);
+    if (!GetKeysFromSecret(strKeyMasternode, keyMasternode, pubKeyMasternode)) {
+        errorMessage = strprintf("Can't find keys for masternode %s", strService);
         LogPrintf("CActiveMasternode::CreateBroadcast() - %s\n", errorMessage);
         return false;
     }
@@ -1416,7 +1418,7 @@ bool CActiveMasternode::CreateBroadcast(std::string strService, std::string strK
         return false;
 
     std::vector<CAddress> vAddr;
-    vAddr.push_back(CAddress(service, (ServiceFlags)(NODE_NETWORK | NODE_MASTERNODE)));
+    vAddr.push_back(CAddress(service, (ServiceFlags)(NODE_NETWORK)));
     g_connman->AddNewAddresses(vAddr, CAddress(CService("127.0.0.1"), (ServiceFlags)(NODE_NETWORK)), 2 * 60 * 60);
 
     return CreateBroadcast(vin, CService(strService), keyCollateralAddress, pubKeyCollateralAddress, keyMasternode, pubKeyMasternode, errorMessage, mnb);
