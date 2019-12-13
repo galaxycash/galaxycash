@@ -219,7 +219,7 @@ static const uint32_t g_operators_flags[] = {
 
 
 static const std::string g_punctuations[] = {
-    ".", ",", ";", ":", "[", "]", "{", "}"
+    ".", ",", ";", ":", "[", "]", "{", "}", "(", ")"
 };
 
 static const uint32_t g_punctuations_flags[] = {
@@ -309,6 +309,7 @@ bool IsWhitespace(int c) {
 bool IsEndline(int c) {
     if (c == '\n') return true;
     else if (c == '\r') return true;
+    else if (c == ';') return true;
     return false;
 }
 
@@ -447,9 +448,51 @@ bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
     return false;
 }
 
-bool MatchStr(const char *source, const char *value, int len) {
+bool MatchStr(const char *source, const char *value) {
     if (!source || *source == '\0' || !value || *value == '\0') return false;
-    return strncmp(source, value, len) == 0;
+    while (source && value) {
+        if (*value == '\0') return true;
+        if (*source == '\0') return false;
+        if (*source != *value) return false;
+        else {
+            source++;
+            value++;
+        }
+    }
+    return false;
+}
+
+bool IsKeyword(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+    for (size_t i = 0; i < sizeof(g_keywords) / sizeof(g_keywords[0]); i++) {
+        if (MatchStr(source, g_keywords[i].c_str())) {
+            if (value) *value = g_keywords[i];
+            if (flags) *flags |= g_keywords_flags[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsOperator(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+    for (size_t i = 0; i < sizeof(g_operators) / sizeof(g_operators[0]); i++) {
+        if (MatchStr(source, g_operators[i].c_str())) {
+            if (value) *value = g_operators[i];
+            if (flags) *flags |= g_operators_flags[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsPunctuation(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+    for (size_t i = 0; i < sizeof(g_punctuations) / sizeof(g_punctuations[0]); i++) {
+        if (MatchStr(source, g_punctuations[i].c_str())) {
+            if (value) *value = g_punctuations[i];
+            if (flags) *flags |= g_punctuations_flags[i];
+            return true;
+        }
+    }
+    return false;
 }
 
 bool CLexer::ReadToken(CTok &tok) {
@@ -465,7 +508,7 @@ bool CLexer::ReadToken(CTok &tok) {
 
     if (Eof()) return false;
 
-    if (LastChar() == '\n' || LastChar() == '\r') {
+    if (IsEndline(LastChar())) {
         cur.file = file;
         cur.line = line; line++;
         cur.pos = pos; pos++;
@@ -493,7 +536,7 @@ bool CLexer::ReadToken(CTok &tok) {
     const char *p = buffer.c_str() + pos;
 
     for (size_t i = 0; i < sizeof(g_operators) / sizeof(g_operators[0]); i++) {
-        if (MatchStr(p, g_operators[i].c_str(), g_operators[i].length())) {
+        if (MatchStr(p, g_operators[i].c_str())) {
             cur.file = file;
             cur.line = line;
             cur.pos = pos;
@@ -507,7 +550,7 @@ bool CLexer::ReadToken(CTok &tok) {
     }
 
     for (size_t i = 0; i < sizeof(g_punctuations) / sizeof(g_punctuations[0]); i++) {
-        if (MatchStr(p, g_punctuations[i].c_str(), g_punctuations[i].length())) {
+        if (MatchStr(p, g_punctuations[i].c_str())) {
             cur.file = file;
             cur.line = line;
             cur.pos = pos;
@@ -521,7 +564,7 @@ bool CLexer::ReadToken(CTok &tok) {
     }
 
     for (size_t i = 0; i < sizeof(g_keywords) / sizeof(g_keywords[0]); i++) {
-        if (MatchStr(p, g_keywords[i].c_str(), g_keywords[i].length())) {
+        if (MatchStr(p, g_keywords[i].c_str())) {
             cur.file = file;
             cur.line = line;
             cur.pos = pos;
@@ -536,17 +579,19 @@ bool CLexer::ReadToken(CTok &tok) {
 
     cur.type = CTok::Word;
     cur.flags = 0;
-    while (!Eof() && *p && !IsWhitespace(*p) && !IsEndline(*p)) {
-        cur.value += *p; p++;
-        pos++;
-    }
-    if (cur.value.empty()) {
-        cur.SetNull();
-        return false;
+
+    while (!Eof() && p && !IsWhitespace(*p) && !IsEndline(*p) && *p !='\'' && *p != '"') {
+        if (IsPunctuation(p)) break;
+        if (IsOperator(p)) break;
+        cur.value += *p; p++; pos++;
     }
 
+    if (!cur.value.empty()) {
+        tok = cur;
+        return true;
+    }
 
-    return true;
+    return false;
 }
 
 #define MAGIC_VALUE (uint32_t)('VAL\0')
