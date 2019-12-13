@@ -884,10 +884,11 @@ bool CCCompileBuffer(const std::string &file, const std::string &code) {
     CLexer lex(file, code);
     if (lex.Eof()) return false;
 
-    CTok tok;
+    CTok tok, prv;
     while (lex.ReadToken(tok)) {
-        if (tok.type == CTok::EndOfline) LogPrintf("Tok End of line\n");
+        if (tok.type == CTok::EndOfline && prv.type != tok.type) LogPrintf("Tok End of line\n");
         else LogPrintf("Tok %s\n", tok.value.c_str());
+        prv = tok;
     }
     LogPrintf("Finished\n");
 
