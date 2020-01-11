@@ -1946,7 +1946,7 @@ public:
         return &type;
     }
 
-    inline bool CheckTypeId(const uint8_t id)
+    inline bool CheckTypeId(const uint8_t id) const
     {
         const CJSType* type = GetType();
         while (type) {
@@ -1956,7 +1956,7 @@ public:
         return false;
     }
 
-    inline bool CheckTypeFlags(const uint8_t flags)
+    inline bool CheckTypeFlags(const uint8_t flags) const
     {
         const CJSType* type = GetType();
         while (type) {
