@@ -184,4 +184,19 @@ public:
     virtual CJSValue* CodeGen();
 };
 
+void CCInitModule();
+void CCEmitInt8(int8_t val);
+void CCEmitInt16(int16_t val);
+void CCEmitInt32(int32_t val);
+void CCEmitInt64(int64_t val);
+void CCEmitUInt8(uint8_t val);
+void CCEmitUInt16(uint16_t val);
+void CCEmitUInt32(uint32_t val);
+void CCEmitAddr(size_t val);
+void CCEmitUInt64(uint64_t val);
+void CCEmitFloat(float val);
+void CCEmitDouble(double val);
+void CCEmitCompactSize(uint64_t nSize);
+void CCEmitBytes(std::vector<char>& bytes);
+void CCEmitString(const std::string& val);
 #endif

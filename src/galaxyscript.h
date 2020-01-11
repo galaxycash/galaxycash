@@ -2306,6 +2306,14 @@ public:
 class CJSModule : public CJSObject
 {
 public:
+    enum {
+        ModuleDefault,
+        ModuleNative,
+        ModuleExecutable
+    };
+
+    uint8_t moduleType;
+
     CJSModule();
     CJSModule(const std::string& name);
     CJSModule(CJSValue* value);

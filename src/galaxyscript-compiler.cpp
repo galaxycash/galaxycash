@@ -735,8 +735,50 @@ struct CError {
     bool IsError() const { return code > 0; }
 };
 
-static std::vector<char> code;
+struct CLabel {
+    std::string name;
+    size_t offset;
+};
 
+static std::vector<char> code;
+static std::vector<CLabel> labels;
+
+std::string CCGenName()
+{
+    char name[17];
+    GetRandBytes((unsigned char*)name, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+    return name;
+}
+
+void CCGenLabel(const std::string& name, CLabel& label)
+{
+    label.name = name.empty() ? CCGenName() : name;
+    label.offset = code.size();
+    labels.push_back(label);
+}
+
+
+static uint8_t modType = CModule::ModuleDefault;
+static uint32_t modMajorVersion = 1;
+static uint32_t modMinorVersion = 0;
+static uint32_t modBuildVersion = 0;
+static std::string modName;
+static CLabel modFunctions, modVariables;
+
+void CCInitModule()
+{
+    code.clear();
+    CCEmitString(modName);
+    CCEmitUInt8(modType);
+    CCEmitUInt32(modMajorVersion);
+    CCEmitUInt32(modMinorVersion);
+    CCEmitUInt32(modBuildVersion);
+    CCGenLabel("__functions__", modFunctions);
+    CCEmitUInt32(0);
+    CCGenLabel("__variables__", modVariables);
+    CCEmitUInt32(0);
+}
 
 void CCEmitInt8(int8_t val)
 {
