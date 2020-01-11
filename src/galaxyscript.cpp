@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <chainparams.h>
 #include <galaxycash.h>
+#include <galaxyscript.h>
 #include <hash.h>
 #include <memory>
 #include <pow.h>
@@ -22,262 +23,313 @@ std::string VMRandName()
     return name;
 }
 
-void VMNullConstructor(CVMState* state)
-{
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+static CVMState g_defaultVMState;
+static CVMState *g_currentVMState = &g_defaultVMState;
 
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::NullType();
+static void VMSetState(CVMState *state) {
+    if (state) {
+        g_currentVMState = state;
+    } else {
+        g_currentVMState = &g_defaultVMState;
     }
 }
 
-CVMTypeinfo& CVMTypeinfo::NullType()
+
+CVMTypeinfo::CVMTypeinfo() : super(nullptr), ctor(nullptr), dtor(nullptr) { SetNull(); }
+CVMTypeinfo::CVMTypeinfo(CVMTypeinfo* type) : version(type->version), module(type->module), index(type->index), super(type->super ? new CVMTypeinfo(type->super) : nullptr), kind(type->kind), flags(type->flags), ctor(type->ctor ? new CVMTypeinfo(type->ctor) : nullptr), dtor(type->dtor ? new CVMTypeinfo(type->dtor) : nullptr)
 {
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "null";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_Null;
-        type.flags = CVMTypeinfo::Flag_Native;
+}
+CVMTypeinfo::~CVMTypeinfo()
+{
+    if (super) delete super;
+    if (ctor) delete ctor;
+    if (dtor) delete dtor;
+}
+void CVMTypeinfo::SetNull()
+{
+    version = 1;
+    module.clear();
+    kind = Kind_Null;
+    flags = 0;
+    bits = 0;
+    if (super) delete super;
+    if (ctor) delete ctor;
+    if (dtor) delete dtor;
+    super = ctor = dtor = nullptr;
+}
 
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_null_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMNullConstructor;
 
-        type.ctor = &ctor;
+void CVMDeclare::Rename(const std::string &name, CVMModule *module) {
+    if (this->base) this->base->Rename(name, module);
 
-        init = true;
+    if (this->module && this->module->name == name)
+        this->module = module;
+}
+
+CVMValue *CVMDeclare::Exec(CVMValue *state) {
+    if (!state) state = g_currentVMState;
+
+    CVMValue *value = nullptr;
+    switch (this->as) {
+        case DeclareProperty: 
+        {
+            CVMValue *object = state->Pop();
+            if (object) {
+                if (object->GetKeyValue(this->name)) {
+                    value = object->GetKeyValue(this->name);
+                    if (this->base) 
+                        value->Assign(this->base->Exec(state));
+                    if (this->type)
+                        value->Assign(new CVMValue(object, *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+                } else 
+                    value = object->SetKeyValue(this->name, this->base ? this->base->Exec(state) : new CVMValue(object, *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+            }
+        } break;
+        case DeclareVar: 
+        {
+            CVMValue *object = state->functions.empty() ? state->GetGlobal() : state->functions.top();
+            if (object) {
+                if (object->GetKeyValue(this->name)) {
+                    value = object->GetKeyValue(this->name);
+                    if (this->base) 
+                        value->Assign(this->base->Exec(state));
+                    if (this->type)
+                        value->Assign(new CVMValue(object, *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+                } else 
+                    value = object->SetKeyValue(this->name, this->base ? this->base->Exec(state) : new CVMValue(object, *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+            }
+        } break;
+        case DeclareConst: 
+        {
+            CVMValue *object = state->functions.empty() ? state->GetGlobal() : state->functions.top();
+            if (object) {
+                if (object->GetKeyValue(this->name)) {
+                    value = object->GetKeyValue(this->name);
+                } else 
+                    value = object->SetKeyValue(this->name, this->base ? this->base->Exec(state) : new CVMValue(object, *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+            }
+        } break;
+        case DeclareScope:
+        default:
+        {
+            if (state->GetScope()->GetKeyValue(this->name)) {
+                value = state->GetScope()->GetKeyValue(this->name);
+                if (this->base) 
+                    value->Assign(this->base->Exec(state));
+                if (this->type)
+                    value->Assign(new CVMValue(state->GetScope(), *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+            } else 
+                value = state->GetScope()->SetKeyValue(this->name, this->base ? this->base->Exec(state) : new CVMValue(state->GetScope(), *this->type, this->name, this->data ? *this->data : std::vector<char>()));
+        }  break;
+    }
+
+    return value;
+}
+
+CVMDeclare *VMDeclareFromValue(CVMModule *module, CVMValue *value) {
+    CVMDeclare *declare = module->DeclareVariable(value->name);
+    declare->base = value->root ? VMDeclareFromValue(value->root->module, value->root) : nullptr;
+    declare->name = value->name;
+    declare->type = value->type.module->GetType(value->type.name);
+    declare->data = value->data.empty() ? nullptr : module->DeclareData(value->data);
+    declare->as = value->type.IsProperty() ? CVMDeclare::DeclareProperty : CVMDeclare::DeclareVar;
+    return declare;
+}
+
+
+CVMModule::CVMModule() {}
+CVMModule::CVMModule(const CVMModule &module) : name(module.name) {
+    for (size_t i = 0; i < module.types.size(); i++) {
+        types.push_back(CVMTypeinfo(&module.types[i]));
+    }
+    for (size_t i = 0; i < module.symbols.size(); i++) {
+        symbols.push_back(module.symbols[i]);
+    }
+}
+CVMModule::~CVMModule() {}
+
+bool CVMModule::Link() {
+    return true;
+}
+
+bool CVMModule::Rename(const std::string &name) {
+    std::string oldName = this->name; this->name = name;
+    for (size_t i = 0; i < types.size(); i++) {
+        if (types[i].module && types[i].module->name == oldName) types[i].module = this;
+    }
+    for (size_t i = 0; i < symbols.size(); i++) {
+        symbols[i].Rename(oldName, this);
+    }
+    return Link();
+}
+
+CVMTypeinfo *CVMModule::DeclareType(const std::string &name) {
+    for (size_t i = 0; i < types.size(); i++) {
+        if (types[i].name == name) return &types[i];
+    }
+
+    CVMTypeinfo type;
+    type.name = name;
+    type.index = types.size();
+    type.module = this;
+    types.push_back(type);
+    return &types[types.size() - 1];
+}
+
+bool CVMModule::ExistsType(const std::string &name) const {
+    for (size_t i = 0; i < types.size(); i++) {
+        if (types[i].name == name) return true;
+    }
+    return false;
+}
+
+bool CVMModule::GetType(const std::string &name) const {
+    for (size_t i = 0; i < types.size(); i++) {
+        if (types[i].name == name) return &types[i];
+    }
+    return nullptr;
+}
+
+CVMDeclare *CVMModule::DeclareVariable(CVMDeclare *base, CVMTypeinfo *type, const std::string &name, const uint8_t as = CVMDeclare::DeclareVar) {
+    if (as != CVMDeclare::DeclareProperty) {
+        for (size_t i = 0; i < symbols.size(); i++) {
+            if (symbols[i].name == name) return &symbols[i];
+        }
+    }
+
+    CVMDeclare sym;
+    sym.base = base;
+    sym.type = type;
+    sym.name = name;
+    sym.as = as;
+    sym.index = symbols.size();
+    sym.module = this;
+    symbols.push_back(sym);
+    return &symbols[symbols.size() - 1];
+}
+
+bool CVMModule::ExistsVariable(const std::string &name) const {
+    for (size_t i = 0; i < symbols.size(); i++) {
+        if (symbols[i].name == name) return true;
+    }
+    return false;
+}
+
+CVMDeclare *CVMModule::GetVariable(const std::string &name) const {
+    for (size_t i = 0; i < symbols.size(); i++) {
+        if (symbols[i].name == name) return &symbols[i];
+    }
+    return nullptr;
+}
+
+CVMModule g_stdmodule;
+CVMTypeinfo *undefinedType = nullptr;
+CVMValue *undefinedValue = nullptr;
+CVMTypeinfo *nullType = nullptr;
+CVMValue *nullValue = nullptr;
+CVMTypeinfo *voidType = nullptr;
+CVMValue *voidValue = nullptr;
+CVMTypeinfo *trueType = nullptr;
+CVMValue *trueValue = nullptr;
+CVMTypeinfo *falseType = nullptr;
+CVMValue *falseValue = nullptr;
+
+void VMInit() {
+    undefinedType = g_stdmodule.DeclareType("undefined");
+    undefinedValue = g_stdmodule.DeclareVariable(nullptr, undefinedType, "undefined", DeclareConst);
+
+    nullType = g_stdmodule.DeclareType("null");
+    nullValue = g_stdmodule.DeclareVariable(nullptr, nullType, "null", DeclareConst);
+
+    voidType = g_stdmodule.DeclareType("void");
+    voidValue = g_stdmodule.DeclareVariable(nullptr, voidType, "void", DeclareConst);         
+}
+
+CVMTypeinfo *CVMTypeinfo::ObjectType()
+{
+    static CVMTypeinfo *type = nullptr;
+    if (!type) {
+        CVMTypeinfo newtype;
+        newtype.kind = CVMTypeinfo::Kind_Object;
+        newtype.flags = 0;
+
+        type = g_stdmodule.DeclareType("object", &newtype);
+    }
+    return type;
+}
+
+CVMTypeinfo *CVMTypeinfo::ArrayType()
+{
+    static CVMTypeinfo *type = nullptr;
+    if (!type) {
+        CVMTypeinfo newtype;
+        newtype.kind = CVMTypeinfo::Kind_Array;
+        newtype.flags = 0;
+
+        type = g_stdmodule.DeclareType("array", &newtype);
     }
     return type;
 }
 
-void VMUndefinedConstructor(CVMState* state)
+CVMTypeinfo *CVMTypeinfo::FunctionType()
 {
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+    static CVMTypeinfo *type = nullptr;
+    if (!type) {
+        CVMTypeinfo newtype;
+        newtype.kind = CVMTypeinfo::Kind_Callable;
+        newtype.flags = CVMTypeinfo::Flag_Function;
 
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::UndefinedType();
-    }
-}
-
-CVMTypeinfo& CVMTypeinfo::UndefinedType()
-{
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "undefined";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_Undefined;
-        type.flags = CVMTypeinfo::Flag_Native;
-
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_undefined_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMUndefinedConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
+        type = g_stdmodule.DeclareType("function", &newtype);
     }
     return type;
 }
 
-void VMVoidConstructor(CVMState* state)
+CVMTypeinfo *CVMTypeinfo::AsyncFunctionType()
 {
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
+    static CVMTypeinfo *type = nullptr;
+    if (!type) {
+        CVMTypeinfo newtype;
+        newtype.kind = CVMTypeinfo::Kind_Callable;
+        newtype.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Async;
 
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::VoidType();
-    }
-}
-
-CVMTypeinfo& CVMTypeinfo::VoidType()
-{
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "void";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_Null;
-        type.flags = CVMTypeinfo::Flag_Native | CVMTypeinfo::Flag_Void;
-
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_void_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMVoidConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
+        type = g_stdmodule.DeclareType("asyncfunction", &newtype);
     }
     return type;
 }
 
-void VMStringConstructor(CVMState* state)
-{
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
-
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::StringType();
-        if (frame.arguments->Length() > 0) value->Assign(frame.arguments->GetArrayElement(0));
+void Buildin_IsPrototypeOf(CVMState *state) {
+    CVMValue *object = state->Pop();
+    CVMValue *prototype = state->Pop();
+    if (*object->GetPrototype()->type == *prototype->type) {
+        state->Push(g_trueValue);
+    } else {
+        state->Push(g_falseValue);
     }
 }
 
-CVMTypeinfo& CVMTypeinfo::StringType()
+void Buildin_PrototypeConstructor(CVMState *state) {
+    static CVMValue *prototype = nullptr;
+    if (!prototype) {
+        prototype = new CVMValue(g_stdmodule.GetRoot(), CVMTypeinfo::ObjectType(), "object");
+        prototype->SetKeyValue("prototype", prototype);
+    }
+    if (state->Top()) state->Top()->Assign(prototype);
+}
+
+CVMTypeinfo *CVMTypeinfo::PrototypeType()
 {
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "String";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_String;
-        type.flags = CVMTypeinfo::Flag_Native;
+    static CVMTypeinfo *type = nullptr;
+    if (!type) {
+        CVMTypeinfo newtype;
+        newtype.kind = CVMTypeinfo::Kind_Callable;
+        newtype.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Prototype;
+        newtype.address = (int64_t) &PrototypeConstructor;
 
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_string_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMStringConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
+        type = g_stdmodule.DeclareType("prototype", &newtype);
     }
     return type;
 }
 
-void VMSymbolConstructor(CVMState* state)
-{
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
-
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::SymbolType();
-        if (frame.arguments->Length() > 0) value->Assign(frame.arguments->GetArrayElement(0));
-    }
-}
-
-CVMTypeinfo& CVMTypeinfo::SymbolType()
-{
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "Symbol";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_String;
-        type.flags = CVMTypeinfo::Flag_Native | CVMTypeinfo::Flag_Symbol;
-
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_symbol_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMSymbolConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
-    }
-    return type;
-}
-
-void VMArrayConstructor(CVMState* state)
-{
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
-
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::ArrayType();
-        if (frame.arguments->Length() > 0) value->Assign(frame.arguments);
-    }
-}
-
-CVMTypeinfo& CVMTypeinfo::ArrayType()
-{
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "Array";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_Array;
-        type.flags = CVMTypeinfo::Flag_Native;
-
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_array_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMArrayConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
-    }
-    return type;
-}
-
-void VMObjectConstructor(CVMState* state)
-{
-    LogPrint(BCLog::SCRIPT, "%s", strprintf("Call %s, caller %s", __func__, state->frame.top().caller ? state->frame.top().caller->callable->type.name.c_str() : "null"));
-
-    CVMState::Frame& frame = state->frame.top();
-    CVMValue* value = state->Pop();
-    if (value) {
-        value->SetNull();
-        value->type = CVMTypeinfo::ObjectType();
-        if (frame.arguments->Length() > 0) value->Assign(frame.arguments);
-    }
-}
-
-
-CVMTypeinfo& CVMTypeinfo::ObjectType()
-{
-    static CVMTypeinfo type;
-    static bool init = false;
-    if (!init) {
-        type.name = "Object";
-        type.module = "std";
-        type.kind = CVMTypeinfo::Kind_Object;
-        type.flags = CVMTypeinfo::Flag_Native;
-
-        static CVMTypeinfo ctor;
-        ctor.name = "__gs_object_constructor__";
-        ctor.module = "std";
-        ctor.kind = CVMTypeinfo::Kind_Callable;
-        ctor.flags = CVMTypeinfo::Flag_Function | CVMTypeinfo::Flag_Constructor | CVMTypeinfo::Flag_Native;
-        ctor.addr = (int64_t)(void*)&VMObjectConstructor;
-
-        type.ctor = &ctor;
-
-        init = true;
-    }
-    return type;
-}
 
 /*
 CVMValue::CVMValue() : refCounter(1) {
@@ -491,3 +543,179 @@ bool VMCall(CVMValue *callable) {
     return VMCall(&state, callable);
 }
 */
+
+bool CJSGetInstr(CJSState *state, CJSFunction *function, CJSInstr *instr) {
+    if (state->pc + 1 <= function->size)  {
+        instr->opcode = *(state->code + state->pc); 
+        state->pc++;
+    } else
+        return false;
+
+    if (state->pc + 8 <= function->size)  {
+        instr->operand = le64toh(*((uint64_t*)((uint8_t *) state->code + state->pc))); 
+        state->pc += 8;
+    } else
+        return false;
+
+    if (state->pc + 4 <= function->size)  {
+        instr->mask = le32toh(*((uint32_t*)((uint8_t *) state->code + state->pc))); 
+        state->pc += 4;
+    } else 
+        return false;
+
+    return true;
+}
+
+CJSValue *CJSGet(CJSState *state, int idx) {
+    if (idx < 0 || idx >= state->size) return nullptr;
+    return &state->stack[idx];
+}
+
+CJSValue *CJSSet(CJSState *state, int idx, CJSValue *value) {
+    if (idx >= 0 || idx < state->size) {
+        memcpy(&state->stack[idx], value, sizeof(CJSValue));
+        return &state->stack[idx];
+    }
+    return nullptr;
+}
+
+CJSValue *CJSNewState() {
+    CJSState *state = (CJSState *) memalloc(sizeof(CJSState));
+    memset(state, 0, sizeof(CJSState));
+    state->s = state->g = CJSNewValue(state, "__gs_main__");
+    return state;
+}
+
+void CJSFreeState(CJSState *state) {
+    if (state) {
+        CJSFreeValue(state->g);
+        free(state);
+    }
+}
+
+CJSValue *CJSUndefinedValue() {
+    static CJSValue *u = nullptr;
+    if (!u)
+    {
+        static CJSValue v;
+        memset(&v, 0, sizeof(v));
+        v.rc = 0;
+        v.type = CJSValue::Undefined;
+        u = &v;
+    }
+    return u;
+}
+
+CJSValue *CJSNullValue() {
+    static CJSValue *u = nullptr;
+    if (!u)
+    {
+        static CJSValue v;
+        memset(&v, 0, sizeof(v));
+        v.rc = 0;
+        v.type = CJSValue::Null;
+        u = &v;
+    }
+    return u;
+}
+
+CJSValue *CJSNewValue(CJSState *state, const char *name, CJSValue *value) {
+    CJSValue *s = state->s;
+    if (!s) {
+        CJSValue *newvalue = (CJSValue *) malloc(sizeof(CJSValue));
+        memcpy(newvalue, value, sizeof(CJSValue));
+        return newvalue;
+    }
+    CJSObject *o = (CJSObject *) s->data;
+    if (!o) return CJSUndefinedValue();
+
+    for (size_t i = 0; i < o->capacity; i++) {
+        if (!stricmp(o->values[i].name, name)) return o->values[i].value;
+    }
+
+    if (o->capacity + 1 <= o->size) {
+        o->capacity = o->capacity + 1;
+        o->values[o->capacity - 1] = CJSRef(state, value);
+        return o->values[o->capacity - 1];
+    }
+    
+    size_t cap = o->capacity;
+    CJSKeyValue *old = o->values;
+    o->size = o->size + 6;
+    o->capacity = o->capacity + 1;
+
+    o->values = (CJSValue **) malloc(sizeof(CJSValue **) * o->size);
+    memset(o->values, 0, sizeof(CJSValue **) * o->size);
+
+    for (size_t i = 0; i < cap; i++) {
+        o->values[i] = old[i];
+    }
+    o->values[o->capacity - 1] = CJSRef(state, value);
+    
+    free(old);
+    return o->values[o->capacity - 1];
+}
+
+void CJSFreeObject(CJSValue *value) {
+    if (value && value->type == CJSValue::Object) {
+        CJSObject *o = (CJSObject *) value->data;
+        if (o) {
+            for (size_t i = 0; i < o->size; i++) {
+                if (o->values[i].name) free(o->values[i].name);
+                CJSFreeValue(o->values[i].value);
+            }
+            if (o->size) free(o->values);
+            free(o);
+        }
+    }
+}
+
+void CJSFreeValue(CJSValue *value) {
+    if (value->rc >= 1) {
+        if (value->rc == 1) {
+            if (value->type == CJSValue::Object) {
+                CJSFreeObject((CJSObject *) value->data);
+                free(value);
+            }
+            value->rc = 0;
+            free(value);
+        } else
+            value->rc--;
+    }
+}
+
+bool CJSExec(CJSState *state, CJSInstr *instr) {
+    switch (instr->opcode)
+    {
+        case CJSInstr::PushTop: CJSPushValue(state, CJSGet(state, instr->operand)); break;
+    }
+    return false;
+}
+
+bool CJSCall(CJSState *state, CJSFunction *function) {
+    if (function) {
+        CJSSetFunction(state, CJSState::This, function);
+        CJSSetFunction(state, CJSState::Super, function->super ? function->super : function);
+        CJSSetFunction(state, CJSState::Calle, function);
+    }
+
+    CJSValue *calle = CJSGet(state, CJSState::Calle);
+    if (!calle)
+        return false;
+    
+    if (!function) {
+        if (!calle->data) return false;
+        function = (CJSFunction *) calle->data;
+    }
+
+    CJSInstr instr;
+    while (state->pc < function->size) {
+        if (!CJSGetInstr(state, function, &instr))
+            break;
+        
+        if (!CJSExec(state, &instr))
+            break;
+    }
+
+    return true;
+}

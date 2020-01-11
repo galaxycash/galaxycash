@@ -3,24 +3,27 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <chainparams.h>
+#include <codecvt>
+#include <fs.h>
+#include <fstream>
 #include <galaxycash.h>
-#include <galaxyscript.h>
 #include <galaxyscript-compiler.h>
+#include <galaxyscript.h>
 #include <hash.h>
+#include <locale>
 #include <memory>
 #include <pow.h>
 #include <stack>
 #include <stdint.h>
+#include <string>
+#include <tinyformat.h>
 #include <uint256.h>
 #include <util.h>
-#include <fstream>
-#include <fs.h>
-#include <locale>
-#include <codecvt>
-#include <string>
+#include <utilmoneystr.h>
+#include <utilstrencodings.h>
 
-
-class CTok {
+class CTok
+{
 public:
     enum {
         Unknown = 0,
@@ -29,13 +32,13 @@ public:
         Keyword,
         Operator,
         Punctuation,
-        Word,
+        Identifier,
         EndOfline
     };
 
     enum {
         None = 0,
-        Litteral = (1 << 0),
+        Literal = (1 << 0),
         Float = (1 << 1),
         Unary = (1 << 2),
         Binary = (1 << 3),
@@ -47,24 +50,28 @@ public:
         Assignment = (1 << 9)
     };
 
-    CTok *      prv;
-    uint8_t     type;
-    uint32_t    flags;
+    CTok* prv;
+    uint8_t type;
+    uint32_t flags;
     std::string value;
     std::string file;
-    size_t      pos, line;
+    size_t pos, line;
 
     CTok() : prv(nullptr), type(Unknown), flags(None), pos(0), line(0) {}
-    CTok(const CTok &tok) : prv(nullptr), type(tok.type), flags(tok.flags), pos(tok.pos), line(tok.line) {
+    CTok(const CTok& tok) : prv(nullptr), type(tok.type), flags(tok.flags), pos(tok.pos), line(tok.line)
+    {
         if (tok.prv)
             this->prv = new CTok(*tok.prv);
     }
-    ~CTok() {
+    ~CTok()
+    {
         if (prv) delete prv;
     }
 
-    CTok &operator = (const CTok &tok) {
-        if (prv) delete prv; prv = nullptr;
+    CTok& operator=(const CTok& tok)
+    {
+        if (prv) delete prv;
+        prv = nullptr;
         if (tok.prv) prv = new CTok(*tok.prv);
         type = tok.type;
         flags = tok.flags;
@@ -75,11 +82,13 @@ public:
         return *this;
     }
 
-    bool IsNull() const {
+    bool IsNull() const
+    {
         return type == Unknown && flags == None;
     }
 
-    void SetNull() {
+    void SetNull()
+    {
         if (prv) delete prv;
         prv = nullptr;
         type = Unknown;
@@ -90,8 +99,8 @@ public:
         line = 0;
     }
 
-    bool operator < (const CTok &tok) const { return (type < tok.type) || (value < tok.value); }
-    bool operator == (const CTok &tok) const { return (type == tok.type) && (value == tok.value); }
+    bool operator<(const CTok& tok) const { return (type < tok.type) || (value < tok.value); }
+    bool operator==(const CTok& tok) const { return (type == tok.type) && (value == tok.value); }
 };
 
 
@@ -146,8 +155,7 @@ static std::string g_keywords[] = {
     "static",
     "import",
     "export",
-    "yield"
-};
+    "yield"};
 
 static const uint32_t g_keywords_flags[] = {
     0,
@@ -200,81 +208,85 @@ static const uint32_t g_keywords_flags[] = {
     0,
     0,
     0,
-    0
-};
+    0};
 
 static const std::string g_operators[] = {
     ">>>=", "<<=", ">>=", ">>>", "!==", "===", "!=", "%=", "&&",
     "&=", "*=", "*", "++", "+=", "--", "-=", "<<", "<=", "==", ">=", ">>",
     "^=", "|=", "||", "!", "%", "&", "+", "-", "=",
-    ">", "<", "^", "|", "~"
-};
+    ">", "<", "^", "|", "~"};
 
 static const uint32_t g_operators_flags[] = {
-    CTok::Unary, CTok::Unary, CTok::Unary, CTok::Binary, CTok::Binary|CTok::Logical, CTok::Binary|CTok::Logical, CTok::Binary|CTok::Logical, CTok::Unary, CTok::Binary|CTok::Logical,
-    CTok::Unary, CTok::Unary, CTok::Binary, CTok::Unary, CTok::Unary,  CTok::Unary, CTok::Unary, CTok::Binary, CTok::Binary|CTok::Logical, CTok::Binary|CTok::Logical, CTok::Binary|CTok::Logical, CTok::Binary,
-    CTok::Unary, CTok::Unary, CTok::Binary|CTok::Logical, CTok::Unary, CTok::Binary, CTok::Binary, CTok::Binary, CTok::Binary, CTok::Unary,
-    CTok::Binary|CTok::Logical, CTok::Binary|CTok::Logical, CTok::Binary, CTok::Binary, CTok::Binary
-};
+    CTok::Unary, CTok::Unary, CTok::Unary, CTok::Binary, CTok::Binary | CTok::Logical, CTok::Binary | CTok::Logical, CTok::Binary | CTok::Logical, CTok::Unary, CTok::Binary | CTok::Logical,
+    CTok::Unary, CTok::Unary, CTok::Binary, CTok::Unary, CTok::Unary, CTok::Unary, CTok::Unary, CTok::Binary, CTok::Binary | CTok::Logical, CTok::Binary | CTok::Logical, CTok::Binary | CTok::Logical, CTok::Binary,
+    CTok::Unary, CTok::Unary, CTok::Binary | CTok::Logical, CTok::Unary, CTok::Binary, CTok::Binary, CTok::Binary, CTok::Binary, CTok::Unary,
+    CTok::Binary | CTok::Logical, CTok::Binary | CTok::Logical, CTok::Binary, CTok::Binary, CTok::Binary};
 
 
 static const std::string g_punctuations[] = {
-    ".", ",", ";", ":", "[", "]", "{", "}", "(", ")"
-};
+    ".", ",", ";", ":", "[", "]", "{", "}", "(", ")"};
 
 static const uint32_t g_punctuations_flags[] = {
-    0, 0, 0, 0, 0, 0, 0, 0
-};
+    0, 0, 0, 0, 0, 0, 0, 0};
 
 
-class CLexer {
+class CLexer
+{
 public:
-    CTok        cur;
+    CTok cur;
     std::string buffer, file;
-    size_t      pos, line;
-    std::vector <std::string> errs;
+    size_t pos, line;
+    std::vector<std::string> errs;
 
     CLexer();
-    CLexer(const std::string &file, const std::string &code);
+    CLexer(const std::string& file, const std::string& code);
     virtual ~CLexer();
 
-    bool    Eof() const;
+    bool Eof() const;
 
-    char    PrevChar();
-    char    LastChar();
-    char    NextChar();
-    char    Advance();
-    void    SkipWhitespace();
+    char PrevChar();
+    char LastChar();
+    char NextChar();
+    char Advance();
+    void SkipWhitespace();
 
-    bool    ReadToken(CTok &tok);
-    bool    ReadString(std::string &str);
-    bool    ReadNumber(std::string &str, uint32_t &flags);
-    void    UnreadToken(const CTok &tok);
-    bool    MatchToken(const std::string &val);
-    bool    MatchType(const uint8_t type);
-    bool    CheckToken(const std::string &val);
+    bool ReadToken(CTok& tok);
+    bool ReadString(std::string& str);
+    bool ReadNumber(std::string& str, uint32_t& flags);
+    void UnreadToken(const CTok& tok);
+    bool MatchToken(const std::string& val);
+    bool MatchType(const uint8_t type);
+    bool CheckToken(const std::string& val);
+    bool CheckType(const uint8_t type);
+    void SkipToken();
 };
 
-CLexer::CLexer() : pos(0), line(0) {
+CLexer::CLexer() : pos(0), line(0)
+{
 }
-CLexer::CLexer(const std::string &file, const std::string &code) : buffer(code), file(file), pos(0), line(0)
-{}
+CLexer::CLexer(const std::string& file, const std::string& code) : buffer(code), file(file), pos(0), line(0)
+{
+}
 CLexer::~CLexer()
-{}
+{
+}
 
-bool CLexer::Eof() const {
+bool CLexer::Eof() const
+{
     if (buffer.empty()) return true;
     return pos >= buffer.length();
 }
 
-char CLexer::LastChar() {
+char CLexer::LastChar()
+{
     if (pos < buffer.length()) {
         return *(buffer.c_str() + pos);
     }
     return 0;
 }
 
-char CLexer::PrevChar() {
+char CLexer::PrevChar()
+{
     if (buffer.length() > 0 && pos >= 0) {
         if (pos == 0) return *buffer.c_str();
         return *(buffer.c_str() + (pos - 1));
@@ -282,7 +294,8 @@ char CLexer::PrevChar() {
     return 0;
 }
 
-char CLexer::NextChar() {
+char CLexer::NextChar()
+{
     if (!Eof()) {
         if (buffer.length() <= (pos + 1)) return 0;
         return *(buffer.c_str() + (pos + 1));
@@ -290,7 +303,8 @@ char CLexer::NextChar() {
     return 0;
 }
 
-char CLexer::Advance() {
+char CLexer::Advance()
+{
     if (!Eof()) {
         pos++;
         if (!Eof())
@@ -300,21 +314,28 @@ char CLexer::Advance() {
     return 0;
 }
 
-bool IsWhitespace(int c) {
-    if (c == ' ') return true;
-    else if (c == '\t') return true;
+bool IsWhitespace(int c)
+{
+    if (c == ' ')
+        return true;
+    else if (c == '\t')
+        return true;
     return false;
 }
 
-bool IsEndline(int c) {
-    if (c == '\n') return true;
-    else if (c == '\r') return true;
-    else if (c == ';') return true;
+bool IsEndline(int c)
+{
+    if (c == '\n')
+        return true;
+    else if (c == '\r')
+        return true;
+    else if (c == ';')
+        return true;
     return false;
 }
 
-void CLexer::SkipWhitespace() {
-
+void CLexer::SkipWhitespace()
+{
     while (!Eof() && IsWhitespace(LastChar())) {
         pos++;
     }
@@ -323,7 +344,8 @@ void CLexer::SkipWhitespace() {
     if (LastChar() == '/' && NextChar() == '/') {
         pos += 2;
 
-        while (LastChar() != '\n' && LastChar() != '\r' && !Eof()) pos++;
+        while (LastChar() != '\n' && LastChar() != '\r' && !Eof())
+            pos++;
 
         cur.pos = pos;
     }
@@ -331,20 +353,25 @@ void CLexer::SkipWhitespace() {
     if (LastChar() == '/' && NextChar() == '*') {
         pos += 2;
 
-        while (LastChar() != '*' && NextChar() != '/' && !Eof()) pos++;
+        while (LastChar() != '*' && NextChar() != '/' && !Eof())
+            pos++;
 
         cur.pos = pos;
     }
 }
 
-bool CLexer::ReadString(std::string &tok) {
+bool CLexer::ReadString(std::string& tok)
+{
     if (Eof()) return false;
-    const char *p = buffer.c_str() + pos;
+    const char* p = buffer.c_str() + pos;
     if (*p == '"') {
         tok.clear();
-        p++; pos++;
+        p++;
+        pos++;
         while (!Eof() && *p != '"') {
-            tok += *p; p++; pos++;
+            tok += *p;
+            p++;
+            pos++;
         }
         if (!Eof() && *p == '"') {
             pos++;
@@ -353,9 +380,12 @@ bool CLexer::ReadString(std::string &tok) {
     }
     if (*p == '\'') {
         tok.clear();
-        p++; pos++;
+        p++;
+        pos++;
         while (!Eof() && *p != '\'') {
-            tok += *p; p++; pos++;
+            tok += *p;
+            p++;
+            pos++;
         }
         if (!Eof() && *p == '\'') {
             pos++;
@@ -365,29 +395,36 @@ bool CLexer::ReadString(std::string &tok) {
     return false;
 }
 
-bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
+bool CLexer::ReadNumber(std::string& tok, uint32_t& flags)
+{
     if (Eof()) return false;
-    const char *p = buffer.c_str() + pos;
+    const char* p = buffer.c_str() + pos;
     if (isdigit(*p)) {
         tok.clear();
         tok += *p;
-        p++; pos++;
+        p++;
+        pos++;
         while (!Eof() && (isdigit(*p) || *p == '.')) {
             if (*p == '.')
                 flags |= CTok::Float;
-            tok += *p; p++; pos++;
+            tok += *p;
+            p++;
+            pos++;
         }
-        flags |= CTok::Litteral;
+        flags |= CTok::Literal;
         return !tok.empty();
     }
     if (*p == '.') {
-        p++; pos++;
+        p++;
+        pos++;
         if (p && isdigit(*p)) {
             tok = '.';
             flags |= CTok::Float;
 
             while (!Eof() && isdigit(*p)) {
-                tok += *p; p++; pos++;
+                tok += *p;
+                p++;
+                pos++;
             }
 
             if (!tok.empty()) {
@@ -402,7 +439,8 @@ bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
     }
 
     if (*p == '-') {
-        p++; pos++;
+        p++;
+        pos++;
         if (p && isdigit(*p)) {
             tok = '-';
             flags |= CTok::Negative;
@@ -410,9 +448,11 @@ bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
             while (!Eof() && (isdigit(*p) || *p == '.')) {
                 if (*p == '.')
                     flags |= CTok::Float;
-                tok += *p; p++; pos++;
+                tok += *p;
+                p++;
+                pos++;
             }
-            
+
             if (!tok.empty()) {
                 return true;
             } else {
@@ -423,17 +463,20 @@ bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
             pos--;
         }
     }
-     
+
     if (*p == 'u') {
-        p++; pos++;
+        p++;
+        pos++;
         if (p && isdigit(*p)) {
             tok.clear();
             flags |= CTok::Unsigned;
 
             while (!Eof() && isdigit(*p)) {
-                tok += *p; p++; pos++;
+                tok += *p;
+                p++;
+                pos++;
             }
-            
+
             if (!tok.empty()) {
                 return true;
             } else {
@@ -448,12 +491,14 @@ bool CLexer::ReadNumber(std::string &tok, uint32_t &flags) {
     return false;
 }
 
-bool MatchStr(const char *source, const char *value) {
+bool MatchStr(const char* source, const char* value)
+{
     if (!source || *source == '\0' || !value || *value == '\0') return false;
     while (source && value) {
         if (*value == '\0') return true;
         if (*source == '\0') return false;
-        if (*source != *value) return false;
+        if (*source != *value)
+            return false;
         else {
             source++;
             value++;
@@ -462,7 +507,8 @@ bool MatchStr(const char *source, const char *value) {
     return false;
 }
 
-bool IsKeyword(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+bool IsKeyword(const char* source, std::string* value = 0, uint32_t* flags = 0)
+{
     for (size_t i = 0; i < sizeof(g_keywords) / sizeof(g_keywords[0]); i++) {
         if (MatchStr(source, g_keywords[i].c_str())) {
             if (value) *value = g_keywords[i];
@@ -473,7 +519,8 @@ bool IsKeyword(const char *source, std::string *value = 0, uint32_t *flags = 0) 
     return false;
 }
 
-bool IsOperator(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+bool IsOperator(const char* source, std::string* value = 0, uint32_t* flags = 0)
+{
     for (size_t i = 0; i < sizeof(g_operators) / sizeof(g_operators[0]); i++) {
         if (MatchStr(source, g_operators[i].c_str())) {
             if (value) *value = g_operators[i];
@@ -484,7 +531,8 @@ bool IsOperator(const char *source, std::string *value = 0, uint32_t *flags = 0)
     return false;
 }
 
-bool IsPunctuation(const char *source, std::string *value = 0, uint32_t *flags = 0) {
+bool IsPunctuation(const char* source, std::string* value = 0, uint32_t* flags = 0)
+{
     for (size_t i = 0; i < sizeof(g_punctuations) / sizeof(g_punctuations[0]); i++) {
         if (MatchStr(source, g_punctuations[i].c_str())) {
             if (value) *value = g_punctuations[i];
@@ -495,7 +543,8 @@ bool IsPunctuation(const char *source, std::string *value = 0, uint32_t *flags =
     return false;
 }
 
-bool CLexer::ReadToken(CTok &tok) {
+bool CLexer::ReadToken(CTok& tok)
+{
     CTok lst(cur);
 
     cur = CTok();
@@ -510,8 +559,10 @@ bool CLexer::ReadToken(CTok &tok) {
 
     if (IsEndline(LastChar())) {
         cur.file = file;
-        cur.line = line; line++;
-        cur.pos = pos; pos++;
+        cur.line = line;
+        line++;
+        cur.pos = pos;
+        pos++;
         cur.type = CTok::EndOfline;
         cur.flags = CTok::None;
         cur.value = "\n";
@@ -522,7 +573,7 @@ bool CLexer::ReadToken(CTok &tok) {
 
     if (ReadString(cur.value)) {
         cur.type = CTok::String;
-        cur.flags = CTok::Litteral;
+        cur.flags = CTok::Literal;
         tok = cur;
         return true;
     }
@@ -533,7 +584,7 @@ bool CLexer::ReadToken(CTok &tok) {
         return true;
     }
 
-    const char *p = buffer.c_str() + pos;
+    const char* p = buffer.c_str() + pos;
 
     for (size_t i = 0; i < sizeof(g_operators) / sizeof(g_operators[0]); i++) {
         if (MatchStr(p, g_operators[i].c_str())) {
@@ -577,13 +628,15 @@ bool CLexer::ReadToken(CTok &tok) {
         }
     }
 
-    cur.type = CTok::Word;
+    cur.type = CTok::Identifier;
     cur.flags = 0;
 
-    while (!Eof() && p && !IsWhitespace(*p) && !IsEndline(*p) && *p !='\'' && *p != '"') {
+    while (!Eof() && p && !IsWhitespace(*p) && !IsEndline(*p) && *p != '\'' && *p != '"') {
         if (IsPunctuation(p)) break;
         if (IsOperator(p)) break;
-        cur.value += *p; p++; pos++;
+        cur.value += *p;
+        p++;
+        pos++;
     }
 
     if (!cur.value.empty()) {
@@ -591,110 +644,167 @@ bool CLexer::ReadToken(CTok &tok) {
         return true;
     }
 
+
+    UnreadToken(lst);
     return false;
 }
 
-#define MAGIC_VALUE (uint32_t)('VAL\0')
-#define MAGIC_CONST (uint32_t)('CNST')
+void CLexer::SkipToken()
+{
+    CTok tok;
+    ReadToken(tok);
+}
 
+void CLexer::UnreadToken(const CTok& tok)
+{
+    pos = tok.prv ? tok.prv->pos : tok.pos;
+    line = tok.prv ? tok.prv->line : tok.line;
+    file = tok.prv ? tok.prv->file : tok.file;
+    cur = tok.prv ? *tok.prv : tok;
+}
 
-struct CSym {
-    std::string name;
-    CVMTypeinfo type;
-    size_t addr;
-    std::vector<char> data;
-    std::vector<CSym> values;
-    std::map<std::string, CSym> variables;
-
-
-    CSym() {}
-    CSym(const CSym &sym) : name(sym.name), type(sym.type), addr(sym.addr), data(sym.data) {
-        for (std::vector<CSym>::const_iterator it = sym.values.begin(); it != sym.values.end(); it++) {
-            values.push_back(CSym((*it)));
-        }
-        for (std::map<std::string, CSym>::const_iterator it = std::begin(sym.variables); it != std::end(sym.variables); it++) {
-            variables[it->first] = CSym(it->second);
-        }
+bool CLexer::CheckToken(const std::string& val)
+{
+    CTok tok;
+    if (!ReadToken(tok)) return false;
+    if (val != tok.value) {
+        UnreadToken(tok);
+        return false;
     }
-    CSym &operator = (const CSym &sym) {
-        name = sym.name;
-        type = sym.type;
-        addr = sym.addr;
-        data = std::vector<char>(sym.data.begin(), sym.data.end());
-        values.clear();
-        for (std::vector<CSym>::const_iterator it = sym.values.begin(); it != sym.values.end(); it++) {
-            values.push_back(CSym((*it)));
-        }
-        variables.clear();
-        for (std::map<std::string, CSym>::const_iterator it = sym.variables.begin(); it != sym.variables.end(); it++) {
-            variables[it->first] = CSym(it->second);
-        }
-        return *this;
+
+    UnreadToken(tok);
+    return true;
+}
+
+bool CLexer::CheckType(const uint8_t type)
+{
+    CTok tok;
+    if (!ReadToken(tok)) return false;
+    if (type != tok.type) {
+        UnreadToken(tok);
+        return false;
     }
-    bool operator <= (const CSym &rhs) const { return name <= rhs.name; }
-    bool operator < (const CSym &rhs) const { return name < rhs.name; }
+
+    UnreadToken(tok);
+    return true;
+}
+
+bool CLexer::MatchToken(const std::string& val)
+{
+    CTok tok;
+    if (!ReadToken(tok)) return false;
+    if (val != tok.value) {
+        UnreadToken(tok);
+        return false;
+    }
+
+    return true;
+}
+
+bool CLexer::MatchType(const uint8_t type)
+{
+    CTok tok;
+    if (!ReadToken(tok)) return false;
+    if (type != tok.type) {
+        UnreadToken(tok);
+        return false;
+    }
+
+    return true;
+}
+
+struct CError {
+    enum {
+        Unknown = 0,
+        NotFound,
+        BadSymbol,
+        BadName,
+        BadLiteral,
+        BadString,
+        BadComment,
+        Missings
+    };
+    int code;
+    std::string file;
+    size_t line;
+    std::string text;
+
+    CError() : code(-1), line(0) {}
+    CError(const CError& err) : code(err.code), file(err.file), line(err.line), text(err.text) {}
+
+    bool IsError() const { return code > 0; }
 };
 
-
-static CSym module;
 static std::vector<char> code;
-static std::vector<std::string> modules;
-static std::vector<CVMTypeinfo> types;
-static std::vector<CVMTypeinfo> variables;
-static std::vector<CVMTypeinfo> functions;
-static std::vector<CSym> syms;
-static std::vector<CSym*> consts;
-static std::stack<CSym*> scope;
 
 
-void CCEmitInt8(int8_t val) {
+void CCEmitInt8(int8_t val)
+{
     code.push_back(val);
 }
 
-void CCEmitInt16(int16_t val) {
+void CCEmitInt16(int16_t val)
+{
     int16_t c = htole16(val);
-    CCEmitInt8((int8_t) c);
-    CCEmitInt8((int8_t) (c >> 8));
+    CCEmitInt8((int8_t)c);
+    CCEmitInt8((int8_t)(c >> 8));
 }
 
-void CCEmitInt32(int32_t val) {
+void CCEmitInt32(int32_t val)
+{
     int32_t c = htole32(val);
-    CCEmitInt16((int16_t) c);
-    CCEmitInt16((int16_t) (c >> 16));
+    CCEmitInt16((int16_t)c);
+    CCEmitInt16((int16_t)(c >> 16));
 }
 
-void CCEmitInt64(int64_t val) {
+void CCEmitInt64(int64_t val)
+{
     int64_t c = htole64(val);
-    CCEmitInt32((int32_t) c);
-    CCEmitInt32((int32_t) (c >> 32));
+    CCEmitInt32((int32_t)c);
+    CCEmitInt32((int32_t)(c >> 32));
 }
 
-void CCEmitUInt8(uint8_t val) {
+void CCEmitUInt8(uint8_t val)
+{
     code.push_back(*(char*)&val);
 }
 
-void CCEmitUInt16(uint16_t val) {
+void CCEmitUInt16(uint16_t val)
+{
     uint16_t c = htole16(val);
-    CCEmitUInt8((uint8_t) c);
-    CCEmitUInt8((uint8_t) (c >> 8));
+    CCEmitUInt8((uint8_t)c);
+    CCEmitUInt8((uint8_t)(c >> 8));
 }
 
-void CCEmitUInt32(uint32_t val) {
+void CCEmitUInt32(uint32_t val)
+{
     uint32_t c = htole32(val);
-    CCEmitUInt16((uint16_t) c);
-    CCEmitUInt16((uint16_t) (c >> 16));
+    CCEmitUInt16((uint16_t)c);
+    CCEmitUInt16((uint16_t)(c >> 16));
 }
 
-void CCEmitAddr(size_t val) {
-    uint32_t c = htole32((uint32_t) val);
-    CCEmitUInt16((uint16_t) c);
-    CCEmitUInt16((uint16_t) (c >> 16));
+void CCEmitAddr(size_t val)
+{
+    uint32_t c = htole32((uint32_t)val);
+    CCEmitUInt16((uint16_t)c);
+    CCEmitUInt16((uint16_t)(c >> 16));
 }
 
-void CCEmitUInt64(uint64_t val) {
+void CCEmitUInt64(uint64_t val)
+{
     uint64_t c = htole64(val);
-    CCEmitUInt32((uint32_t) c);
-    CCEmitUInt32((uint32_t) (c >> 32));
+    CCEmitUInt32((uint32_t)c);
+    CCEmitUInt32((uint32_t)(c >> 32));
+}
+
+void CCEmitFloat(float val)
+{
+    CCEmitUInt32(*(uint32_t*)&val);
+}
+
+void CCEmitDouble(double val)
+{
+    CCEmitUInt64(*(uint64_t*)&val);
 }
 
 void CCEmitCompactSize(uint64_t nSize)
@@ -713,206 +823,14 @@ void CCEmitCompactSize(uint64_t nSize)
     }
 }
 
-void CCEmitBytes(std::vector<char> &bytes) {
+void CCEmitBytes(std::vector<char>& bytes)
+{
     CCEmitCompactSize(bytes.size());
     code.insert(code.end(), bytes.begin(), bytes.end());
 }
 
-void CCEmitString(const std::string &val) {
+void CCEmitString(const std::string& val)
+{
     CCEmitCompactSize(val.size());
     code.insert(code.end(), val.begin(), val.end());
-}
-
-void CCEmitType(const CVMTypeinfo &typeinfo) {
-    CCEmitUInt8(typeinfo.version);
-    CCEmitUInt8((uint8_t)typeinfo.kind);
-    CCEmitString(typeinfo.name);
-    CCEmitUInt8(typeinfo.bits);
-    CCEmitUInt64(typeinfo.flags);
-    if (typeinfo.super) {
-        CCEmitUInt8(1);
-        CCEmitType(*typeinfo.super);
-    } else {
-        CCEmitUInt8(0);
-    }
-    if (typeinfo.ctor) {
-        CCEmitUInt8(1);
-        CCEmitType(*typeinfo.ctor);
-    } else {
-        CCEmitUInt8(0);
-    }
-    if (typeinfo.dtor) {
-        CCEmitUInt8(1);
-        CCEmitType(*typeinfo.dtor);
-    } else {
-        CCEmitUInt8(0);
-    }   
-}
-
-void CCEmitSym(CSym* sym) {
-    sym->addr = code.size();
-    CCEmitAddr(MAGIC_VALUE);
-    CCEmitAddr(sym->addr);
-    CCEmitString(sym->name);
-    CCEmitType(sym->type);
-    CCEmitBytes(sym->data);
-
-    CCEmitCompactSize(sym->values.size());
-    for (std::vector<CSym>::iterator it = sym->values.begin(); it != sym->values.end(); it++) {
-        CCEmitSym(&(*it));
-    }
-
-    CCEmitCompactSize(sym->variables.size());
-    for (std::map<std::string, CSym>::iterator it = sym->variables.begin(); it != sym->variables.end(); it++) {
-        CCEmitSym(&(*it).second);
-    }
-}
-
-void CCEmitConst(CSym *sym) {
-    CCEmitSym(sym);
-}
-
-void CCEmitBinaryOp(CVMBinaryOp op, CSym *lvalue, CSym *rvalue) {
-
-}
-
-void CCEmitUnaryOp(CVMUnaryOp op, CSym *sym) {
-    
-}
-
-size_t CCAsAddr(std::vector<char>::iterator &c) {
-    assert(code.size() >= 4);
-    return le32toh(((uint32_t) (*c) | (uint32_t) (*(c + 1)) << 8 | (uint32_t)(*(c + 2)) << 16 | (uint32_t)(*(c + 3)) << 24));
-}
-
-std::string CCGenName() {
-    char name[17];
-    memset(name, 0, sizeof(name));
-    GetRandBytes((unsigned char *) name, 16);
-    if (scope.size() && scope.top()->variables.count(name)) return CCGenName();
-    return name;
-}
-
-CVMTypeinfo *CCGenType(const std::string &name = std::string()) {
-    for (size_t i = 0; i < types.size(); i++) {
-        if  (types[i].name == name) 
-            return &types[i];
-    }
-
-    CVMTypeinfo type;
-    type.name = name;
-    types.push_back(type);
-    return &types[types.size() - 1];
-}
-
-CSym *CCGenValue(std::string name = std::string()) {
-    if (scope.size()) {
-        CSym *root = scope.top();
-        CSym sym;
-        if (name.empty()) {
-            sym.name = CCGenName();
-        } else {
-            sym.name = name;
-        }
-        root->variables[sym.name] = sym;
-        return &root->variables[sym.name];
-    }
-    return nullptr;
-}
-
-CSym *CCGenRequire(std::string name = std::string(), const std::string &module = std::string()) {
-    if (scope.size()) {
-        CSym *root = scope.top();
-        CSym sym;
-        if (name.empty()) {
-            sym.name = CCGenName();
-        } else {
-            sym.name = name;
-        }
-        sym.type.SetNull();
-        sym.type.kind = CVMTypeinfo::Kind_Module;
-        sym.type.name = module;
-        sym.name = name;
-
-        if (find(modules.begin(), modules.end(), module) == modules.end())
-            modules.push_back(module);
-
-        root->variables[sym.name] = sym;
-        return &root->variables[sym.name];
-    }
-    return nullptr;
-}
-
-void CCPushScope(CSym *sym) {
-    if (sym) {
-        scope.push(sym);
-    } else {
-        scope.push(&module);
-    }
-}
-
-CSym *CCPopScope() {
-    if (scope.size()) {
-        CSym *sym = scope.top(); scope.pop();
-        return sym;
-    }
-    return nullptr;
-}
-
-CSym *CCTopScope() {
-    if (scope.size()) return scope.top();
-    return nullptr;
-}
-
-static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-bool CCLoadSourceFile(const fs::path &path, std::string &buffer) {
-    FILE *file = fsbridge::fopen(path, "rb");
-    if (!file) return false;
-    while (true) {
-        int c = fgetc(file);
-        if (c == EOF) break;
-        buffer += (char) c;
-    }
-    fclose(file);
-    return true;
-}
-
-static std::list<fs::path> files;
-
-bool CCCompileBuffer(const std::string &file, const std::string &code) {
-    CLexer lex(file, code);
-    if (lex.Eof()) return false;
-
-    CTok tok, prv;
-    while (lex.ReadToken(tok)) {
-        if (tok.type == CTok::EndOfline) {
-            if (prv.type != tok.type) LogPrintf("Tok End of line\n");
-        } else LogPrintf("Tok %s\n", tok.value.c_str());
-        prv = tok;
-    }
-    LogPrintf("Finished\n");
-
-    return lex.Eof();
-}
-
-CVMValue *CCCompileSource(const std::string &code) {
-    if (CCCompileBuffer("none", code)) {
-        return 0;
-    }
-    error("%s : Failed to compile source\n", __func__);
-    return nullptr;
-}
-
-CVMValue *CCCompileFile(const std::string &spath) {
-    std::string buffer;
-    if (!CCLoadSourceFile(fs::path(spath), buffer)) {
-        error("%s : Failed load source code from file %s\n", __func__, spath.c_str());
-        return nullptr;
-    }
-    if (CCCompileBuffer(spath, buffer)) {
-        return 0;
-    }
-    error("%s : Failed to compile file %s\n", __func__, spath.c_str());
-    return nullptr;
 }

@@ -66,6 +66,7 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "xutility": "cpp",
-        "xxatomic": "cpp"
+        "xxatomic": "cpp",
+        "numeric": "cpp"
     }
 }
