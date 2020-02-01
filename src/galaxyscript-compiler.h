@@ -4,6 +4,8 @@
 #ifndef GALAXYCASH_EXT_SCRIPT_COMPILER_H
 #define GALAXYCASH_EXT_SCRIPT_COMPILER_H
 
+std::string CCGenName();
+
 class CJSAst;
 class CJSStatement;
 class CJSExpression;
@@ -51,6 +53,7 @@ public:
         List = 1,
         Block,
         Scope,
+        Module,
         Variable,
         Argument,
         Function,
@@ -107,6 +110,18 @@ public:
     virtual CJSValue* CodeGen();
 };
 
+class CModuleStatement : public CStatement
+{
+public:
+    CScopeStatement* scope;
+
+    CModuleStatement();
+    virtual ~CModuleStatement();
+
+    virtual uint8_t GetStmType() const { return Module; }
+    virtual CJSValue* CodeGen();
+};
+
 class CVariableStatement : public CStatement
 {
 public:
@@ -114,7 +129,7 @@ public:
         VAR = 0,
         LET,
         CONST,
-        PROPERTY
+        STATIC
     };
 
     uint8_t type;
@@ -122,26 +137,27 @@ public:
     CExpression* initializer;
 
     CVariableStatement();
-    CVariableStatement(const uint8_t type, const std::string& name);
+    CVariableStatement(const uint8_t type, const std::string& name, CExpression* expr = nullptr);
     virtual ~CVariableStatement();
 
     virtual uint8_t GetStmType() const { return Variable; }
     virtual CJSValue* CodeGen();
 };
 
-class CArgumentStatement : public CStatement
+class CFunctionArgument
 {
 public:
-    uint8_t index;
+    bool inout;
+    int8_t index;
     std::string name;
     CExpression* initializer;
 
-    CArgumentStatement();
-    CArgumentStatement(const uint8_t index, const std::string& name);
-    virtual ~CArgumentStatement();
-
-    virtual uint8_t GetStmType() const { return Argument; }
-    virtual CJSValue* CodeGen();
+    inline CFunctionArgument() : inout(true), index(0), name(CCGenName()), initializer(nullptr) {}
+    inline CFunctionArgument(const uint8_t index, const std::string& name, const bool inout = true, CExpression* expr = nullptr) : inout(inout), index(index), name(name), initializer(expr) {}
+    inline ~CFunctionArgument()
+    {
+        if (initializer) delete initializer;
+    }
 };
 
 class CFunctionStatement : public CStatement
@@ -158,11 +174,11 @@ public:
     uint8_t type;
     bool async;
     std::string name;
-    std::vector<CArgumentStatement*> args;
+    std::vector<CFunctionArgument> args;
     CBlockStatement* body;
 
     CFunctionStatement();
-    CFunctionStatement(const uint8_t type, const bool async, const std::string& name);
+    CFunctionStatement(const uint8_t type, const bool async, const std::string& name, CBlockStatement* body = nullptr, std::vector<CFunctionArgument> args = std::vector<CFunctionArgument>());
     virtual ~CFunctionStatement();
 
     virtual uint8_t GetStmType() const { return Function; }
@@ -175,6 +191,7 @@ public:
     std::string name, super;
     CFunctionStatement *constructor, *destructor;
     std::vector<CFunctionStatement*> methods;
+    std::vector<CFunctionStatement*> setters, getters;
 
     CClassStatement();
     CClassStatement(const std::string& name, const std::string& super);
@@ -183,6 +200,16 @@ public:
     virtual uint8_t GetStmType() const { return Class; }
     virtual CJSValue* CodeGen();
 };
+
+class CJSCompiler
+{
+public:
+    virtual ~CJSCompiler() {}
+
+    virtual CJSModule* Compile(const std::string& file, const std::string& source, std::vector<CError>* log = nullptr) = 0;
+};
+
+CJSCompiler* GetJSCompiler();
 
 void CCInitModule();
 void CCEmitInt8(int8_t val);

@@ -47,7 +47,9 @@ public:
         Hex = (1 << 6),
         Big = (1 << 7),
         Negative = (1 << 8),
-        Assignment = (1 << 9)
+        Assignment = (1 << 9),
+        Native = (1 << 10),
+        Buildin = (1 << 11)
     };
 
     CTok* prv;
@@ -97,6 +99,81 @@ public:
         file.clear();
         pos = 0;
         line = 0;
+    }
+
+    bool IsNumber() const
+    {
+        return (type == Number);
+    }
+    bool IsFloat() const
+    {
+        return (flags & Float);
+    }
+    bool IsUnsigned() const
+    {
+        return (flags & Unsigned);
+    }
+    bool IsHexNum() const
+    {
+        return (flags & Hex);
+    }
+    bool IsBigNum() const
+    {
+        return (flags & Big);
+    }
+    bool IsNegative() const
+    {
+        return (flags & Negative);
+    }
+
+    bool IsOperator() const
+    {
+        return (type == Operator);
+    }
+    bool IsUnary() const
+    {
+        return (flags & Unary);
+    }
+    bool IsBinary() const
+    {
+        return (flags & Binary);
+    }
+    bool IsLogical() const
+    {
+        return (flags & Logical);
+    }
+
+    bool IsNative() const
+    {
+        return (flags & Native);
+    }
+    bool IsBuildin() const
+    {
+        return (flags & Buildin);
+    }
+    bool IsLiteral() const
+    {
+        return (flags & Literal);
+    }
+    bool IsVariableDeclare() const
+    {
+        return (type == Keyword) && (value == "var" || value == "let" || value == "const" || value == "static");
+    }
+    bool IsFunctionDeclare() const
+    {
+        return (type == Keyword) && (value == "function");
+    }
+    bool IsClassDeclare() const
+    {
+        return (type == Keyword) && (value == "class");
+    }
+    bool IsConstructorDeclare() const
+    {
+        return (type == Keyword) && (value == "constructor");
+    }
+    bool IsDestructorDeclare() const
+    {
+        return (type == Keyword) && (value == "destructor");
     }
 
     bool operator<(const CTok& tok) const { return (type < tok.type) || (value < tok.value); }
@@ -155,7 +232,11 @@ static std::string g_keywords[] = {
     "static",
     "import",
     "export",
-    "yield"};
+    "yield",
+    "native",
+    "buildin",
+    "constructor",
+    "destructor"};
 
 static const uint32_t g_keywords_flags[] = {
     0,
@@ -208,6 +289,10 @@ static const uint32_t g_keywords_flags[] = {
     0,
     0,
     0,
+    0,
+    CTok::Native,
+    CTok::Buildin,
+    0,
     0};
 
 static const std::string g_operators[] = {
@@ -249,6 +334,7 @@ public:
     char NextChar();
     char Advance();
     void SkipWhitespace();
+
 
     bool ReadToken(CTok& tok);
     bool ReadString(std::string& str);
@@ -731,6 +817,7 @@ struct CError {
 
     CError() : code(-1), line(0) {}
     CError(const CError& err) : code(err.code), file(err.file), line(err.line), text(err.text) {}
+    CError(const int code, const std::string& file, const size_t line, const std::string& text) : code(code), file(file), line(line), text(text) {}
 
     bool IsError() const { return code > 0; }
 };
@@ -759,7 +846,7 @@ void CCGenLabel(const std::string& name, CLabel& label)
 }
 
 
-static uint8_t modType = CModule::ModuleDefault;
+static uint8_t modType = CJSModule::ModuleDefault;
 static uint32_t modMajorVersion = 1;
 static uint32_t modMinorVersion = 0;
 static uint32_t modBuildVersion = 0;
@@ -875,4 +962,400 @@ void CCEmitString(const std::string& val)
 {
     CCEmitCompactSize(val.size());
     code.insert(code.end(), val.begin(), val.end());
+}
+
+
+struct CJSVar {
+    mutable std::string name;
+    mutable CJSObject* scope;
+    mutable CJSValue* variable;
+    mutable size_t size;
+
+    inline CJSVar() : scope(nullptr), variable(nullptr), size(0)
+    {
+    }
+    inline CJSVar(const CJSVar& var) : name(var.name), scope(var.scope), variable(var.variable), size(var.size)
+    {
+        if (scope) scope->Grab();
+        if (variable) variable->Grab();
+    }
+    inline CJSVar(const std::string& name, CJSValue* scopeIn = nullptr, CJSValue* variableIn = nullptr, const size_t size = 0) : name(name), scope(scopeIn), variable(variableIn), size(size)
+    {
+        if (variable) variable->Grab();
+        if (scope) scope->Grab();
+    }
+    inline ~CJSVar()
+    {
+        Free();
+    }
+
+    inline CJSVar& operator=(const CJSVar& var)
+    {
+        name = var.name;
+        if (scope) scope->Drop();
+        scope = var.scope;
+        if (scope) scope->Grab();
+        if (variable) variable->Drop();
+        variable = var.variable;
+        if (variable) variable->Grab();
+        size = var.size;
+        return *this;
+    }
+
+    inline void Free()
+    {
+        if (variable) {
+            variable->Drop();
+            variable = nullptr;
+        }
+        if (scope) {
+            scope->Drop();
+            scope = nullptr;
+        }
+    }
+};
+
+struct CJSBlock {
+    enum {
+        None = 0,
+        Scope,
+        If,
+        Else,
+        For,
+        While,
+        Simple
+    };
+    mutable uint8_t type;
+    mutable size_t offset;
+    mutable std::string file;
+    mutable size_t line;
+    mutable CJSValue* value;
+    mutable CJSBlock* root;
+    mutable std::vector<CJSVar> declares;
+
+    inline CJSBlock() : type(None), offset(0), line(0), value(nullptr), root(nullptr) {}
+    inline CJSBlock(const uint8_t type, const size_t offset, const std::string& file, const size_t line, CJSValue* valueIn = nullptr, CJSBlock* rootIn = nullptr, const std::vector<CJSVar>& declares = std::vector<CJSVar>()) : type(type), offset(offset), value(valueIn), root(rootIn), declares(declares)
+    {
+        if (value) value->Grab();
+    }
+    inline CJSBlock(const CJSBlock& block) : type(block.type), offset(block.offset), file(block.file), line(block.line), value(block.value), root(block.root), declares(block.declares)
+    {
+        if (value) value->Grab();
+    }
+    inline ~CJSBlock()
+    {
+        if (value) value->Drop();
+    }
+
+    inline CJSBlock& operator=(const CJSBlock& block)
+    {
+        type = block.type;
+        offset = block.offset;
+        file = block.file;
+        line = block.line;
+        if (value) value->Drop();
+        value = block.value;
+        if (value) value->Grab();
+        root = block.root;
+        declares = block.declares;
+        return *this;
+    }
+
+    inline void Free()
+    {
+        for (size_t i = 0; i < declares.size(); i++) {
+            declares[i].Free();
+        }
+        declares.clear();
+        if (value) {
+            value->Drop();
+            value = nullptr;
+        }
+    }
+
+    inline CJSObject* GetScope()
+    {
+        if (value) {
+            if (value->IsObject()) return (CJSObject*)value;
+        } else if (root) {
+            return root->GetScope();
+        }
+        return nullptr;
+    }
+};
+
+
+struct CJSCState {
+    mutable CJSCState* previous;
+
+    mutable CJSModule* module;
+    mutable CJSBlock* scope;
+
+    mutable CJSFunction *executable, *onload;
+    mutable std::stack<CJSCallable*> callable;
+    mutable std::stack<CJSBlock> block;
+
+    mutable CLexer lexer;
+    mutable std::string name;
+    mutable std::string file;
+    mutable std::string source;
+    mutable size_t line;
+    mutable CTok tok;
+
+    inline CJSCState() : previous(nullptr), module(nullptr), executable(nullptr), onload(nullptr), line(0) {}
+    inline CJSCState(const CJSCState& o) : previous(o.previous), name(o.name), file(o.file), source(o.source), line(o.line), module(o.module), executable(o.executable), onload(o.onload), callable(o.callable), block(o.block), lexer(o.lexer), tok(o.tok)
+    {
+        if (module) module->Grab();
+        if (executable) executable->Grab();
+        if (onload) onload->Grab();
+    }
+    inline CJSCState(CJSCState* o) : previous(o->previous), name(o->name), file(o->file), source(o->source), line(o->line), module(o->module), executable(o->executable), onload(o->onload), callable(o->callable), block(o->block), lexer(o->lexer), tok(o->tok)
+    {
+        if (module) module->Grab();
+        if (executable) executable->Grab();
+        if (onload) onload->Grab();
+    }
+    inline ~CJSCState()
+    {
+        Free();
+    }
+
+    inline void Free()
+    {
+        if (executable) executable->Drop();
+        if (onload) onload->Drop();
+        while (!block.empty()) {
+            block.top().Free();
+            block.pop();
+        }
+        while (!callable.empty()) {
+            CJSCallable* c = callable.top();
+            if (c) c->Drop();
+            callable.pop();
+        }
+        if (module) module->Drop();
+    }
+};
+
+class CJSCImpl : public CJSCompiler
+{
+public:
+    std::stack<CJSCState> state;
+    std::vector<CError> errs;
+
+    CJSCImpl();
+    virtual ~CJSCImpl();
+
+    CJSCState* NewState(const std::string& name, const std::string& filename, const std::string& source);
+    CJSCState* CurrentState();
+
+    CJSCallable* CurrentCallable();
+    CJSFunction* Executable();
+    CJSFunction* OnLoad();
+
+    CJSObject* GetScope(CJSValue* value);
+
+    bool Error(const int code, const std::string& file, const size_t line, const std::string& text);
+
+    CJSBlock* CurrentBlock();
+    CJSBlock* NewFunction(const std::string& name, const size_t argc);
+    CJSBlock* NewClass(const std::string& name);
+    CJSVar* NewVariable(CJSValue* value, const std::string& name, const size_t size = 0);
+
+    virtual CJSModule* CompileFile(const std::string& name, const std::string& filename);
+    virtual CJSModule* CompileSource(const std::string& name, const std::string& filename, const std::string& source);
+
+    virtual CJSModule* Compile(const std::string& name, const std::string& filename, const std::string& source, std::vector<CError>* log = nullptr);
+
+    virtual bool CompileStatement();
+    virtual bool CompileDeclare(CJSVar* o);
+    virtual bool CompileVarialbleDeclare(CJSVar* o);
+    virtual bool CompileClassDeclare(CJSVar* o);
+    virtual bool CompileFunctionDeclare(CJSVar* o);
+    virtual bool CompileAssignment(CJSVar* o);
+    virtual bool CompileIfElse();
+    virtual bool CompileLoop();
+    virtual bool CompileWhile();
+    virtual bool CompileFor();
+    virtual bool CompileSwitch();
+};
+
+
+CJSCImpl::CJSCImpl()
+{
+}
+
+CJSCImpl::~CJSCImpl()
+{
+    while (!state.empty()) {
+        CJSCState& s = state.top();
+        s.Free();
+        state.pop();
+    }
+}
+
+CJSCState* CJSCImpl::NewState(const std::string& name, const std::string& filename, const std::string& source)
+{
+    CJSCState* prev = state.empty() ? nullptr : &state.top();
+
+    state.push(CJSCState());
+    CJSCState& s = state.top();
+
+    s.previous = prev;
+
+    s.name = name;
+    s.file = filename;
+    s.source = source;
+    s.lexer = CLexer(filename, source);
+    s.module = new CJSModule(name);
+
+    return &state.top();
+}
+
+bool CJSCImpl::Error(const int code, const std::string& file, const size_t line, const std::string& text)
+{
+    errs.push_back(CError(code, file, line, text));
+    return false;
+}
+
+CJSFunction* CJSCImpl::OnLoad()
+{
+    CJSCState* s = CurrentState();
+    if (!s->onload) {
+        s->onload = new CJSFunction();
+        s->module->AddOwnProperty("__onload__", CJSPropertyDescriptor(CJSPropertyDescriptor::VALUE, s->onload));
+    }
+    return s->onload;
+}
+
+CJSFunction* CJSCImpl::Executable()
+{
+    CJSCState* s = CurrentState();
+    if (!s->executable) {
+        s->executable = new CJSFunction();
+        s->module->AddOwnProperty("__executable__", CJSPropertyDescriptor(CJSPropertyDescriptor::VALUE, s->executable));
+
+        std::stack<CJSCallable*> copyOfCallable(s->callable);
+        s->callable.clear();
+        s->callable.push(s->executable);
+        while (!copyOfCallable.empty()) {
+            CJSCallable* c = copyOfCallable.top();
+            copyOfCallable.pop();
+            s->callable.push(c);
+        }
+    }
+    return s->executable;
+}
+
+CJSCallable* CJSCImpl::CurrentCallable()
+{
+    CJSCState* s = CurrentState();
+    return s->callable.size() >= 1 ? s->callable.top() : Executable();
+}
+
+CJSBlock* CJSCImpl::CurrentBlock()
+{
+    CJSCState* s = CurrentState();
+    if (s->block.empty()) {
+        CJSCallable* exec = CurrentCallable();
+        CJSBlock blk;
+        blk.type = CJSBlock::Scope;
+        blk.value = CurrentCallable();
+        s->block.push(blk);
+    }
+    return &s->block.top();
+}
+
+CJSObject* CJSCImpl::GetScope(CJSValue* value)
+{
+    if (value->GetType()->IsObject())
+        return (CJSObject*)value;
+    else if (value->root)
+        return GetScope(value->root);
+
+    CJSCState* s = CurrentState();
+    return s->module;
+}
+
+CJSBlock* CJSCImpl::NewFunction(const std::string& name, const size_t argc)
+{
+    CJSCState* s = CurrentState();
+    CJSBlock* root = CurrentBlock();
+    CJSBlock* scope = root->GetScope();
+    if (!scope) scope = s->scope;
+    for (size_t i = 0; i < scope->declares.size(); i++) {
+        if (!name.empty() && scope->declares[i].name == name && scope->declares[i].size == argc) {
+            Error(CError::BadName, s->file, s->line, format("Function with \"%s\" name and %d arguments already declared!", name, argc));
+            return nullptr;
+        }
+    }
+
+    CJSFunction* function = new CJSFunction();
+
+    CJSVar* var = NewVariable(function, name, argc);
+
+    s->block.push(CJSBlock());
+    CJSBlock& blk = s->block.top();
+
+    blk.type = CJSBlock::Scope;
+    blk.root = root;
+    blk.value = var->value;
+    blk.file = s->file;
+    blk.line = s->line;
+
+
+    s->callable.push(function);
+
+    return &s->block.top();
+}
+
+CJSBlock* CJSCImpl::NewClass(const std::string& name)
+{
+    CJSCState* s = CurrentState();
+    CJSBlock* root = CurrentBlock();
+    for (size_t i = 0; i < root->declares.size(); i++) {
+        if (root->declares[i].name == name && root->declares[i].size == argc) {
+            Error(CError::BadName, s->file, s->line, format("Function with \"%s\" name and %d arguments already declared!", name, argc));
+            return nullptr;
+        }
+    }
+
+    CJSVar* var = NewVariable(new CJSObject(), name);
+
+
+    s->block.push(CJSBlock());
+    CJSBlock& blk = s->block.top();
+
+    blk.type = CJSBlock::Scope;
+    blk.root = root;
+    blk.value = var->value;
+    blk.file = s->file;
+    blk.line = s->line;
+
+    return &block.top();
+}
+
+CJSVar* CJSCImpl::NewVariable(CJSValue* value, const std::string& name, const size_t size)
+{
+    CJSCState* s = CurrentState();
+    CJSBlock* root = CurrentBlock();
+    CJSBlock* scope = root->GetScope();
+    if (!scope) scope = s->scope;
+    for (size_t i = 0; i < scope->declares.size(); i++) {
+        if (scope->declares[i].name == name && scope->declares[i].size == size) {
+            Error(CError::BadName, s->file, s->line, format("Function with \"%s\" name and %d arguments already declared!", name, argc));
+            return nullptr;
+        }
+    }
+
+    CJSObject* o = scope->value->AsObject();
+    o->AddOwnProperty(name, CJSPropertyDescriptor(CJSPropertyDescriptor::VALUE, value));
+
+    CJSVar var;
+    var.name = name;
+    var.size = size;
+    var.value = value->Grab();
+    scope->declares.push_back(var);
+
+    return &scope->declares[scope->declares.size() - 1];
 }

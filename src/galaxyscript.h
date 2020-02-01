@@ -43,620 +43,6 @@ class CVMState;
 
 typedef void (*CVMFunctionPrototype)(CVMState*);
 
-class CVMData : public std::vector<char>
-{
-public:
-    enum {
-        DataBytes = 0,
-        DataString,
-        DataNumber
-    };
-    uint8_t type;
-
-    CVMData() : type(DataBytes) {}
-    CVMData(const CVMData& data) : std::vector<char>(data), type(data.type) {}
-};
-
-class CVMDeclare
-{
-public:
-    enum {
-        DeclarePrototype = 0,
-        DeclareFunction,
-        DeclareProperty,
-        DeclareScope,
-        DeclareVar,
-        DeclareConst,
-        DeclareLet = DeclareScope,
-    };
-
-    uint8_t as;
-    std::string name;
-    CVMDeclare* base;
-    CVMTypeinfo* type;
-    CVMModule* module;
-    CVMData* data;
-    intptr_t value;
-
-    CVMDeclare() : base(nullptr), type(nullptr), as(DeclareStack), module(nullptr), value(nullptr) {}
-    CVMDeclare(const CVMDeclare& declare) : base(declare.base), name(declare.name), as(declare.as), type(declare.type), module(declare.module), value(declare.value)
-    {
-    }
-    ~CVMDeclare() {}
-
-    void Rename(const std::string& name, CVMModule* module);
-
-
-    CVMValue* Exec(CVMValue* state);
-};
-
-class CVMModule
-{
-public:
-    std::string name;
-    CVMValue* root;
-    std::vector<CVMTypeinfo> types;
-    std::vector<CVMData> datas;
-    std::vector<CVMDeclare> symbols;
-
-
-    CVMModule();
-    CVMModule(const CVMModule& module);
-    ~CVMModule();
-
-    bool Link();
-    bool Rename(const std::string& name);
-
-    CVMValue* GetRoot();
-
-    bool ExistsType(const std::string& name) const;
-    CVMTypeinfo* DeclareType(const std::string& name, const CVMTypeinfo* type = nullptr);
-    CVMTypeinfo* GetType(const std::string& name) const;
-
-    bool ExistsVariable(const std::string& name) const;
-    CVMDeclare* DeclareVariable(CVMDeclare* base, CVMTypeinfo* type, const std::string& name, uint8_t declare = CVMDeclare::DeclareVar);
-    CVMDeclare* GetVariable(const std::string& name) const;
-
-    bool ExistsFunction(const std::string& name) const;
-    CVMDeclare* DeclareFunction(const std::string& name);
-    CVMDeclare* GetFunction(const std::string& name) const;
-
-    bool ExistsPrototype(const std::string& name) const;
-    CVMDeclare* DeclarePrototype(const std::string& name);
-    CVMDeclare* GetPrototype(const std::string& name) const;
-};
-
-class CVMTypeinfo
-{
-public:
-    enum Kind {
-        Kind_Undefined = 0,
-        Kind_Null,
-        Kind_Variable,
-        Kind_Pointer,
-        Kind_Callable,
-        Kind_String,
-        Kind_Number,
-        Kind_Array,
-        Kind_Object,
-        Kind_Module
-    };
-    enum Flag {
-        Flag_None = 0,
-        Flag_Integer = BIT(0),
-        Flag_Float = BIT(1),
-        Flag_Double = BIT(2),
-        Flag_Boolean = BIT(3),
-        Flag_Bignum = BIT(4),
-        Flag_Unsigned = BIT(5),
-        Flag_Constant = BIT(6),
-        Flag_Import = BIT(7),
-        Flag_Export = BIT(8),
-        Flag_Native = BIT(9),
-        Flag_Buildin = BIT(10),
-        Flag_Property = BIT(11),
-        Flag_Async = BIT(12),
-        Flag_Void = BIT(13),
-        Flag_Symbol = BIT(14),
-        Flag_Function = BIT(15),
-        Flag_Block = BIT(16),
-        Flag_Frame = BIT(17),
-        Flag_Constructor = BIT(18),
-        Flag_Destructor = BIT(19),
-        Flag_Element = BIT(20),
-        Flag_Literal = BIT(21),
-        Flag_Prototype = BIT(22)
-    };
-
-    uint32_t version;
-    std::string name;
-    CVMModule* module;
-    size_t index;
-    CVMTypeinfo* super;
-    Kind kind;
-    uint8_t bits; // For numbers
-    uint64_t flags;
-    std::vector<char> value;
-    CVMTypeinfo* ctor;
-    CVMTypeinfo* dtor;
-
-
-    CVMTypeinfo();
-    CVMTypeinfo(CVMTypeinfo* type);
-    ~CVMTypeinfo();
-
-    CVMTypeinfo& operator=(const CVMTypeinfo& type)
-    {
-        version = type.version;
-        name = type.name;
-        module = type.module;
-        index = type.index;
-        super = type.super;
-        kind = type.kind;
-        bits = type.bits;
-        flags = type.flags;
-        value = type.value;
-        ctor = type.ctor;
-        dtor = type.dtor;
-        return *this;
-    }
-
-
-    inline CVMTypeinfo& InsertInt8(int8_t v)
-    {
-        value.push_back(v);
-        return *this;
-    }
-    inline CVMTypeinfo& InsertUInt8(uint8_t v)
-    {
-        value.push_back(*(int8_t*)&v);
-        return *this;
-    }
-    inline CVMTypeinfo& InsertInt16(int16_t v)
-    {
-        int16_t c = htole16(v);
-        InsertInt8((int8_t)c);
-        InsertInt8((int8_t)(c >> 8));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertUInt16(uint16_t v)
-    {
-        uint16_t c = htole16(v);
-        InsertUInt8((uint8_t)c);
-        InsertUInt8((uint8_t)(c >> 8));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertInt32(int32_t v)
-    {
-        int32_t c = htole32(v);
-        InsertInt16((int16_t)c);
-        InsertInt16((int16_t)(c >> 16));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertUInt32(uint32_t v)
-    {
-        uint32_t c = htole32(v);
-        InsertUInt16((uint16_t)c);
-        InsertUInt16((uint16_t)(c >> 16));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertInt64(int64_t v)
-    {
-        int64_t c = htole64(v);
-        InsertInt32((int32_t)c);
-        InsertInt32((int32_t)(c >> 32));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertUInt64(uint64_t v)
-    {
-        uint64_t c = htole64(v);
-        InsertUInt32((uint32_t)c);
-        InsertUInt32((uint32_t)(c >> 32));
-        return *this;
-    }
-    inline CVMTypeinfo& InsertFloat(float v)
-    {
-        return InsertUInt32(*(uint32_t*)&v);
-    }
-    inline CVMTypeinfo& InsertDouble(double v)
-    {
-        return InsertUInt64(*(uint64_t*)&v);
-    }
-    template <typename Type>
-    inline CVMTypeinfo& InsertVarInt(Type n)
-    {
-        unsigned char tmp[(sizeof(n) * 8 + 6) / 7];
-        int len = 0;
-        while (true) {
-            tmp[len] = (n & 0x7F) | (len ? 0x80 : 0x00);
-            if (n <= 0x7F)
-                break;
-            n = (n >> 7) - 1;
-            len++;
-        }
-        do {
-            InsertUInt8(tmp[len]);
-        } while (len--);
-        return *this;
-    }
-    inline CVMTypeinfo& InsertIntptr(intptr_t v)
-    {
-        return InsertInt64((int64_t)v);
-    }
-
-    int8_t GetInt8(int64_t ofs = 0) const
-    {
-        return *(value.data() + ofs);
-    }
-    uint8_t GetUInt8(int64_t ofs = 0) const
-    {
-        return *((uint8_t*)value.data() + ofs);
-    }
-    int16_t GetInt16(int64_t ofs = 0) const
-    {
-        return le16toh(*(int16_t*)(value.data() + ofs));
-    }
-    uint16_t GetUInt16(int64_t ofs = 0) const
-    {
-        return le16toh(*(uint16_t*)(value.data() + ofs));
-    }
-    int32_t GetInt32(int64_t ofs = 0) const
-    {
-        return le32toh(*(int32_t*)(value.data() + ofs));
-    }
-    uint32_t GetUInt32(int64_t ofs = 0) const
-    {
-        return le32toh(*(uint32_t*)(value.data() + ofs));
-    }
-    int64_t GetInt64(int64_t ofs = 0) const
-    {
-        return le64toh(*(int64_t*)(value.data() + ofs));
-    }
-    uint64_t GetUInt64(int64_t ofs = 0) const
-    {
-        return le64toh(*(uint64_t*)(value.data() + ofs));
-    }
-    intptr_t GetIntptr(int64_t ofs = 0) const
-    {
-        return (intptr_t)le64toh(*(int64_t*)(value.data() + ofs));
-    }
-
-    template <typename Type>
-    inline Type GetVarInt(int64_t ofs = 0) const
-    {
-        Type n = 0;
-        while (true) {
-            unsigned char chData = GetUInt8(ofs++);
-            if (n > (std::numeric_limits<I>::max() >> 7)) {
-                throw std::ios_base::failure("ReadVarInt(): size too large");
-            }
-            n = (n << 7) | (chData & 0x7F);
-            if (chData & 0x80) {
-                if (n == std::numeric_limits<I>::max()) {
-                    throw std::ios_base::failure("ReadVarInt(): size too large");
-                }
-                n++;
-            } else {
-                return n;
-            }
-        }
-    }
-
-    static CVMTypeinfo LiteralArray(const std::vector<CVMValue*>& values);
-    static CVMTypeinfo LiteralObject(const std::vector<std::pair<std::string, CVMValue*>>& keys);
-    static CVMTypeinfo LiteralBytesVector(const std::vector<char>& bytes);
-    static CVMTypeinfo LiteralString(const std::string& value);
-    static CVMTypeinfo LiteralBoolean(const bool value);
-    static CVMTypeinfo LiteralInt8(const int8_t value);
-    static CVMTypeinfo LiteralUInt8(const uint8_t value);
-    static CVMTypeinfo LiteralInt16(const int16_t value);
-    static CVMTypeinfo LiteralUInt16(const uint16_t value);
-    static CVMTypeinfo LiteralInt32(const int32_t value);
-    static CVMTypeinfo LiteralUInt32(const uint32_t value);
-    static CVMTypeinfo LiteralInt64(const int64_t value);
-    static CVMTypeinfo LiteralUInt64(const uint64_t value);
-    static CVMTypeinfo LiteralFloat(const float value);
-    static CVMTypeinfo LiteralDouble(const double value);
-
-    inline CVMTypeinfo& InsertRawBytes(const char* bytes, int64_t size)
-    {
-        int64_t ofs = 0;
-        while (ofs < size) {
-            InsertInt8(*(bytes + ofs));
-            ofs++;
-        }
-        return *this;
-    }
-    inline CVMTypeinfo& InsertBytes(const char* bytes, int64_t size)
-    {
-        InsertUInt32(size);
-        InsertRawBytes(bytes, size);
-        return *this;
-    }
-
-    inline CVMTypeinfo& InsertRawByteVector(const std::vector<char>& bytes)
-    {
-        value.insert(value.end(), bytes.begin(), bytes.end());
-        return *this;
-    }
-    inline CVMTypeinfo& InsertByteVector(const std::vector<char>& bytes)
-    {
-        InsertUInt32(bytes.size());
-        InsertRawByteVector(bytes);
-        return *this;
-    }
-
-    inline CVMTypeinfo& InsertRawString(const std::string& str)
-    {
-        value.insert(value.end(), str.begin(), str.end());
-        return *this;
-    }
-    inline CVMTypeinfo& InsertString(const std::string& str)
-    {
-        InsertUInt32(str.length() + 1);
-        InsertRawString(str);
-        return *this;
-    }
-
-    void SetNull();
-
-    inline const uint64_t Flags() const
-    {
-        if (super)
-            return super->Flags() | flags;
-        return flags;
-    }
-    inline const uint8_t Bits() const
-    {
-        if (super)
-            return std::max(super->Bits(), bits);
-        return bits;
-    }
-
-
-    inline bool Extends() const
-    {
-        return (super != nullptr);
-    }
-
-    inline bool HaveConstructor() const
-    {
-        return (ctor != nullptr);
-    }
-    inline bool HaveConstructors() const
-    {
-        return (ctor != nullptr) || (super && super->HaveConstructors());
-    }
-
-    inline bool HaveDestructor() const
-    {
-        return (dtor != nullptr);
-    }
-    inline bool HaveDestructors() const
-    {
-        return (dtor != nullptr) || (super && super->HaveDestructors());
-    }
-
-    inline bool IsNull() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == CVMTypeinfo::Kind_Null) && !(ff & Flag_Void);
-    }
-
-    inline bool IsUndefined() const
-    {
-        return (kind == CVMTypeinfo::Kind_Undefined);
-    }
-
-    inline bool IsVoid() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == CVMTypeinfo::Kind_Null) && (ff & Flag_Void);
-    }
-
-    inline bool IsPointer() const
-    {
-        return (kind == Kind_Pointer);
-    }
-    inline bool IsString() const
-    {
-        return (kind == Kind_String);
-    }
-    inline bool IsSymbol() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_String) && (ff & Flag_Symbol);
-    }
-    inline bool IsNumber() const
-    {
-        return (kind == Kind_Number);
-    }
-    inline bool IsBoolean() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Number) && (ff & Flag_Boolean);
-    }
-    inline bool IsBignum() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Number) && (ff & Flag_Bignum);
-    }
-    inline bool IsFloat() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Number) && (ff & Flag_Float);
-    }
-    inline bool IsDouble() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Number) && (ff & Flag_Double);
-    }
-    inline bool IsInteger() const
-    {
-        const uint64_t ff = Flags();
-        if (kind != Kind_Number)
-            return false;
-        else if (ff & Flag_Boolean)
-            return false;
-        else if (ff & Flag_Float)
-            return false;
-        else if (ff & Flag_Double)
-            return false;
-        else if (ff & Flag_Bignum)
-            return false;
-        else
-            return true;
-    }
-    inline bool IsUnsigned() const
-    {
-        const uint64_t ff = Flags();
-        return (ff & Flag_Unsigned);
-    }
-    inline bool IsInt8() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && (bb == 8);
-    }
-    inline bool IsInt16() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && (bb == 16);
-    }
-    inline bool IsInt32() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && (bb == 32);
-    }
-    inline bool IsInt64() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && (bb == 64);
-    }
-    inline bool IsUInt8() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && (bb == 8);
-    }
-    inline bool IsUInt16() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && IsUnsigned() && (bb == 16);
-    }
-    inline bool IsUInt32() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && IsUnsigned() && (bb == 32);
-    }
-    inline bool IsUInt64() const
-    {
-        const uint8_t bb = Bits();
-        return IsInteger() && IsUnsigned() && (bb == 64);
-    }
-    inline bool IsVariable() const
-    {
-        return (kind == Kind_Variable);
-    }
-    inline bool IsProperty() const
-    {
-        return (kind == Kind_Variable) && (flags & Flag_Property);
-    }
-    inline bool IsPrimitive() const
-    {
-        return (IsString() || IsNumber() || IsPointer() || IsLiteral()) || IsVariable();
-    }
-    inline bool IsObject() const
-    {
-        return (kind == Kind_Object);
-    }
-    inline bool IsArray() const
-    {
-        return (kind == Kind_Array);
-    }
-    inline bool IsArrayElement() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Variable) && (ff & Flag_Element);
-    }
-    inline bool IsFunction() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Callable) && (ff & Flag_Function);
-    }
-    inline bool IsAsync() const
-    {
-        const uint64_t ff = Flags();
-        return (ff & Flag_Async);
-    }
-    inline bool IsBlock() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Callable) && (ff & Flag_Block);
-    }
-    inline bool IsFrame() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Callable) && (ff & Flag_Frame);
-    }
-    inline bool IsConstructor() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Callable) && (ff & Flag_Constructor);
-    }
-    inline bool IsDestructor() const
-    {
-        const uint64_t ff = Flags();
-        return (kind == Kind_Callable) && (ff & Flag_Destructor);
-    }
-    inline bool IsCallable() const
-    {
-        return (kind == Kind_Callable);
-    }
-    inline bool IsModule() const
-    {
-        return (kind == Kind_Module);
-    }
-    inline bool IsNative() const
-    {
-        const uint64_t ff = Flags();
-        return (ff & Flag_Native);
-    }
-    inline bool IsLiteral() const
-    {
-        const uint64_t ff = Flags();
-        return (ff & Flag_Literal);
-    }
-
-    static CVMTypeinfo* UndefinedType();
-    static CVMTypeinfo* NullType();
-    static CVMTypeinfo* VoidType();
-    static CVMTypeinfo* StringType();
-    static CVMTypeinfo* SymbolType();
-    static CVMTypeinfo* BooleanType();
-    static CVMTypeinfo* IntegerType();
-    static CVMTypeinfo* Int8Type();
-    static CVMTypeinfo* Int16Type();
-    static CVMTypeinfo* Int32Type();
-    static CVMTypeinfo* Int64Type();
-    static CVMTypeinfo* UInt8Type();
-    static CVMTypeinfo* UInt16Type();
-    static CVMTypeinfo* UInt32Type();
-    static CVMTypeinfo* UInt64Type();
-    static CVMTypeinfo* FloatType();
-    static CVMTypeinfo* DoubleType();
-    static CVMTypeinfo* BignumType();
-    static CVMTypeinfo* ObjectType();
-    static CVMTypeinfo* ArrayType();
-    static CVMTypeinfo* FunctionType();
-    static CVMTypeinfo* AsyncFunctionType();
-    static CVMTypeinfo* PrototypeType();
-    static CVMTypeinfo* FrameType();
-    static CVMTypeinfo* BlockType();
-    static CVMTypeinfo* ModuleType();
-    static CVMTypeinfo* VariableType();
-    static CVMTypeinfo* PropertyType();
-    static CVMTypeinfo* ElementType();
-};
-
 enum CVMOp {
     CVMOp_Nop = 0,
     CVMOp_Declare,
@@ -741,1082 +127,31 @@ enum CVMBinaryOp {
 };
 
 
-typedef std::function<void(CVMState*)> CVMFunction;
-
-class CVMValue
-{
-public:
-    CVMValue* root;
-    CVMValue* super;
-    CVMValue* value;
-
-    std::string name;
-    size_t index;
-    intptr_t address;
-    std::vector<CVMValue*> values;
-    std::unordered_map<std::string, CVMValue*> variables;
-    CVMTypeinfo* type;
-    size_t refCounter;
-
-    CVMValue();
-    CVMValue(CVMValue* root, const CVMTypeinfo& type, const std::string& name, const std::vector<char>& data = std::vector<char>());
-    CVMValue(CVMValue* value);
-    virtual ~CVMValue();
-
-    inline CVMValue* AsSuper() { return super ? super : this; }
-    inline CVMModule* AsModule() { return (CVMModule*)address; }
-    inline CVMValue* ToValue() const
-    {
-        if (type == CVMTypeinfo::PropertyType()) return value;
-        if (type == CVMTypeinfo::VariableType()) return value;
-        return this;
-    }
-
-    virtual bool Encode(std::vector<char>& data);
-    virtual bool Decode(const std::vector<char>& data);
-
-    virtual void SetNull();
-
-    virtual uint64_t Flags() const { return type->flags; }
-
-    inline bool IsNull() const
-    {
-        return type->IsNull() && (super && super->IsNull());
-    }
-
-    inline bool IsUndefined() const
-    {
-        return type->IsUndefined() && (super && super->IsUndefined());
-    }
-
-    inline bool IsVoid() const
-    {
-        return type->IsVoid() && (super && super->IsVoid());
-    }
-
-    static inline std::string RandName()
-    {
-        char name[17];
-        memset(name, 0, sizeof(name));
-        GetRandBytes((unsigned char*)name, sizeof(name) - 1);
-        return name;
-    }
-    inline std::string GetName() const { return name; }
-    inline std::string GetFullname() const { return (root) ? (root->GetFullname().empty() ? GetName() : root->GetFullname() + (!GetName().empty() ? "." + GetName() : GetName())) : GetName(); }
-
-    inline bool IsCopable() const { return !type->IsModule(); }
-
-    inline CVMValue* Grab()
-    {
-        refCounter++;
-        return this;
-    }
-    inline CVMValue* Drop()
-    {
-        refCounter--;
-        if (refCounter <= 0) {
-            delete this;
-            return nullptr;
-        }
-        return this;
-    }
-
-    virtual void Init(CVMValue* initializer);
-    virtual void Assign(CVMValue* value);
-
-    inline CVMValue* SetKeyValue(const std::string& name, CVMValue* value)
-    {
-        if (variables.count(name) && variables[name] != nullptr) {
-            if (value) {
-                variables[name]->Assign(value);
-            } else {
-                variables[name]->SetNull();
-            }
-            return variables[name];
-        }
-        variables[name] = new CVMValue(this, CVMTypeinfo::PropertyType(), name);
-        if (value) variables[name]->Assign(value);
-        return variables[name];
-    }
-
-    inline CVMValue* SetKeyValue2(const std::string& name, CVMValue* value)
-    {
-        if (variables.count(name) && variables[name] != nullptr) {
-            if (value) {
-                variables[name]->Assign(value);
-            } else {
-                variables[name]->SetNull();
-            }
-            return variables[name];
-        }
-        variables[name] = new CVMValue(this, CVMTypeinfo::VariableType(), name);
-        if (value) variables[name]->value = value->Grab();
-        return variables[name];
-    }
-
-    inline CVMValue* GetKeyValue(const std::string& name)
-    {
-        if (!variables.count(name))
-            return nullptr;
-        return variables[name];
-    }
-
-    inline void SetArrayElement(int64_t index, CVMValue* value)
-    {
-        if (index >= 0) {
-            if (index >= values.size()) {
-                values.resize(index + 1);
-                values[index] = new CVMValue(this, CVMTypeinfo::ElementType(), RandName());
-            }
-            values[index]->Assign(value);
-        }
-    }
-
-    inline CVMValue* GetArrayElement(int64_t index)
-    {
-        if (index > 0 && index < values.size()) return values[index];
-        return nullptr;
-    }
-
-    inline size_t Bytes() const
-    {
-        return std::max(super ? super->Bytes() : size_t(0), size_t(type->value.size()));
-    }
-
-    inline size_t Bits() const
-    {
-        return std::max(super ? super->Bits() : size_t(0), size_t(Bits()));
-    }
-
-    inline char* Data()
-    {
-        return type->value.data();
-    }
-    inline const char* Data() const
-    {
-        return type->value.data();
-    }
-
-    inline std::string AsVariableName()
-    {
-        return AsSource();
-    }
-
-    inline bool AsBoolean() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint8_t*)Data()) > 0;
-                    else
-                        return *((int8_t*)Data()) > 0;
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0;
-                else
-                    return false;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint16_t*)Data()) > 0;
-                    else
-                        return *((int16_t*)Data()) > 0;
-                } else
-                    return false;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint32_t*)Data()) > 0;
-                    else
-                        return *((int32_t*)Data()) > 0;
-                } else
-                    return false;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint64_t*)Data()) > 0;
-                    else
-                        return *((int64_t*)Data()) > 0;
-                } else
-                    return false;
-            } break;
-            default:
-                return false;
-            }
-        } else if (type->kind == CVMTypeinfo::Kind_Pointer)
-            return ((void*)Data()) != nullptr;
-        else if (type->kind == CVMTypeinfo::Kind_Variable)
-            return (value != nullptr);
-        return false;
-    }
-
-    inline int8_t AsInt8() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int8_t) * ((uint8_t*)Data());
-                    else
-                        return *((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int8_t) * ((uint16_t*)Data());
-                    else
-                        return (int8_t) * ((int16_t*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int8_t) * ((uint32_t*)Data());
-                    else
-                        return (int8_t) * ((int32_t*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int8_t) * ((uint64_t*)Data());
-                    else
-                        return (int8_t) * ((int64_t*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline int16_t AsInt16() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int16_t) * ((uint8_t*)Data());
-                    else
-                        return (int16_t) * ((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int16_t) * ((uint16_t*)Data());
-                    else
-                        return *((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int16_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int16_t) * ((uint32_t*)Data());
-                    else
-                        return (int16_t) * ((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int16_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int16_t) * ((uint64_t*)Data());
-                    else
-                        return (int16_t) * ((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (int16_t) * ((double*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline int32_t AsInt32() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int32_t) * ((uint8_t*)Data());
-                    else
-                        return (int32_t) * ((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int32_t) * ((uint16_t*)Data());
-                    else
-                        return (int32_t) * ((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int32_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int32_t) * ((uint32_t*)Data());
-                    else
-                        return *((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int32_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int32_t) * ((uint64_t*)Data());
-                    else
-                        return (int32_t) * ((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (int32_t) * ((double*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline int32_t AsUInt32() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint32_t) * ((uint8_t*)Data());
-                    else
-                        return (uint32_t) * ((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint32_t) * ((uint16_t*)Data());
-                    else
-                        return (uint32_t) * ((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (uint32_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint32_t*)Data());
-                    else
-                        return (uint32_t) * ((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (uint32_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint32_t) * ((uint64_t*)Data());
-                    else
-                        return (uint32_t) * ((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (uint32_t) * ((double*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline int64_t AsInt64() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int64_t) * ((uint8_t*)Data());
-                    else
-                        return (int64_t) * ((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int64_t) * ((uint16_t*)Data());
-                    else
-                        return (int64_t) * ((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int64_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int64_t) * ((uint32_t*)Data());
-                    else
-                        return (int64_t) * ((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (int64_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (int64_t) * ((uint64_t*)Data());
-                    else
-                        return *((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (int64_t) * ((double*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline uint64_t AsUInt64() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint64_t) * ((uint8_t*)Data());
-                    else
-                        return (uint64_t) * ((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1 : 0;
-                else
-                    return 0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint64_t) * ((uint16_t*)Data());
-                    else
-                        return (uint64_t) * ((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (uint64_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (uint64_t) * ((uint32_t*)Data());
-                    else
-                        return (uint64_t) * ((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (uint64_t) * ((float*)Data());
-                } else
-                    return 0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return *((uint64_t*)Data());
-                    else
-                        return (uint64_t) * ((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (uint64_t) * ((double*)Data());
-                } else
-                    return 0;
-            } break;
-            default:
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    inline float AsFloat() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (float)*((uint8_t*)Data());
-                    else
-                        return (float)*((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1.0f : 0.0f;
-                else
-                    return 0.0f;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (float)*((uint16_t*)Data());
-                    else
-                        return (float)*((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return *((float*)Data());
-                } else
-                    return 0.0f;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (float)*((uint32_t*)Data());
-                    else
-                        return (float)*((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return *((float*)Data());
-                } else
-                    return 0.0f;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (float)*((uint64_t*)Data());
-                    else
-                        return (float)*((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return (float)*((double*)Data());
-                } else
-                    return 0.0f;
-            } break;
-            default:
-                return 0.0f;
-            }
-        }
-        return 0.0f;
-    }
-
-
-    inline float AsDouble() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (double)*((uint8_t*)Data());
-                    else
-                        return (double)*((int8_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    return *((uint8_t*)Data()) > 0 ? 1.0 : 0.0;
-                else
-                    return 0.0;
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (double)*((uint16_t*)Data());
-                    else
-                        return (double)*((int16_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (double)*((float*)Data());
-                } else
-                    return 0.0;
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (double)*((uint32_t*)Data());
-                    else
-                        return (double)*((int32_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                    return (double)*((float*)Data());
-                } else
-                    return 0.0;
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Integer) {
-                    if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                        return (double)*((uint64_t*)Data());
-                    else
-                        return (double)*((int64_t*)Data());
-                } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                    return *((double*)Data());
-                } else
-                    return 0.0;
-            } break;
-            default:
-                return 0.0;
-            }
-        }
-        return 0.0;
-    }
-
-    inline uint256 AsBignum() const
-    {
-        uint256 ret;
-        if (type->kind == CVMTypeinfo::Kind_Number) {
-            if (type->flags & CVMTypeinfo::Flag_Bignum) {
-                return *((uint256*)Data());
-            } else
-                return uint256(AsUInt64());
-        } else if (type->kind == CVMTypeinfo::Kind_String)
-            return uint256S(AsString());
-        return ret;
-    }
-
-    inline std::string AsString() const
-    {
-        std::string ret;
-        if (type->kind == CVMTypeinfo::Kind_String) {
-            return std::string(type->value.begin(), type->value.end());
-        } else if (type->kind == CVMTypeinfo::Kind_Number) {
-            if (type->flags & CVMTypeinfo::Flag_Bignum) return ((uint256*)Data())->GetHex();
-
-            std::ostringstream ss(ret);
-            ss.imbue(std::locale::classic());
-
-            switch (Bits()) {
-            case 8: {
-                if (type->flags & CVMTypeinfo::Flag_Boolean)
-                    ss << (*((uint8_t*)Data()) > 0 ? "true" : "false");
-                else if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                    ss << *((uint8_t*)Data());
-                else
-                    ss << *((int8_t*)Data());
-            } break;
-            case 16: {
-                if (type->flags & CVMTypeinfo::Flag_Float)
-                    ss << *((float*)Data());
-                else if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                    ss << *((uint16_t*)Data());
-                else
-                    ss << *((int16_t*)Data());
-            } break;
-            case 32: {
-                if (type->flags & CVMTypeinfo::Flag_Float)
-                    ss << *((float*)Data());
-                else if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                    ss << *((uint32_t*)Data());
-                else
-                    ss << *((int32_t*)Data());
-            } break;
-            case 64: {
-                if (type->flags & CVMTypeinfo::Flag_Double)
-                    ss << *((double*)Data());
-                else if (type->flags & CVMTypeinfo::Flag_Unsigned)
-                    ss << *((uint64_t*)Data());
-                else
-                    ss << *((int64_t*)Data());
-            } break;
-            default:
-                ss << 0;
-            }
-        } else if (type->kind == CVMTypeinfo::Kind_Pointer) {
-            std::ostringstream ss(ret);
-            ss.imbue(std::locale::classic());
-            ss << (void*)Data();
-        } else if (type->kind == CVMTypeinfo::Kind_Variable) {
-            return GetFullname();
-        } else if (type->kind == CVMTypeinfo::Kind_Object)
-            return "[object Object]";
-        else if (type->kind == CVMTypeinfo::Kind_Array)
-            return "[object Array]";
-        else if (type->kind == CVMTypeinfo::Kind_Callable && type->flags & CVMTypeinfo::Flag_Function)
-            return "[object Callable]";
-        else if (type->kind == CVMTypeinfo::Kind_Callable && type->flags & CVMTypeinfo::Flag_Block)
-            return "[object Block]";
-        else if (type->kind == CVMTypeinfo::Kind_Callable && type->flags & CVMTypeinfo::Flag_Frame)
-            return "[object Frame]";
-        else if (type->kind == CVMTypeinfo::Kind_Callable)
-            return "[object Callable]";
-        else if (type->kind == CVMTypeinfo::Kind_Null)
-            return "null";
-        else
-            ret = "undefined";
-        return ret;
-    }
-
-    std::string OpcodeAsString(std::vector<char>::const_iterator& it);
-
-    static inline std::string ScopedName(const std::string scope, const std::string& value)
-    {
-        return scope.empty() ? value : scope + "." + value;
-    }
-
-    static inline std::string ScopedNameSelect(const bool first, const std::string& scopeFirst, const std::string& scopeSecond, const std::string& name)
-    {
-        return first ? ScopedName(scopeFirst, name) : ScopedName(scopeSecond, name);
-    }
-
-    inline std::string AsSource()
-    {
-        switch (type->kind) {
-        case CVMTypeinfo::Kind_Null:
-            return "null";
-        case CVMTypeinfo::Kind_Undefined:
-            return "undefined";
-        case CVMTypeinfo::Kind_String:
-            return std::string("new ") + (type->flags & CVMTypeinfo::Flag_Symbol ? "Symbol" : "String") + "(\"" + std::string(type->value.begin(), type->value.end()) + "\")";
-        case CVMTypeinfo::Kind_Number: {
-            if (type->flags & CVMTypeinfo::Flag_Boolean) {
-                return AsBoolean() ? "true" : "false";
-            } else if (type->flags & CVMTypeinfo::Flag_Integer) {
-                return (type->flags & CVMTypeinfo::Flag_Unsigned) ? std::string("new Number(") + std::to_string(AsUInt64()) + ")" : "new Number(" + std::to_string(AsInt64()) + ")";
-            } else if (type->flags & CVMTypeinfo::Flag_Float) {
-                return std::string("new Number(") + std::to_string(AsFloat()) + ")";
-            } else if (type->flags & CVMTypeinfo::Flag_Double) {
-                return std::string("new Number(") + std::to_string(AsDouble()) + ")";
-            } else if (type->flags & CVMTypeinfo::Flag_Bignum) {
-                return std::string("new Number(\"") + AsBignum().GetHex() + "\")";
-            }
-        } break;
-        case CVMTypeinfo::Kind_Variable: {
-            return GetName() + ": " + (value ? value->AsSource() : "null");
-        } break;
-        case CVMTypeinfo::Kind_Array: {
-            std::string ret = "[";
-            for (std::vector<CVMValue*>::iterator it = values.begin(); it != values.end(); it++)
-                ret += (*it)->AsSource();
-            ret += "]";
-            return ret;
-        } break;
-        case CVMTypeinfo::Kind_Object: {
-            std::string ret = "{";
-            for (std::unordered_map<std::string, CVMValue*>::iterator it = std::begin(variables); it != std::end(variables); it++) {
-                if (it != std::begin(variables)) ret += ", ";
-                ret += (*it).second ? (*it).second->AsSource() : ((*it).first + ": null");
-            }
-            ret += "}";
-            return ret;
-        } break;
-        case CVMTypeinfo::Kind_Callable: {
-            if (type->flags & CVMTypeinfo::Flag_Function) {
-                std::string ret = "function()";
-                if (type->flags & CVMTypeinfo::Flag_Native)
-                    ret += " { [native code] } ";
-                else {
-                    std::vector<char>::const_iterator it = type->value.begin();
-                    while (it < type->value.end())
-                        ret += OpcodeAsString(it);
-                }
-                return ret;
-            } else if (type->flags & CVMTypeinfo::Flag_Frame) {
-                std::string ret = "";
-                if (type->flags & CVMTypeinfo::Flag_Native)
-                    ret += " [native code] ";
-                else {
-                    std::vector<char>::const_iterator it = type->value.begin();
-                    while (it < type->value.end())
-                        ret += OpcodeAsString(it);
-                }
-                return ret;
-            } else if (type->flags & CVMTypeinfo::Flag_Block) {
-                std::string ret = " { ";
-                if (type->flags & CVMTypeinfo::Flag_Native)
-                    ret += " [native code] ";
-                else {
-                    std::vector<char>::const_iterator it = type->value.begin();
-                    while (it < type->value.end())
-                        ret += OpcodeAsString(it);
-                }
-                ret += " } ";
-                return ret;
-            }
-            return " [object Callable] ";
-        } break;
-        }
-        return "";
-    }
-
-    inline size_t Length() const
-    {
-        if (type->kind == CVMTypeinfo::Kind_String)
-            return Bytes() - 1;
-        else if (type->kind == CVMTypeinfo::Kind_Array)
-            return values.size();
-        else
-            return Bytes();
-    }
-};
-typedef std::vector<CVMValue*> CValueVector;
-
-
-class CVMState
-{
-public:
-    enum {
-        MAX_STACK = 64,
-        MAX_SCOPE = 32
-    };
-
-    struct Block {
-        CVMValue* module;
-        size_t offset, size;
-
-        Block() : offset(0), size(0) {}
-        Block(const Block& block) : offset(block.offset), size(block.size) {}
-        Block(const size_t offset, const size_t size) : offset(offset), size(size) {}
-    };
-
-    struct Loop {
-        Block start, end;
-        Block condition, huition;
-
-        Loop() {}
-        Loop(size_t address, size_t end) {}
-    };
-
-    struct Scope {
-        Scope* top;
-        CVMValue* value;
-
-        Scope() : top(nullptr), value(nullptr) {}
-        Scope(Scope* top, CVMValue* value) : top(top), value(value ? value->Grab() : nullptr) {}
-        Scope(Scope& scope) : top(scope.top), value(scope.value ? scope.value->Grab() : nullptr) {}
-        ~Scope()
-        {
-            if (value) value->Drop();
-        }
-    };
-
-    struct Frame {
-        size_t refCount;
-        size_t pc;
-        Frame* caller;
-
-        CVMValue *value, *thisValue, *superValue, *arguments;
-        CVMValue* callable;
-        std::stack<Loop> loops;
-
-
-        Frame() : refCount(1)
-        {
-            MakeFrame(nullptr, 0, nullptr, nullptr, nullptr);
-        }
-        Frame(Frame* caller, Frame* frame) : refCount(1)
-        {
-            MakeFrame(caller, frame ? frame->pc : 0, frame ? frame->thisValue : nullptr, frame ? frame->callable : nullptr, frame ? frame->arguments : nullptr);
-        }
-        Frame(Frame* caller, const size_t pc, CVMValue* ths, CVMValue* callable, CVMValue* arguments) : refCount(1)
-        {
-            MakeFrame(caller, pc, ths, callable, arguments);
-        }
-        ~Frame()
-        {
-            if (caller) caller->Drop();
-            if (thisValue) thisValue->Drop();
-            if (superValue) superValue->Drop();
-            if (arguments) arguments->Drop();
-            if (callable) callable->Drop();
-            if (value) value->Drop();
-        }
-
-        Frame* Grab()
-        {
-            refCount++;
-            return this;
-        }
-
-        Frame* Drop()
-        {
-            refCount--;
-            if (refCount == 0) {
-                delete this;
-                return nullptr;
-            }
-            return this;
-        }
-
-        Loop* GetLoop()
-        {
-            if (loops.empty()) return nullptr;
-            return loops.top();
-        }
-
-        Loop* EnterLoop(const Loop& loop)
-        {
-            loops.push(loop);
-            return &loops.top();
-        }
-
-        Loop* LeaveLoop()
-        {
-            if (!loops.empty()) loops.pop();
-            return loops.empty() ? nullptr : &loops.top();
-        }
-
-        std::string RandName() const
-        {
-            char name[17];
-            memset(name, 0, sizeof(name));
-            GetRandBytes((unsigned char*)name, sizeof(name) - 1);
-            return name;
-        }
-
-        void MakeFrame(Frame* caller, const size_t pc, CVMValue* thisArg, CVMValue* callable, CVMValue* args)
-        {
-            assert(callable != nullptr);
-            this->value = new CVMValue(callable->Grab(), CVMTypeinfo::FrameType(), RandName());
-            this->caller = caller ? caller->Grab() : nullptr;
-            this->callable = callable->Grab();
-            this->pc = pc;
-            this->thisValue = this->value->SetKeyValue("this", thisArg ? thisArg : this->callable);
-            this->superValue = this->value->SetKeyValue("super", thisArg ? thisArg->AsSuper() : this->callable->AsSuper());
-            this->arguments = this->value->SetKeyValue("arguments", (args && args->type.IsArray()) ? args : nullptr);
-            this->loops.clear();
-        }
-    };
-
-    size_t bp, dp;
-    std::stack<CVMValue*> stack;
-    std::stack<Frame> frames;
-    std::stack<Scope> scopes;
-    std::stack<CVMValue*> objects, functions, prototypes;
-
-
-    CVMState();
-    CVMState(CVMState* state);
-    virtual ~CVMState();
-
-    inline void Flush()
-    {
-        bp = dp = 0;
-        while (stack.size())
-            stack.pop();
-        while (scopes.size())
-            scopes.pop();
-        while (frames.size())
-            frames.pop();
-    }
-
-    inline void EnterScope(CVMValue* newscope)
-    {
-        scopes.push(Scope(scopes.empty() ? nullptr : &scopes.top(), newscope));
-    }
-
-    inline void LeaveScope()
-    {
-        if (scopes.size() > 1) scopes.pop();
-    }
-
-    CVMValue* GetGlobal();
-    inline CVMValue* GetFrame()
-    {
-        return frames.empty() ? GetGlobal() : frames.top()->value;
-    }
-    inline CVMValue* GetScope()
-    {
-        return scopes.empty() ? GetFrame()->value : scopes.top()->value;
-    }
-    inline void PushPrototype(CVMObject* val)
-    {
-        prototype.push(val);
-    }
-    inline void PopPrototype() { prototypes.pop(); }
-    inline CVMObject* GetPrototype()
-    {
-        return prototypes.empty() ? nullptr : prototypes.top();
-    }
-    inline void PushObject(CVMObject* val)
-    {
-        objects.push(val);
-    }
-    inline void PopObject() { objects.pop(); }
-    inline CVMObject* GetObject()
-    {
-        return objects.empty() ? nullptr : objects.top();
-    }
-    inline void PushFunction(CVMObject* val)
-    {
-        functions.push(val);
-    }
-    inline void PopFunction() { functions.pop(); }
-    inline CVMObject* GetFunction()
-    {
-        return functions.empty() ? nullptr : functions.top();
-    }
-
-    void PushStack();
-    void PushNull();
-    void PushUndefined();
-    void PushTrue();
-    void PushFalse();
-    void PushIndex(int64_t index);
-    void PushValue(const std::string& key);
-    void PushSymbol(const std::string& key);
-    void PushType();
-
-    inline void Push(CVMValue* value)
-    {
-        assert(stack.size() < MAX_STACK);
-        if (value) value->Grab();
-        stack.push(value);
-    }
-    inline CVMValue* Top()
-    {
-        assert(stack.size() > 0);
-        return stack.top();
-    }
-    inline CVMValue* Pop()
-    {
-        assert(stack.size() > 0);
-        CVMValue* value = stack.top();
-        stack.pop();
-        return value ? value->Drop() : nullptr;
-    }
-};
-
-void* CVMDynlibOpen(const std::string& path);
-void CVMDynlibClose(void* dynlib);
-void* CVMDynlibAddr(void* dynlib, const std::string& name);
-
-
-CVMValue* VMLoadModule(CVMValue* module, const std::string& name);
-CVMValue* VMSaveModule(CVMValue* module, const std::string& name);
-CVMValue* VMAddModule(const std::string& name);
-CVMValue* VMGetModule(const std::string& name);
-bool VMCall(CVMState* state, CVMValue* callable);
-bool VMCall(CVMValue* callable);
-bool VMRunSource(const std::string& source);
-bool VMRunFile(const std::string& file);
+typedef std::function<void(CVMState*)> CVMNativeFunction;
+
+
+void* CJSDynlibOpen(const std::string& path);
+void CJSDynlibClose(void* dynlib);
+void* CJSDynlibAddr(void* dynlib, const std::string& name);
+
+std::string CJSGenName();
+
+class CJSValue;
+class CJSNull;
+class CJSUndefined;
+class CJSPrimitive;
+class CJSObject;
+class CJSCallable;
+class CJSFunction;
+class CJSArray;
+class CJSString;
+class CJSSymbol;
+class CJSNumber;
+class CJSBigint;
+class CJSBoolean;
+class CJSReference;
+class CJSArray;
+class CJSModule;
 
 class CJSType
 {
@@ -1824,6 +159,7 @@ public:
     enum {
         Undefined = 0,
         Null,
+        Primitive,
         String,
         Symbol,
         Number,
@@ -1835,7 +171,7 @@ public:
 
     enum {
         Buildin = (1 << 0),
-        Primitive = (1 << 1),
+        Reserved0 = (1 << 1),
         Array = (1 << 2),
         Typed = (1 << 3),
         Callable = (1 << 4),
@@ -1893,15 +229,86 @@ public:
 class CJSValue
 {
 public:
-    CJSValue* root;
-    uint32_t refs;
+    mutable CJSValue* root;
+    mutable uint32_t refs;
 
     CJSValue();
     CJSValue(CJSValue* value);
     virtual ~CJSValue();
 
+    static CJSValue* UndefinedValue();
+    static CJSValue* NullValue();
+    static CJSValue* ZeroValue();
+    static CJSValue* TrueValue();
+    static CJSValue* FalseValue();
+
     virtual CJSValue* SetRootValue(CJSValue* root);
-    CJSValue* GetRootValue();
+    virtual CJSValue* GetRootValue();
+
+    virtual CJSValue* AsValue() { return this; }
+    virtual const CJSValue* AsValue() const { return this; }
+
+    virtual CJSPrimitive* AsPrimitive() { return nullptr; }
+    virtual const CJSPrimitive* AsPrimitive() const { return nullptr; }
+    virtual bool HasPrimitive() const { return false; }
+
+    virtual CJSObject* AsObject() { return nullptr; }
+    virtual const CJSObject* AsObject() const { return nullptr; }
+    virtual bool HasObject() const { return false; }
+
+    virtual CJSCallable* AsCallable() { return nullptr; }
+    virtual const CJSCallable* AsCallable() const { return nullptr; }
+    virtual bool HasCallable() const { return false; }
+
+    virtual CJSFunction* AsFunction() { return nullptr; }
+    virtual const CJSFunction* AsFunction() const { return nullptr; }
+    virtual bool HasFunction() const { return false; }
+
+    virtual CJSReference* AsReference() { return nullptr; }
+    virtual const CJSReference* AsReference() const { return nullptr; }
+    virtual bool HasReference() const { return false; }
+
+    virtual CJSModule* AsModule() { return nullptr; }
+    virtual const CJSModule* AsModule() const { return nullptr; }
+    virtual bool HasModule() const { return false; }
+
+    virtual CJSNumber* AsNumber() { return nullptr; }
+    virtual const CJSNumber* AsNumber() const { return nullptr; }
+    virtual bool HasNumber() const { return false; }
+
+    virtual CJSBoolean* AsBoolean() { return nullptr; }
+    virtual const CJSBoolean* AsBoolean() const { return nullptr; }
+    virtual bool HasBoolean() const { return false; }
+    virtual bool HasTrue() const { return false; }
+    inline bool HasFalse() const { return !HasTrue(); }
+
+    virtual CJSString* AsString() { return nullptr; }
+    virtual const CJSString* AsString() const { return nullptr; }
+    virtual bool HasString() const { return false; }
+
+    virtual CJSSymbol* AsSymbol() { return nullptr; }
+    virtual const CJSSymbol* AsSymbol() const { return nullptr; }
+    virtual bool HasSymbol() const { return false; }
+
+    virtual CJSUndefined* AsUndefined() { return nullptr; }
+    virtual const CJSUndefined* AsUndefined() const { return nullptr; }
+    virtual bool HasUndefined() const { return false; }
+
+    virtual CJSNull* AsNull() { return nullptr; }
+    virtual const CJSNull* AsNull() const { return nullptr; }
+    virtual bool HasNull() const { return false; }
+
+    virtual CJSBigint* AsBigint() { return nullptr; }
+    virtual const CJSBigint* AsBigint() const { return nullptr; }
+    virtual bool HasBigint() const { return false; }
+
+    virtual CJSArray* AsArray() { return nullptr; }
+    virtual const CJSArray* AsArray() const { return nullptr; }
+    virtual bool HasArray() const { return false; }
+
+    virtual bool CanConvertToBoolean() const { return true; }
+    virtual bool CanConvertToString() const { return true; }
+    virtual bool CanConvertToNumber() const { return true; }
 
     virtual CJSValue* New()
     {
@@ -1917,50 +324,106 @@ public:
         return this;
     }
 
-    virtual CJSValue* Assign(CJSValue* value)
+    static CJSValue* GlobalScope();
+
+    virtual CJSValue* Scope()
     {
-        return this;
+        if (root) {
+            CJSValue* tree = root;
+            while (tree) {
+                if (tree->IsObject() && tree->HasOwnValue(This())) return tree;
+                tree = tree->root;
+            }
+        }
+        return GlobalScope();
+    }
+    virtual CJSValue* ThisScope()
+    {
+        if (IsObject())
+            return This();
+
+        return Scope();
     }
 
-    virtual CJSValue* AssignSymbol(const std::string& name, CJSValue* value)
+    virtual CJSValue* This() { return this; }
+    virtual const CJSValue* This() const { return this; }
+    virtual CJSValue* ThisRef() { return Grab(); }
+    virtual const CJSValue* ThisRef() const { return Grab(); }
+    virtual CJSValue* ValueRef();
+    virtual const CJSValue* ValueRef() const;
+
+    virtual bool HasOwnValue(CJSValue* value) const
     {
-        if (name == "this") Assign(value);
-        return this;
+        if (!value) return false;
+        return value == this;
     }
 
-    virtual CJSValue* ReplaceSymbol(const std::string& name, CJSValue* value)
+    virtual CJSValue* AssignValue(CJSValue* value);
+    virtual CJSValue* AssignSymbol(const std::string& name, CJSValue* value);
+    virtual CJSValue* AssignIndex(const int64_t index, CJSValue* value);
+
+    virtual CJSValue* SetSymbol(const std::string& name, CJSValue* value)
     {
-        if (name == "__root__") SetRootValue(value);
-        return this;
+        if (name.empty())
+            AssignValue(value);
+    }
+    virtual CJSValue* GetSymbol(const std::string& name)
+    {
+        if (name.empty())
+            return This();
+        return NullValue();
+    }
+    virtual CJSValue* GetSymbolRef(const std::string& name)
+    {
+        if (name.empty())
+            return ValueRef();
+        return NullValue();
     }
 
-    virtual CJSValue* ResolveSymbol(const std::string& name)
+    virtual CJSValue* SetIndex(const int64_t index, CJSValue* value)
     {
-        if (name == "__root__") return root;
-        return this;
+        if (index == 0) AssignValue(value);
+        return value ? value : NullValue();
+    }
+    virtual CJSValue* GetIndex(const int64_t index)
+    {
+        if (index == 0)
+            return This();
+        else
+            return NullValue();
+    }
+    virtual CJSValue* GetIndexRef(const int64_t index)
+    {
+        if (index == 0)
+            return ValueRef();
+        else
+            return NullValue();
     }
 
-    virtual const CJSType* GetType() const
+    virtual size_t GetLength() const { return 1; }
+
+    virtual const CJSType* Type() const
     {
-        static CJSType type(CJSType::Undefined, 0, "undefined", nullptr);
-        return &type;
+        return nullptr;
     }
 
-    inline bool CheckTypeId(const uint8_t id) const
+    inline bool CheckTypeId(const uint8_t id, const bool recursive = true) const
     {
-        const CJSType* type = GetType();
+        const CJSType* type = Type();
         while (type) {
             if (type->id == id) return true;
+            if (!recursive) break;
             type = type->super;
         }
         return false;
     }
 
-    inline bool CheckTypeFlags(const uint8_t flags) const
+    inline bool CheckTypeFlags(const uint32_t flags, const bool recursive = true) const
     {
-        const CJSType* type = GetType();
+        const CJSType* type = Type();
         while (type) {
             if (type->flags & flags) return true;
+            if (!recursive) break;
             type = type->super;
         }
         return false;
@@ -1968,11 +431,11 @@ public:
 
     inline bool IsUndefined() const
     {
-        return CheckTypeFlags(CJSType::Undefined);
+        return HasUndefined() || CheckTypeId(CJSType::Undefined, false);
     }
     inline bool IsNull() const
     {
-        return CheckTypeFlags(CJSType::Null);
+        return HasNull() || CheckTypeId(CJSType::Null, false);
     }
     inline bool IsUndefinedOrNull() const
     {
@@ -1981,19 +444,19 @@ public:
 
     inline bool IsBuildin() const
     {
-        return CheckTypeFlags(CJSType::Buildin);
+        return CheckTypeFlags(CJSType::Buildin, false);
     }
     inline bool IsPrimitive() const
     {
-        return CheckTypeFlags(CJSType::Primitive);
+        return HasPrimitive() || CheckTypeId(CJSType::Primitive, false);
     }
     inline bool IsCallable() const
     {
-        return CheckTypeFlags(CJSType::Callable);
+        return HasCallable() || (CheckTypeId(CJSType::Object) && CheckTypeFlags(CJSType::Callable));
     }
     inline bool IsFunction() const
     {
-        return CheckTypeFlags(CJSType::Function);
+        return HasFunction() || (IsCallable() && CheckTypeFlags(CJSType::Function));
     }
     inline bool IsArrow() const
     {
@@ -2021,58 +484,82 @@ public:
     }
     inline bool IsModule() const
     {
-        return CheckTypeFlags(CJSType::Module);
+        return HasModule() || (CheckTypeId(CJSType::Object) && CheckTypeFlags(CJSType::Module));
     }
     inline bool IsArray() const
     {
-        return CheckTypeFlags(CJSType::Array);
+        return HasArray() || (CheckTypeId(CJSType::Object) && CheckTypeFlags(CJSType::Array));
     }
     inline bool IsObject() const
     {
-        return CheckTypeId(CJSType::Object);
+        return HasObject() || CheckTypeId(CJSType::Object);
     }
     inline bool IsString() const
     {
-        return CheckTypeId(CJSType::String);
+        return HasString() || CheckTypeId(CJSType::String, false);
     }
     inline bool IsSymbol() const
     {
-        return CheckTypeId(CJSType::Symbol);
+        return HasSymbol() || CheckTypeId(CJSType::Symbol, false);
     }
     inline bool IsBigint() const
     {
-        return CheckTypeId(CJSType::Bigint);
+        return HasBigint() || CheckTypeId(CJSType::Bigint, false);
     }
     inline bool IsBoolean() const
     {
-        return CheckTypeId(CJSType::Boolean);
+        return HasBoolean() || CheckTypeId(CJSType::Boolean, false);
     }
 
-    virtual bool AsBoolean() const { return false; }
+    virtual bool ToBoolean() const { return !IsUndefinedOrNull(); }
 
-    virtual int8_t AsInt8() const { return 0; }
-    virtual uint8_t AsUInt8() const { return 0; }
-    virtual int16_t AsInt16() const { return 0; }
-    virtual uint16_t AsUInt16() const { return 0; }
-    virtual int32_t AsInt32() const { return 0; }
-    virtual uint32_t AsUInt32() const { return 0; }
-    virtual int64_t AsInt64() const { return 0; }
-    virtual uint64_t AsUInt64() const { return 0; }
+    virtual int8_t ToInt8() const { return 0; }
+    virtual uint8_t ToUInt8() const { return 0; }
+    virtual int16_t ToInt16() const { return 0; }
+    virtual uint16_t ToUInt16() const { return 0; }
+    virtual int32_t ToInt32() const { return 0; }
+    virtual uint32_t ToUInt32() const { return 0; }
+    virtual int64_t ToInt64() const { return 0; }
+    virtual uint64_t ToUInt64() const { return 0; }
 
-    virtual float AsFloat() const { return 0.0f; }
-    virtual double AsDouble() const { return 0.0; }
+    virtual float ToFloat() const { return 0.0f; }
+    virtual double ToDouble() const { return 0.0; }
 
-    virtual std::string AsString() const
+    virtual std::string ToTypename() const
     {
-        if (IsUndefined()) return "undefined";
-        if (IsNull()) return "null";
-        return "";
+        std::vector<const CJSType*> tree;
+        const CJSType* type = Type();
+        if (type && type->super) {
+            while (type) {
+                tree.push_back(type);
+                type = type->super;
+            }
+
+            std::string fullname;
+            for (size_t i = tree.size() - 1; i >= 0; i--) {
+                fullname += tree[i]->name + (i > 0 ? " " : "");
+            }
+            return fullname;
+        }
+        return type ? type->name : "undefined";
     }
+
+    virtual std::string ToString() const
+    {
+        return ToTypename();
+    }
+
 
     inline CJSValue* Grab()
     {
         refs++;
-        return this
+        return this;
+    }
+
+    inline const CJSValue* Grab() const
+    {
+        refs++;
+        return this;
     }
     inline CJSValue* Drop()
     {
@@ -2084,22 +571,145 @@ public:
         refs--;
         return this;
     }
-};
-
-
-class CJSNull : public CJSValue
-{
-public:
-    CJSNull();
-
-    virtual const CJSType* GetType() const
+    inline const CJSValue* Drop() const
     {
-        static CJSType type(CJSType::Null, CJSType::Buildin | CJSType::Primitive, "null", nullptr);
-        return &type;
+        if (refs == 1) {
+            refs--;
+            delete this;
+            return nullptr;
+        }
+        refs--;
+        return this;
     }
 };
 
-class CJSNumber : public CJSValue
+class CJSPrimitive : public CJSValue
+{
+public:
+    CJSPrimitive() : CJSValue() {}
+
+    static CJSPrimitive* Static()
+    {
+        static CJSPrimitive instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("primitive", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static bool InitStatic()
+    {
+        return Static() != nullptr;
+    }
+
+    virtual CJSPrimitive* AsPrimitive() { return this; }
+    virtual const CJSPrimitive* AsPrimitive() const { return this; }
+    virtual bool HasPrimitive() const { return true; }
+
+    virtual CJSValue* New() { return new CJSPrimitive(); }
+    virtual CJSValue* Copy() { return new CJSPrimitive(); }
+
+    static const CJSType* StaticType()
+    {
+        static CJSType type(CJSType::Primitive, CJSType::Buildin, "primitive", nullptr);
+        return &type;
+    }
+
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
+    }
+};
+
+class CJSUndefined : public CJSPrimitive
+{
+public:
+    CJSUndefined() : CJSPrimitive() {}
+
+    static CJSUndefined* Static()
+    {
+        static CJSUndefined instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("undefined", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static bool InitStatic()
+    {
+        return Static() != nullptr;
+    }
+
+    virtual CJSUndefined* AsUndefined() { return this; }
+    virtual const CJSUndefined* AsUndefined() const { return this; }
+    virtual bool HasUndefined() const { return true; }
+
+    virtual CJSValue* New() { return new CJSUndefined(); }
+    virtual CJSValue* Copy() { return new CJSUndefined(); }
+
+    static const CJSType* StaticType()
+    {
+        static CJSType type(CJSType::Undefined, CJSType::Buildin, "undefined", CJSPrimitive::StaticType());
+        return &type;
+    }
+
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
+    }
+};
+
+class CJSNull : public CJSPrimitive
+{
+public:
+    CJSNull() : CJSPrimitive() {}
+
+    static CJSNull* Static()
+    {
+        static CJSNull instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("null", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static bool InitStatic()
+    {
+        return Static() != nullptr;
+    }
+
+    virtual bool HasNull() const { return true; }
+    virtual CJSNull* AsNull() { return this; }
+    virtual const CJSNull* AsNull() const { return this; }
+
+    virtual CJSValue* New() { return new CJSNull(); }
+    virtual CJSValue* Copy() { return new CJSNull(); }
+
+    static const CJSType* StaticType()
+    {
+        static CJSType type(CJSType::Null, CJSType::Buildin, "null", CJSPrimitive::StaticType());
+        return &type;
+    }
+
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
+    }
+};
+
+class CJSNumber : public CJSPrimitive
 {
 public:
     enum {
@@ -2112,8 +722,30 @@ public:
     void* mem;
 
     CJSNumber();
-    CJSNumber(CJSValue* value);
+    CJSNumber(CJSNumber* value);
     virtual ~CJSNumber();
+
+    static CJSNumber* Static()
+    {
+        static CJSNumber instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("Number", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static bool InitStatic()
+    {
+        return Static() != nullptr;
+    }
+
+    virtual bool HasNumber() const { return true; }
+    virtual CJSNumber* AsNumber() { return this; }
+    virtual const CJSNumber* AsNumber() const { return this; }
 
     virtual CJSValue* New()
     {
@@ -2128,20 +760,77 @@ public:
     void AllocNumber(const uint8_t bits, const bool isreal = false, const bool isunsigned = false);
     void FreeNumber();
 
-    virtual const CJSType* GetType() const
+    virtual const CJSType* Type() const
     {
         return &type;
     }
 };
 
-class CJSBoolean : public CJSValue
+class CJSBoolean : public CJSPrimitive
 {
 public:
     bool value;
 
-    CJSBoolean();
-    CJSBoolean(CJSValue* value);
-    virtual ~CJSBoolean();
+    CJSBoolean() : CJSPrimitive(), value(false) {}
+    CJSBoolean(CJSBoolean* other) : CJSPrimitive(), value(other->value) {}
+    virtual ~CJSBoolean() {}
+
+    static CJSBoolean* StaticTrue()
+    {
+        static CJSBoolean instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            instance.value = true;
+
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("true", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static CJSBoolean* StaticFalse()
+    {
+        static CJSBoolean instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            instance.value = false;
+
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("false", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static CJSBoolean* Static()
+    {
+        static CJSBoolean instance;
+        static bool initialized = false;
+
+        if (!initialized) {
+            CJSValue* gs = GlobalScope();
+            gs->SetSymbol("Boolean", &instance);
+            initialized = true;
+        }
+
+        return &instance;
+    }
+    static bool InitStatic()
+    {
+        StaticTrue();
+        StaticFalse();
+        return Static() != nullptr;
+    }
+
+    virtual bool HasBoolean() const { return true; }
+    virtual CJSBoolean* AsBoolean() { return this; }
+    virtual const CJSBoolean* AsBoolean() const { return this; }
+    virtual bool ToBoolean() const { return value; }
+    virtual bool HasTrue() const { return value; }
+    virtual bool HasFalse() const { return !value; }
 
     virtual CJSValue* New()
     {
@@ -2153,22 +842,26 @@ public:
         return new CJSBoolean(this);
     }
 
-    virtual const CJSType* GetType() const
+    static const CJSType* StaticType()
     {
-        static CJSType type(CJSType::Boolean, CJSType::Buildin | CJSType::Primitive, "boolean", nullptr);
+        static CJSType type(CJSType::Boolean, CJSType::Buildin, "Boolean", CJSPrimitive::StaticType());
         return &type;
+    }
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
     }
 };
 
-class CJSString : public CJSValue
+class CJSString : public CJSPrimitive
 {
 public:
     std::string value;
 
-    CJSString();
-    CJSString(const std::string& str);
-    CJSString(CJSValue* value);
-    virtual ~CJSString();
+    CJSString() : CJSPrimitive() {}
+    CJSString(const std::string& str) : CJSPrimitive(), value(str) {}
+    CJSString(CJSString* invalue) : CJSPrimitive(), value(invalue ? invalue->value : "") {}
+    virtual ~CJSString() {}
 
     virtual CJSValue* New()
     {
@@ -2180,21 +873,54 @@ public:
         return new CJSString(this);
     }
 
-    virtual const CJSType* GetType() const
+    virtual bool HasString() const { return true; }
+    virtual CJSString* AsString() { return this; }
+    virtual const CJSString* AsString() const { return this; }
+
+    virtual bool CanConvertToBoolean() const
     {
-        static CJSType type(CJSType::String, CJSType::Buildin | CJSType::Primitive, "string", nullptr);
+        return value == "0" || value == "1" || value == "true" || value == "false" || value == "null";
+    }
+    virtual bool CanConvertToString() const { return true; }
+    virtual bool CanConvertToNumber() const
+    {
+        char* p;
+        strtol(value.c_str(), &p, 10);
+        if (*p != 0) {
+            strtof(value.c_str(), &p, 10);
+            if (*p != 0) {
+                strtod(value.c_str(), &p, 10);
+                if (*p != 0) return false;
+            }
+        }
+        return true;
+    }
+
+    virtual std::string ToString() const
+    {
+        return value;
+    }
+
+    static const CJSType* StaticType()
+    {
+        static CJSType type(CJSType::String, CJSType::Buildin, "string", CJSPrimitive::StaticType());
         return &type;
+    }
+
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
     }
 };
 
 class CJSSymbol : public CJSString
 {
 public:
-    CJSSymbol();
-    CJSSymbol(const std::string& str);
-    CJSSymbol(CJSString* str);
-    CJSSymbol(CJSValue* value);
-    virtual ~CJSSymbol();
+    CJSSymbol() : CJSString() {}
+    CJSSymbol(const std::string& str) : CJSString(str) {}
+    CJSSymbol(CJSString* str) : CJSString(str) {}
+    CJSSymbol(CJSSymbol* value) : CJSString(value) {}
+    virtual ~CJSSymbol() {}
 
     virtual CJSValue* New()
     {
@@ -2205,58 +931,58 @@ public:
         return new CJSSymbol(this);
     }
 
-    virtual const CJSType* GetType() const
+    virtual bool HasSymbol() const { return true; }
+    virtual CJSSymbol* AsSymbol() { return this; }
+    virtual const CJSSymbol* AsSymbol() const { return this; }
+
+    static const CJSType* StaticType()
     {
-        static const CJSType* strType = CJSString::GetType();
-        static CJSType type(CJSType::Symbol, 0, "symbol", strType);
+        static CJSType type(CJSType::Symbol, 0, "symbol", CJSString::StaticType());
         return &type;
+    }
+
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
     }
 };
 
-class CJSPropertyDescriptor
+class CJSReference : public CJSPrimitive
 {
 public:
-    enum {
-        ENUMERABLE = (1 << 0),
-        CONFIGURABLE = (1 << 1),
-        SETTER = (1 << 2),
-        GETTER = (1 << 3),
-        SETTER_GETTER = (SETTER | GETTER),
-        VALUE = (1 << 4)
-    };
-
-    mutable uint32_t flags;
-    mutable CJSValue* value;
-    mutable CJSValue* setter;
-    mutable CJSValue* getter;
-
-    CJSPropertyDescriptor();
-    CJSPropertyDescriptor(const uint32_t flags, CJSValue* value, CJSValue* setter = nullptr, CJSValue* getter = nullptr);
-    CJSPropertyDescriptor(const CJSPropertyDescriptor& descriptor);
-    ~CJSPropertyDescriptor();
-};
-
-class CJSProperty
-{
-public:
-    mutable std::string name;
-    mutable CJSPropertyDescriptor descriptor;
-
-
-    CJSProperty();
-    CJSProperty(const std::string& name, const CJSPropertyDescriptor& descriptor);
-    CJSProperty(const CJSProperty& property);
-    virtual ~CJSProperty();
-};
-
-class CJSReference : public CJSValue
-{
-public:
+    std::string name;
+    CJSValue* owner;
     CJSValue* value;
 
-    CJSReference();
-    CJSReference(CJSValue* value);
-    virtual ~CJSReference();
+    CJSReference() : CJSPrimitive(), name(CJSGenName()), owner(nullptr), value(CJSUndefined::Static()->Grab())
+    {
+        SetRootValue(CJSValue::GlobalScope());
+    }
+    CJSReference(const std::string& name, CJSValue* root, CJSValue* owner, CJSValue* value) : CJSPrimitive(), name(name), owner(owner ? owner->Grab() : nullptr), value(value ? value->Grab() : CJSUndefined::Static()->Grab())
+    {
+        SetRootValue(root ? root : CJSValue::GlobalScope());
+    }
+    CJSReference(CJSReference* value) : CJSPrimitive(), name(value->name), owner(value->owner ? value->owner->Grab() : nullptr), value(value->value ? value->value->Grab() : CJSUndefined::Static()->Grab())
+    {
+        SetRootValue(CJSValue::GlobalScope());
+    }
+    virtual ~CJSReference()
+    {
+        if (owner) owner->Drop();
+        if (value) value->Drop();
+    }
+
+    virtual CJSValue* ThisScope()
+    {
+        if (owner)
+            return owner->ThisScope();
+        else
+            return CJSValue::ThisScope();
+    }
+
+    virtual bool HasReference() const { return true; }
+    virtual CJSReference* AsReference() { return this; }
+    virtual const CJSReference* AsReference() const { return this; }
 
     virtual CJSValue* New()
     {
@@ -2266,17 +992,64 @@ public:
     {
         return new CJSReference(this);
     }
-    virtual CJSValue* GetValue()
-    {
-        return value ? value : new CJSNull();
-    }
+    virtual CJSValue* GetValue();
 
-    virtual const CJSType* GetType() const
+    static const CJSType* StaticType()
     {
-        static CJSType type(CJSType::Reference, CJSType::Buildin | CJSType::Primitive, "reference", nullptr);
+        static CJSType type(CJSType::Reference, CJSType::Buildin, "reference", CJSPrimitive::StaticType());
         return &type;
     }
+    virtual const CJSType* Type() const
+    {
+        return StaticType();
+    }
 };
+
+class CJSPropertyDescriptor
+{
+public:
+    enum {
+        Enumerable = (1 << 0),
+        Configurable = (1 << 1),
+        Setter = (1 << 2),
+        Getter = (1 << 3),
+        SetterAndGetter = (Setter | Getter),
+        Value = (1 << 4)
+    };
+
+    mutable uint32_t flags;
+    mutable CJSValue* owner;
+    mutable CJSValue* value;
+    mutable CJSValue* setter;
+    mutable CJSValue* getter;
+    mutable CJSValue* initial;
+
+    inline CJSPropertyDescriptor() : flags(0), owner(nullptr), value(new CJSReference()), setter(nullptr), getter(nullptr), initial(nullptr)
+    {
+        value->AssignValue(CJSUndefined::Static());
+    }
+    inline CJSPropertyDescriptor(const uint32_t flags, CJSValue* owner = nullptr, CJSValue* value = nullptr, CJSValue* setter = nullptr, CJSValue* getter = nullptr, CJSValue* initializer = nullptr) : flags(flags), owner(owner), value(new CJSReference(owner, owner, value)), setter(setter), getter(getter), initial(initializer)
+    {
+    }
+    inline CJSPropertyDescriptor(const CJSPropertyDescriptor& descriptor) : flags(descriptor.flags), value(descriptor.value), setter(descriptor.setter), getter(descriptor.getter), initial(descriptor.initial) {}
+    inline ~CJSPropertyDescriptor() {}
+};
+
+class CJSProperty
+{
+public:
+    mutable std::string name;
+    mutable CJSPropertyDescriptor descriptor;
+
+
+    inline CJSProperty() {}
+    inline CJSProperty(const std::string& name, const CJSPropertyDescriptor& descriptor) : name(name), descriptor(descriptor) {}
+    inline CJSProperty(const CJSProperty& property) : name(property.name), descriptor(property.descriptor) {}
+    inline ~CJSProperty()
+    {
+    }
+};
+
 
 class CJSObject : public CJSValue
 {
@@ -2286,6 +1059,11 @@ public:
     CJSObject();
     CJSObject(CJSValue* value);
     virtual ~CJSObject();
+
+    virtual CJSObject* AsObject() { return this; }
+    virtual const CJSObject* AsObject() const { return this; }
+
+    virtual CJSReference* NewReference(const std::string& name);
 
     virtual CJSValue* New()
     {
@@ -2300,8 +1078,119 @@ public:
         static CJSType type(CJSType::Object, CJSType::Buildin, "object", nullptr);
         return &type;
     }
+
+    bool HasOwnProperty(const std::string& name) const;
+    void SetOwnProperty(const std::string& name, const CJSProperty& prop);
+    void SetOwnPropertyValue(const std::string& name, CJSValue* value);
+    CJSProperty* GetOwnProperty(const std::string& name) const;
+    CJSValue* GetOwnPropertyValue(const std::string& name) const;
+    CJSProperty* AddOwnProperty(const std::string& name, const CJSPropertyDescriptor& descriptor);
 };
 
+class CJSOpcode
+{
+public:
+    enum {
+        Nope = 0,
+        Push,
+        PushThis,
+        PushSuper,
+        PushArgumentI,
+        PushArgumentN,
+        PushIndex,
+        PushProperty,
+        Pop,
+        Ret,
+        Store,
+        Assign,
+        StoreIndex,
+        StoreProperty,
+        AssignIndex,
+        AssignProperty,
+        Call,
+        SysCall,
+        IfElse,
+        For,
+        While,
+        Break,
+        Continue,
+        Switch,
+    };
+    uint16_t id;
+    uint16_t modifier;
+    std::vector<uint8_t> data;
+
+    inline CJSOpcode() : id(0), modifier(0) {}
+    inline CJSOpcode(const uint16_t id, const uint16_t modifier, const std::vector<uint8_t>& data) : id(id), modifier(modifier), data(data) {}
+    inline CJSOpcode(const CJSOpcode& opcode) : id(opcode.id), modifier(opcode.modifier), data(opcode.data) {}
+};
+
+class CJSCallable : public CJSObject
+{
+public:
+    std::vector<CJSOpcode> opcodes;
+
+    CJSCallable();
+    CJSCallable(CJSCallable* callable);
+    virtual ~CJSCallable();
+
+    virtual CJSCallable* AsCallable() { return this; }
+};
+
+class CJSCallFrame
+{
+public:
+    CJSCallFrame* caller;
+    int callid;
+    CJSCallable* callable;
+    size_t pc;
+    CJSObject* thisArg;
+    std::vector<CJSObject*> args;
+};
+
+class CJSFunction : public CJSCallable
+{
+public:
+    CJSFunction();
+    CJSFunction(CJSFunction* other);
+    virtual ~CJSFunction();
+
+    bool IsAsyncFunction() const
+    {
+        return (GetType()->flags & CJSType::Async);
+    }
+
+    bool IsArrowFunction() const
+    {
+        return (GetType()->flags & CJSType::Arrow);
+    }
+};
+
+class CJSModuleDeclare
+{
+public:
+    enum {
+        None = 0,
+        Variable = 0,
+        Function,
+        Prototype
+    };
+
+    enum {
+        NonWritable = (1 << 0),
+        Constant = (1 << 1),
+        Static = (1 << 2),
+        Tempornary = (1 << 3),
+        Unnamed = (1 << 4)
+    };
+
+    mutable uint8_t type;
+    mutable uint32_t flags;
+    mutable CJSProperty* location;
+
+    CJSModuleDeclare() : type(None), flags(0), location(nullptr) {}
+    CJSModuleDeclare(const CJSModuleDeclare& declare) : type(declare.type), flags(declare.flags), location(declare.location) {}
+};
 
 class CJSModule : public CJSObject
 {
@@ -2312,12 +1201,20 @@ public:
         ModuleExecutable
     };
 
-    uint8_t moduleType;
+    std::string name;
+    uint32_t minor, major;
+    uint8_t typeOfModule;
+    bool initialized, loaded;
+
 
     CJSModule();
     CJSModule(const std::string& name);
-    CJSModule(CJSValue* value);
+    CJSModule(CJSModule* module);
     virtual ~CJSModule();
+
+    bool IsEmptyModule() const;
+    bool IsBadModule() const;
+    inline bool IsGoodModule() const { return !IsBadModule(); }
 
     virtual bool LoadModule(const std::string& name);
     virtual bool SaveModule(const std::string& name);
@@ -2332,9 +1229,27 @@ public:
     }
     virtual const CJSType* GetType() const
     {
-        static CJSType type(CJSType::Object, CJSType::Buildin | CJSType::Module, "object", nullptr);
+        static CJSType type(CJSType::Object, CJSType::Buildin | CJSType::Module, "module", CJSObject::GetType());
         return &type;
     }
+
+    bool HasOwnVariable(const std::string& name) const;
+    CJSValue* GetVariable(const std::string& name) const;
+    CJSReference* GetVariableRef(const std::string& name) const;
+
+    bool HasOwnFunction(const std::string& name) const;
+    CJSFunction* GetFunction(const std::string& name) const;
+    CJSReference* GetFunctionRef(const std::string& name) const;
+
+    bool HasOwnPrototype(const std::string& name) const;
+    CJSObject* GetPrototype(const std::string& name) const;
+    CJSReference* GetPrototypeRef(const std::string& name) const;
+    CJSObject* NewObject(const std::string& prototype) const;
+
+    bool HasExecutable() const;
+    CJSFunction* GetExecutable() const;
+
+    bool Exec();
 };
 
 #endif
